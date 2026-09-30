@@ -189,6 +189,20 @@ namespace HDC.Ads
         public static string GetMetaTestDeviceHash() =>
             Call<StringResult>("meta.deviceHash", "{}").value ?? string.Empty;
 
+        /// <summary>Drops the ads, callbacks and subscribers of the last Play Mode session; see HDCAds.</summary>
+        internal static void ResetStatics()
+        {
+            interstitialLoads.Clear();
+            rewardedAds.Clear();
+            appOpenAds.Clear();
+            bannerViews.Clear();
+            bridge = null;
+            initializedCallbacks = null;
+            AdEvent = null;
+            IsInitialized = false;
+            DebugLog = false;
+        }
+
         private static BoolResult Call(string method, string id, object fields = null, string[] adUnitIds = null) =>
             Call<BoolResult>(method, HDCJson.Args(id, fields, adUnitIds));
 

@@ -30,6 +30,22 @@ namespace HDC.Ads.Internal
             instance = host.AddComponent<HDCMainThread>();
         }
 
+        /// <summary>Drops the work and subscribers of the last Play Mode session; see HDCAds.</summary>
+        internal static void ResetStatics()
+        {
+            while (Queued.TryDequeue(out _))
+            {
+            }
+
+            Delayed.Clear();
+            Ticked = null;
+            ApplicationPaused = null;
+            // Leaving Play Mode destroys the host; one still alive would tick twice per frame.
+            if (instance != null)
+                Destroy(instance.gameObject);
+            instance = null;
+        }
+
         /// <summary>Runs <paramref name="action"/> on the main thread next frame. Safe from any thread.</summary>
         internal static void Post(Action action) => Queued.Enqueue(action);
 

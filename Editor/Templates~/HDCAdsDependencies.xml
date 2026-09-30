@@ -1,15 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Native dependencies of HDC ads, read by the External Dependency Manager.
-  Tools > HDC Ads > Enable copies this file to Assets/HDCLib/Editor/HDCAdsDependencies.xml;
-  Disable deletes that copy. Versions match what the HDCAds library was built with.
+  Tools > HDC Ads > Enable writes this file, with {HDC_ROOT} replaced by where HDCLib is, to
+  <HDCLib>/Editor/HDCAdsDependencies.xml, or to Assets/HDCAds/Editor/ when HDCLib is a package;
+  Disable deletes it.
+  Android: the library leaves Google Mobile Ads to the GMA Unity plugin and Meta Audience Network to its
+  mediation package, so the game's versions are used. iOS: versions match what HDCAds was built with.
 -->
 <dependencies>
   <androidPackages>
     <repositories>
-      <repository>Assets/HDCLib/Plugins/Android/Repository~</repository>
+      <repository>{HDC_ROOT}/Plugins/Android/Repository~</repository>
     </repositories>
-    <androidPackage spec="com.hdc.adsmultiplatform:shared-android:0.2.0" />
+    <androidPackage spec="com.hdc.adsmultiplatform:hdc-ads-android:0.3.0" />
   </androidPackages>
   <iosPods>
     <iosPod name="Google-Mobile-Ads-SDK" version="~> 13.9" minTargetSdk="15.0" />

@@ -21,13 +21,13 @@ namespace HDC.Ads
         private static bool listening;
         private static bool? adsRemoved;
 
-        public static HDCForceAds ForceAd { get; } = new HDCForceAds();
-        public static HDCRewardedAds Rewarded { get; } = new HDCRewardedAds();
-        public static HDCAppLaunchAds AppLaunch { get; } = new HDCAppLaunchAds();
-        public static HDCAppResumeAds AppResume { get; } = new HDCAppResumeAds();
-        public static HDCBannerAds Banner { get; } = new HDCBannerAds();
-        public static HDCMrecAds Mrec { get; } = new HDCMrecAds();
-        public static HDCPopupAds Popup { get; } = new HDCPopupAds();
+        public static HDCForceAds ForceAd { get; private set; } = new HDCForceAds();
+        public static HDCRewardedAds Rewarded { get; private set; } = new HDCRewardedAds();
+        public static HDCAppLaunchAds AppLaunch { get; private set; } = new HDCAppLaunchAds();
+        public static HDCAppResumeAds AppResume { get; private set; } = new HDCAppResumeAds();
+        public static HDCBannerAds Banner { get; private set; } = new HDCBannerAds();
+        public static HDCMrecAds Mrec { get; private set; } = new HDCMrecAds();
+        public static HDCPopupAds Popup { get; private set; } = new HDCPopupAds();
 
         public static HDCAdsConfig Config { get; private set; } = new HDCAdsConfig();
         public static HDCAdCoreConfig CoreConfig { get; private set; } = new HDCAdCoreConfig();
@@ -281,6 +281,45 @@ namespace HDC.Ads
                 }
             }
         }
+
+#if UNITY_EDITOR
+        /// <summary>
+        /// Puts every static of the library back to its start state when Play Mode starts. Without a domain
+        /// reload (Enter Play Mode Options, the default of new Unity 6.6 projects), statics keep the last
+        /// session's ads, callbacks and subscribers. Players always start fresh, so this is Editor only.
+        /// </summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetForPlayMode()
+        {
+            // By now this class has made its channels, which subscribe to events: clear the events, then make
+            // the channels again.
+            HDCMainThread.ResetStatics();
+            HDCGma.ResetStatics();
+            HDCAdsSdk.ResetStatics();
+
+            forceAdGroups.Clear();
+            rewardedGroup = null;
+            appOpenGroup = null;
+            initializeCalled = false;
+            listening = false;
+            adsRemoved = null;
+            Initialized = null;
+            FullscreenOpening = null;
+            BannerClicked = null;
+            Config = new HDCAdsConfig();
+            CoreConfig = new HDCAdCoreConfig();
+            IsInitialized = false;
+            LastFullscreenAdTime = 0f;
+
+            ForceAd = new HDCForceAds();
+            Rewarded = new HDCRewardedAds();
+            AppLaunch = new HDCAppLaunchAds();
+            AppResume = new HDCAppResumeAds();
+            Banner = new HDCBannerAds();
+            Mrec = new HDCMrecAds();
+            Popup = new HDCPopupAds();
+        }
+#endif
 
         private static void Listen()
         {
