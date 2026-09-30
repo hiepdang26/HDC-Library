@@ -1,0 +1,19 @@
+{
+    "name": "HDC.Ads.Firebase",
+    "rootNamespace": "HDC.Ads",
+    "references": [
+        "HDC.Ads"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "HDC_ADS",
+        "HDC_FIREBASE"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

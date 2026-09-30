@@ -1,0 +1,174 @@
+using System;
+using HDC.Ads.Internal;
+using UnityEngine;
+
+namespace HDC.Ads
+{
+    /// <summary>
+    /// The ad shown while the app starts: the force ad group or app open ad picked by the ad core config's
+    /// comeback channel. Once the launch clock starts, the ad shows as soon as it is ready and the minimum
+    /// wait has passed; after the timeout the launch goes on without it. <see cref="Completed"/> fires once
+    /// either way.
+    /// </summary>
+    public sealed class HDCAppLaunchAds
+    {
+        // Completes anyway if the ad never reports closing.
+        private const float CloseFallbackSeconds = 15f;
+        private const float ReadyCheckInterval = 0.25f;
+
+        private bool clockStarted;
+        private float clockStart;
+        private bool ticking;
+        private bool showing;
+        private float showStart;
+        private float nextReadyCheck;
+        private HDCFullscreenGroup group;
+
+        internal HDCAppLaunchAds()
+        {
+        }
+
+        /// <summary>Right before the launch ad shows, or right before completing without one.</summary>
+        public event Action BeforeShow;
+
+        /// <summary>The launch is done: the ad closed, failed, timed out, or could not show.</summary>
+        public event Action Completed;
+
+        public bool IgnoreAds { get; set; }
+
+        public bool IsCompleted { get; private set; }
+
+        public bool IsBeforeShowRaised { get; private set; }
+
+        public bool CanShow => !IsDisabled && !IgnoreAds && clockStarted && !TimedOut && MinimumWaitPassed && (Group()?.IsReady ?? false);
+
+        private static HDCAdsConfig.AppLaunchChannel Channel => HDCAds.Config.appLaunchChannel ?? new HDCAdsConfig.AppLaunchChannel();
+
+        private static bool IsDisabled => !Channel.isEnabled || HDCAds.IsAdsRemoved;
+
+        private float Elapsed => clockStarted ? Time.unscaledTime - clockStart : 0f;
+
+        private static float MinimumWait => Channel.minWaitSeconds > 0 ? Channel.minWaitSeconds : 5f;
+
+        private static float Timeout =>
+            Channel.timeoutSeconds <= 0 || Channel.timeoutSeconds < MinimumWait ? MinimumWait + 5f : Channel.timeoutSeconds;
+
+        private bool MinimumWaitPassed => clockStarted && Elapsed >= MinimumWait;
+
+        private bool TimedOut => clockStarted && Elapsed >= Timeout;
+
+        /// <summary>Starts the launch clock and loading, when the channel does not on its own (autoInit off).</summary>
+        public void Initialize()
+        {
+            if (!Channel.autoInit)
+                Start();
+        }
+
+        internal void OnSdkInitialized()
+        {
+            if (Channel.autoInit)
+                Start();
+        }
+
+        private void Start()
+        {
+            if (clockStarted)
+                return;
+
+            clockStarted = true;
+            clockStart = Time.unscaledTime;
+            if (!IsDisabled)
+                Group()?.Initialize();
+            if (!ticking)
+            {
+                ticking = true;
+                HDCMainThread.EnsureCreated();
+                HDCMainThread.Ticked += Tick;
+            }
+        }
+
+        private void Tick()
+        {
+            if (IsCompleted)
+                return;
+
+            if (showing)
+            {
+                if (Time.unscaledTime - showStart >= CloseFallbackSeconds)
+                    Complete("the ad did not report closing");
+                return;
+            }
+
+            if (!MinimumWaitPassed)
+                return;
+            if (TimedOut)
+            {
+                Complete("timed out");
+                return;
+            }
+
+            if (IsDisabled || IgnoreAds || Group() == null || Group().IsEmpty)
+            {
+                Complete("no launch ad");
+                return;
+            }
+
+            if (Time.unscaledTime < nextReadyCheck)
+                return;
+            nextReadyCheck = Time.unscaledTime + ReadyCheckInterval;
+            if (!Group().IsReady)
+                return;
+
+            RaiseBeforeShow();
+            showing = true;
+            showStart = Time.unscaledTime;
+            bool forceAd = HDCAds.CoreConfig.comebackChannel?.launchAdType == 0;
+            bool shown = Group().Show(
+                null,
+                () =>
+                {
+                    if (forceAd)
+                        HDCAds.ForceAd.CountImpression("app_launch");
+                },
+                _ => Complete("closed"));
+            if (!shown)
+                Complete("show failed");
+        }
+
+        private void Complete(string reason)
+        {
+            if (IsCompleted)
+                return;
+
+            HDCAdsLog.Info("app launch complete: " + reason);
+            RaiseBeforeShow();
+            IsCompleted = true;
+            showing = false;
+            if (ticking)
+            {
+                ticking = false;
+                HDCMainThread.Ticked -= Tick;
+            }
+
+            HDCAdsLog.Run(Completed);
+        }
+
+        private void RaiseBeforeShow()
+        {
+            if (IsBeforeShowRaised)
+                return;
+            IsBeforeShowRaised = true;
+            HDCAdsLog.Run(BeforeShow);
+        }
+
+        private HDCFullscreenGroup Group()
+        {
+            if (group != null)
+                return group;
+
+            HDCAdCoreConfig.Comeback comeback = HDCAds.CoreConfig.comebackChannel ?? new HDCAdCoreConfig.Comeback();
+            group = comeback.launchAdType == 0 ? HDCAds.ForceAdGroup(comeback.launchForceAdGroupName) : HDCAds.AppOpenGroup();
+            return group;
+        }
+    }
+}

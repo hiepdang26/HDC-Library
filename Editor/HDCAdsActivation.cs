@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEngine;
@@ -12,10 +13,13 @@ namespace HDC.Ads.Editor
     /// the runtime assembly needs the HDC_ADS define, the iOS plugins are disabled, and the native
     /// dependencies file is absent. Turn it on only when no other copy of the ads framework built from the
     /// same Kotlin Multiplatform project is in the project: two copies cannot be linked into one app.
+    /// When the Firebase Remote Config SDK is in the project, enabling also adds HDC_FIREBASE, which builds
+    /// HDCRemoteConfig.
     /// </summary>
     internal static class HDCAdsActivation
     {
         internal const string Define = "HDC_ADS";
+        internal const string FirebaseDefine = "HDC_FIREBASE";
 
         private const string Root = "Assets/HDCLib";
         private const string DependenciesTemplate = Root + "/Editor/Templates~/HDCAdsDependencies.xml";
@@ -71,8 +75,12 @@ namespace HDC.Ads.Editor
             AssetDatabase.Refresh();
             Debug.Log(enabled
                 ? "[HDCAds] Enabled. Builds now include the HDCAds framework and its native dependencies."
+                    + (HasFirebaseRemoteConfig() ? " HDCRemoteConfig is on." : " Firebase Remote Config not found: HDCRemoteConfig is off.")
                 : "[HDCAds] Disabled. Builds no longer include HDC ads.");
         }
+
+        private static bool HasFirebaseRemoteConfig() =>
+            AppDomain.CurrentDomain.GetAssemblies().Any(assembly => assembly.GetName().Name == "Firebase.RemoteConfig");
 
         private static void SetIosPlugin(string path, bool enabled)
         {
@@ -93,6 +101,8 @@ namespace HDC.Ads.Editor
         {
             List<string> defines = SplitDefines(PlayerSettings.GetScriptingDefineSymbols(target));
             bool changed = enabled ? AddMissing(defines, Define) : defines.Remove(Define);
+            bool firebase = enabled && HasFirebaseRemoteConfig();
+            changed |= firebase ? AddMissing(defines, FirebaseDefine) : defines.Remove(FirebaseDefine);
             if (changed)
                 PlayerSettings.SetScriptingDefineSymbols(target, string.Join(";", defines));
         }

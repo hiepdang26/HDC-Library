@@ -89,6 +89,10 @@ namespace HDC.Ads
 
         public static void HideBannerView(string id) => WithBannerView(id, view => view.Hide());
 
+        /// <summary>The view's size in screen pixels; zero until it has been created.</summary>
+        public static Vector2 GetBannerViewSizeInPixels(string id) =>
+            bannerViews.TryGetValue(id ?? string.Empty, out HDCGmaBannerView view) ? view.SizeInPixels : Vector2.zero;
+
         /// <summary>True once the view has loaded an ad; it keeps an ad from then on.</summary>
         public static bool IsBannerViewLoaded(string id) => bannerViews.TryGetValue(id ?? string.Empty, out HDCGmaBannerView view) && view.IsLoaded;
 

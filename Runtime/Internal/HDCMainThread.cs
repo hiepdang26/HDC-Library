@@ -12,6 +12,12 @@ namespace HDC.Ads.Internal
         private static readonly List<KeyValuePair<float, Action>> Delayed = new List<KeyValuePair<float, Action>>();
         private static HDCMainThread instance;
 
+        /// <summary>Runs every frame after the queued work.</summary>
+        internal static event Action Ticked;
+
+        /// <summary>Unity's OnApplicationPause: true when the app goes to the background.</summary>
+        internal static event Action<bool> ApplicationPaused;
+
         /// <summary>Creates the host object. Call it from the main thread.</summary>
         internal static void EnsureCreated()
         {
@@ -49,6 +55,16 @@ namespace HDC.Ads.Internal
                 Delayed.RemoveAt(i);
                 Run(due);
             }
+
+            if (Ticked != null)
+                Run(Ticked);
+        }
+
+        private void OnApplicationPause(bool paused)
+        {
+            Action<bool> handlers = ApplicationPaused;
+            if (handlers != null)
+                Run(() => handlers(paused));
         }
 
         private void OnDestroy()

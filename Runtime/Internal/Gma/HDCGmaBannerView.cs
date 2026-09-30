@@ -30,6 +30,8 @@ namespace HDC.Ads.Internal
         internal bool IsLoaded { get; private set; }
         internal bool IsShowing { get; private set; }
 
+        internal Vector2 SizeInPixels => view == null ? Vector2.zero : new Vector2(view.GetWidthInPixels(), view.GetHeightInPixels());
+
         internal void Load()
         {
             if (view != null || destroyed)

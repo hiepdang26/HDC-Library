@@ -37,6 +37,9 @@ namespace HDC.Ads.Internal
         internal string AdUnitId { get; }
         internal bool Preload { get; }
         internal uint BufferSize { get; }
+
+        /// <summary>Loads once: no reload after a show and no retry after a failed load.</summary>
+        internal bool LoadOnce { get; set; }
         protected bool IsDestroyed { get; private set; }
         protected string PreloadId => format + "_" + Id;
 
@@ -78,7 +81,7 @@ namespace HDC.Ads.Internal
             if (!IsReady)
             {
                 Emit(HDCGma.Event(Id, format, HDCAdEventType.ShowFailed, AdUnitId, null).WithError(null, "Not ready. Load first"));
-                if (!Preload && !retry.IsWaiting)
+                if (!Preload && !LoadOnce && !retry.IsWaiting)
                     Load();
                 return false;
             }
@@ -135,7 +138,7 @@ namespace HDC.Ads.Internal
         {
             loading = false;
             Emit(HDCGma.Event(Id, format, HDCAdEventType.LoadFailed, AdUnitId, null).WithError(error, fallbackMessage));
-            if (!Preload && !IsDestroyed)
+            if (!Preload && !LoadOnce && !IsDestroyed)
                 retry.Schedule(Load);
         }
 
@@ -182,7 +185,7 @@ namespace HDC.Ads.Internal
         {
             DestroyLoadedAd();
             Finish(rewarded);
-            if (!Preload)
+            if (!Preload && !LoadOnce)
                 Load();
         }
 
@@ -287,6 +290,78 @@ namespace HDC.Ads.Internal
             ResponseInfo info = loaded.GetResponseInfo();
             ad = loaded;
             response = info;
+            loaded.OnAdFullScreenContentOpened += () => HDCMainThread.Post(() => OnEvent(HDCAdEventType.Shown, info));
+            loaded.OnAdImpressionRecorded += () => HDCMainThread.Post(() => OnEvent(HDCAdEventType.Impression, info));
+            loaded.OnAdClicked += () => HDCMainThread.Post(() => OnEvent(HDCAdEventType.Clicked, info));
+            loaded.OnAdPaid += value => HDCMainThread.Post(() => OnPaid(value, info));
+            loaded.OnAdFullScreenContentClosed += () => HDCMainThread.Post(() => OnClosed(info));
+            loaded.OnAdFullScreenContentFailed += error => HDCMainThread.Post(() => OnShowFailed(error, info, "Show failed"));
+            return info;
+        }
+    }
+
+    internal sealed class HDCGmaInterstitialAd : HDCGmaFullscreenAd
+    {
+        private InterstitialAd ad;
+
+        internal HDCGmaInterstitialAd(string id, string adUnitId, bool preload, int bufferSize)
+            : base(HDCAdFormat.Interstitial, id, adUnitId, preload, bufferSize)
+        {
+        }
+
+        protected override bool HasLoadedAd => ad != null && ad.CanShowAd();
+
+        protected override bool HasPreloadedAd => InterstitialAdPreloader.IsAdAvailable(PreloadId);
+
+        protected override void RequestAd() =>
+            InterstitialAd.Load(AdUnitId, new AdRequest(), (loaded, error) => HDCMainThread.Post(() =>
+            {
+                if (loaded == null || error != null || IsDestroyed)
+                {
+                    loaded?.Destroy();
+                    if (!IsDestroyed)
+                        OnLoadFailed(error, "No ad returned");
+                    return;
+                }
+
+                OnLoaded(Attach(loaded));
+            }));
+
+        protected override bool ShowLoadedAd()
+        {
+            ad.Show();
+            return true;
+        }
+
+        protected override bool ShowPreloadedAd()
+        {
+            InterstitialAd preloaded = InterstitialAdPreloader.DequeueAd(PreloadId);
+            if (preloaded == null)
+                return false;
+            Attach(preloaded);
+            return ShowLoadedAd();
+        }
+
+        protected override void DestroyLoadedAd()
+        {
+            ad?.Destroy();
+            ad = null;
+        }
+
+        protected override void StartPreload(PreloadConfiguration configuration) =>
+            InterstitialAdPreloader.Preload(
+                PreloadId,
+                configuration,
+                (_, preloaded) => HDCMainThread.Post(() => OnPreloaded(preloaded)),
+                (_, error) => HDCMainThread.Post(() => OnPreloadFailed(error)),
+                null);
+
+        protected override void DestroyPreloadedAds() => InterstitialAdPreloader.Destroy(PreloadId);
+
+        private ResponseInfo Attach(InterstitialAd loaded)
+        {
+            ResponseInfo info = loaded.GetResponseInfo();
+            ad = loaded;
             loaded.OnAdFullScreenContentOpened += () => HDCMainThread.Post(() => OnEvent(HDCAdEventType.Shown, info));
             loaded.OnAdImpressionRecorded += () => HDCMainThread.Post(() => OnEvent(HDCAdEventType.Impression, info));
             loaded.OnAdClicked += () => HDCMainThread.Post(() => OnEvent(HDCAdEventType.Clicked, info));
