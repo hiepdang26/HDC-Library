@@ -14,16 +14,29 @@ namespace HDC.Ads.Demo
         private const string FullscreenId = "demo_fullscreen";
         private const string PopupId = "demo_popup";
         private const string BannerId = "demo_banner";
+        private const string RewardedId = "demo_rewarded";
+        private const string AppOpenId = "demo_app_open";
+        private const string BannerViewId = "demo_banner_view";
+        private const string MrecId = "demo_mrec";
 
         [SerializeField] private string[] androidInterstitialUnits = { "ca-app-pub-3940256099942544/1033173712" };
         [SerializeField] private string[] iosInterstitialUnits = { "ca-app-pub-3940256099942544/4411468910" };
         [SerializeField] private string[] androidNativeUnits = { "ca-app-pub-3940256099942544/2247696110" };
         [SerializeField] private string[] iosNativeUnits = { "ca-app-pub-3940256099942544/3986624511" };
+        [SerializeField] private string androidRewardedUnit = "ca-app-pub-3940256099942544/5224354917";
+        [SerializeField] private string iosRewardedUnit = "ca-app-pub-3940256099942544/1712485313";
+        [SerializeField] private string androidAppOpenUnit = "ca-app-pub-3940256099942544/9257395921";
+        [SerializeField] private string iosAppOpenUnit = "ca-app-pub-3940256099942544/5575463023";
+        [SerializeField] private string androidAdaptiveBannerUnit = "ca-app-pub-3940256099942544/9214589741";
+        [SerializeField] private string iosAdaptiveBannerUnit = "ca-app-pub-3940256099942544/2435281174";
+        [SerializeField] private string androidFixedBannerUnit = "ca-app-pub-3940256099942544/6300978111";
+        [SerializeField] private string iosFixedBannerUnit = "ca-app-pub-3940256099942544/2934735716";
         [SerializeField] private HDCFullscreenOptions fullscreenOptions = new HDCFullscreenOptions();
         [SerializeField] private HDCPopupOptions popupOptions = new HDCPopupOptions { x = 0.5f, y = 0.5f };
         [SerializeField] private HDCBannerOptions bannerOptions = new HDCBannerOptions();
 
         private readonly List<string> log = new List<string>();
+        private HDCBannerViewPlacement bannerPlacement = HDCBannerViewPlacement.FullBottom;
         private Vector2 buttonsScroll;
         private Vector2 logScroll;
 
@@ -32,6 +45,13 @@ namespace HDC.Ads.Demo
         private string[] InterstitialUnits => IsIos ? iosInterstitialUnits : androidInterstitialUnits;
 
         private string[] NativeUnits => IsIos ? iosNativeUnits : androidNativeUnits;
+
+        private string FixedBannerUnit => IsIos ? iosFixedBannerUnit : androidFixedBannerUnit;
+
+        private string BannerViewUnit =>
+            bannerPlacement == HDCBannerViewPlacement.FullBottom || bannerPlacement == HDCBannerViewPlacement.FullTop
+                ? IsIos ? iosAdaptiveBannerUnit : androidAdaptiveBannerUnit
+                : FixedBannerUnit;
 
         private void Awake()
         {
@@ -63,6 +83,10 @@ namespace HDC.Ads.Demo
             DrawFullscreen();
             DrawPopup();
             DrawBanner();
+            DrawRewarded();
+            DrawAppOpen();
+            DrawBannerView();
+            DrawMrec();
             GUILayout.EndScrollView();
 
             logScroll = GUILayout.BeginScrollView(logScroll);
@@ -83,6 +107,8 @@ namespace HDC.Ads.Demo
                 Append("meta test=" + HDCAdsSdk.EnableMetaTestMode() + " hash=" + HDCAdsSdk.GetMetaTestDeviceHash());
             if (Button("Meta test off"))
                 HDCAdsSdk.DisableMetaTestMode();
+            if (Button("Test device"))
+                HDCAdsSdk.EnableTestDevice();
             GUILayout.EndHorizontal();
         }
 
@@ -141,6 +167,68 @@ namespace HDC.Ads.Demo
                 Append("banner expand=" + HDCAdsSdk.ExpandBanner(BannerId));
             if (Button("Hide"))
                 HDCAdsSdk.HideBanner(BannerId);
+            GUILayout.EndHorizontal();
+        }
+
+        private void DrawRewarded()
+        {
+            GUILayout.Label("Rewarded");
+            GUILayout.BeginHorizontal();
+            if (Button("Load"))
+                HDCAdsSdk.LoadRewarded(RewardedId, IsIos ? iosRewardedUnit : androidRewardedUnit);
+            if (Button("Ready?"))
+                Append("rewarded ready=" + HDCAdsSdk.IsRewardedReady(RewardedId));
+            if (Button("Show"))
+                Append("rewarded show=" + HDCAdsSdk.ShowRewarded(RewardedId, rewarded => Append("rewarded closed, reward=" + rewarded)));
+            GUILayout.EndHorizontal();
+        }
+
+        private void DrawAppOpen()
+        {
+            GUILayout.Label("App open");
+            GUILayout.BeginHorizontal();
+            if (Button("Load"))
+                HDCAdsSdk.LoadAppOpen(AppOpenId, IsIos ? iosAppOpenUnit : androidAppOpenUnit);
+            if (Button("Ready?"))
+                Append("app open ready=" + HDCAdsSdk.IsAppOpenReady(AppOpenId));
+            if (Button("Show"))
+                Append("app open show=" + HDCAdsSdk.ShowAppOpen(AppOpenId, () => Append("app open closed")));
+            GUILayout.EndHorizontal();
+        }
+
+        private void DrawBannerView()
+        {
+            GUILayout.Label("Banner view: " + bannerPlacement);
+            GUILayout.BeginHorizontal();
+            if (Button("Next"))
+            {
+                HDCAdsSdk.DestroyBannerView(BannerViewId);
+                bannerPlacement = bannerPlacement == HDCBannerViewPlacement.BottomRight
+                    ? HDCBannerViewPlacement.FullBottom
+                    : bannerPlacement + 1;
+            }
+
+            if (Button("Load"))
+                HDCAdsSdk.LoadBannerView(BannerViewId, BannerViewUnit, bannerPlacement);
+            if (Button("Show"))
+                HDCAdsSdk.ShowBannerView(BannerViewId);
+            if (Button("Hide"))
+                HDCAdsSdk.HideBannerView(BannerViewId);
+            GUILayout.EndHorizontal();
+        }
+
+        private void DrawMrec()
+        {
+            GUILayout.Label("MREC");
+            GUILayout.BeginHorizontal();
+            if (Button("Load"))
+                HDCAdsSdk.LoadBannerView(MrecId, FixedBannerUnit, HDCBannerViewPlacement.Mrec);
+            if (Button("Show"))
+                HDCAdsSdk.ShowBannerView(MrecId);
+            if (Button("Center"))
+                HDCAdsSdk.MoveBannerView(MrecId, new Vector2(Screen.width / 2f, Screen.height / 2f));
+            if (Button("Hide"))
+                HDCAdsSdk.HideBannerView(MrecId);
             GUILayout.EndHorizontal();
         }
 

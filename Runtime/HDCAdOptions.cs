@@ -112,4 +112,35 @@ namespace HDC.Ads
         /// <summary>Seconds after <see cref="HDCAdsSdk.ExpandBanner"/> before the banner can be collapsed.</summary>
         public int timeCollapse = 5;
     }
+
+    /// <summary>Size and starting position of a view from <see cref="HDCAdsSdk.LoadBannerView"/>.</summary>
+    public enum HDCBannerViewPlacement
+    {
+        /// <summary>300x250 medium rectangle, at the bottom right until moved.</summary>
+        Mrec = 0,
+
+        /// <summary>Adaptive banner across the bottom of the screen.</summary>
+        FullBottom = 1,
+
+        /// <summary>Adaptive banner across the top of the screen.</summary>
+        FullTop = 2,
+
+        /// <summary>320x50 banner in the top left corner; the other corners follow.</summary>
+        TopLeft = 3,
+        TopRight = 4,
+        BottomLeft = 5,
+        BottomRight = 6,
+    }
+
+    /// <summary>Preset positions for <see cref="HDCAdsSdk.MoveBannerView(string, HDCAdPosition)"/>.</summary>
+    public enum HDCAdPosition
+    {
+        Top,
+        Bottom,
+        TopLeft,
+        TopRight,
+        BottomLeft,
+        BottomRight,
+        Center,
+    }
 }

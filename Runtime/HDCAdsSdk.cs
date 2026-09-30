@@ -1,17 +1,19 @@
 using System;
+using System.Collections.Generic;
 using HDC.Ads.Internal;
 using UnityEngine;
 
 namespace HDC.Ads
 {
     /// <summary>
-    /// Direct access to the native ads SDK: load, show and query ads by instance id. Call it from the
-    /// Unity main thread. Events arrive through <see cref="AdEvent"/>, also on the main thread.
+    /// Direct access to the ads SDK: load, show and query ads by instance id. Call it from the Unity main
+    /// thread. Events arrive through <see cref="AdEvent"/>, also on the main thread.
     /// </summary>
-    public static class HDCAdsSdk
+    public static partial class HDCAdsSdk
     {
         private const string LogTag = "[HDCAds]";
 
+        private static readonly Dictionary<string, InterstitialLoad> interstitialLoads = new Dictionary<string, InterstitialLoad>();
         private static IHDCNativeBridge bridge;
         private static Action initializedCallbacks;
 
@@ -37,29 +39,56 @@ namespace HDC.Ads
                     initializedCallbacks += onInitialized;
             }
 
+            HDCGma.Initialize();
             Call<BoolResult>("init", "{\"debugLog\":" + (DebugLog ? "true" : "false") + "}");
         }
 
         // Interstitial
 
         /// <summary>
-        /// Loads interstitials for <paramref name="id"/>. The ad units are tried in order, and
-        /// <paramref name="bufferSize"/> ads per unit are kept ready. With <paramref name="autoReload"/>,
-        /// the next ad loads after each show.
+        /// Loads interstitials for <paramref name="id"/>. Every ad unit loads <paramref name="bufferSize"/>
+        /// ads, and shows take them in ad unit order. With <paramref name="autoReload"/>, the next ad loads
+        /// after each show. Failed loads are retried after 2, 4, 8, … up to 64 seconds.
         /// </summary>
-        public static bool LoadInterstitial(string id, string[] adUnitIds, int bufferSize = 1, bool autoReload = true) =>
-            Call("interstitial.load", id, new InterstitialFields { bufferSize = bufferSize, autoReload = autoReload }, adUnitIds).ok;
+        public static bool LoadInterstitial(string id, string[] adUnitIds, int bufferSize = 1, bool autoReload = true)
+        {
+            string argsJson = HDCJson.Args(id, new InterstitialFields { bufferSize = bufferSize, autoReload = autoReload }, adUnitIds);
+            if (!Call<BoolResult>("interstitial.load", argsJson).ok)
+                return false;
+
+            if (!interstitialLoads.TryGetValue(id, out InterstitialLoad load))
+                interstitialLoads[id] = load = new InterstitialLoad();
+            load.ArgsJson = argsJson;
+            load.Retry.Cancel();
+            return true;
+        }
 
         /// <summary>
         /// Shows a ready interstitial. False when none is ready; a <see cref="HDCAdEventType.ShowFailed"/>
-        /// event is also sent then.
+        /// event is also sent then, and a load starts unless a retry is already waiting.
         /// </summary>
-        public static bool ShowInterstitial(string id, bool immersiveMode = true) =>
-            Call("interstitial.show", id, new ShowInterstitialFields { immersiveMode = immersiveMode }).value;
+        public static bool ShowInterstitial(string id, bool immersiveMode = true)
+        {
+            if (Call("interstitial.show", id, new ShowInterstitialFields { immersiveMode = immersiveMode }).value)
+                return true;
+
+            if (interstitialLoads.TryGetValue(id ?? string.Empty, out InterstitialLoad load) && !load.Retry.IsWaiting)
+                Call<BoolResult>("interstitial.load", load.ArgsJson);
+            return false;
+        }
 
         public static bool IsInterstitialReady(string id) => Call("interstitial.isReady", id).value;
 
-        public static void DestroyInterstitial(string id) => Call("interstitial.destroy", id);
+        public static void DestroyInterstitial(string id)
+        {
+            if (interstitialLoads.TryGetValue(id ?? string.Empty, out InterstitialLoad load))
+            {
+                load.Retry.Reset();
+                interstitialLoads.Remove(id);
+            }
+
+            Call("interstitial.destroy", id);
+        }
 
         // Fullscreen native
 
@@ -209,10 +238,18 @@ namespace HDC.Ads
                 return;
             }
 
+            Emit(adEvent);
+        }
+
+        /// <summary>Hands an event from the native library or the plugin formats to subscribers, on the main thread.</summary>
+        internal static void Emit(HDCAdEvent adEvent)
+        {
             if (adEvent == null)
                 return;
             if (DebugLog)
                 Debug.Log($"{LogTag} event {adEvent}");
+            if (adEvent.format == HDCAdFormat.Interstitial)
+                RetryInterstitial(adEvent);
 
             if (adEvent.format == HDCAdFormat.Sdk && adEvent.type == HDCAdEventType.Initialized)
             {
@@ -231,6 +268,27 @@ namespace HDC.Ads
                 return;
             foreach (Action<HDCAdEvent> handler in handlers.GetInvocationList())
                 Invoke(() => handler(adEvent));
+        }
+
+        // The native side stops once every ad unit failed; load again later, as the plugin formats do.
+        private static void RetryInterstitial(HDCAdEvent adEvent)
+        {
+            if (!interstitialLoads.TryGetValue(adEvent.id ?? string.Empty, out InterstitialLoad load))
+                return;
+
+            if (adEvent.type == HDCAdEventType.Loaded)
+            {
+                load.Retry.Reset();
+            }
+            else if (adEvent.type == HDCAdEventType.LoadFailed && !load.Retry.IsWaiting)
+            {
+                string id = adEvent.id;
+                load.Retry.Schedule(() =>
+                {
+                    if (interstitialLoads.TryGetValue(id, out InterstitialLoad current) && current == load)
+                        Call<BoolResult>("interstitial.load", load.ArgsJson);
+                });
+            }
         }
 
         // One failing subscriber must not stop the others, nor unwind into native code.
@@ -266,6 +324,12 @@ namespace HDC.Ads
             public string value;
         }
 #pragma warning restore 0649
+
+        private sealed class InterstitialLoad
+        {
+            internal readonly HDCRetry Retry = new HDCRetry();
+            internal string ArgsJson;
+        }
 
         [Serializable]
         private sealed class InterstitialFields

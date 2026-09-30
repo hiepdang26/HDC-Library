@@ -2,16 +2,23 @@
 
 Thư viện quảng cáo cho Unity. HDCLib gọi thư viện Kotlin Multiplatform của dự án AdsMultiplatform (nhánh `migrate/HDC-Lib`) trên Android và iOS.
 
-Toàn bộ logic SDK nằm trong KMP: load, waterfall ad unit, hiển thị, pause Unity khi quảng cáo fullscreen hiện, và bắn sự kiện. Phía Unity chỉ gọi một hàm lệnh và nhận một luồng sự kiện.
+Có hai nguồn quảng cáo:
+
+- **Thư viện KMP** (native): interstitial, native fullscreen, popup, native banner. Logic load, waterfall ad unit, hiển thị, pause Unity và bắn sự kiện nằm trong KMP. Phía Unity chỉ gọi một hàm lệnh và nhận một luồng sự kiện.
+- **Plugin Google Mobile Ads của Unity**: rewarded, app open, banner view (banner thường và MREC). HDCLib tự quản lý load, retry, show và sự kiện cho các định dạng này.
+
+Sự kiện của cả hai nguồn đi chung qua `HDCAdsSdk.AdEvent`.
 
 ## Cấu trúc
 
 ```
 Runtime/                       Assembly HDC.Ads, chỉ compile khi có define HDC_ADS
-  HDCAdsSdk.cs                 API theo định dạng: interstitial, fullscreen, popup, banner, Meta test
-  HDCAdOptions.cs              Tuỳ chọn fullscreen, popup, banner (tên field giống JSON config)
+  HDCAdsSdk.cs                 API các định dạng KMP: interstitial, fullscreen, popup, banner, Meta test
+  HDCAdsSdk.Gma.cs             API các định dạng qua plugin GMA: rewarded, app open, banner view, test device
+  HDCAdOptions.cs              Tuỳ chọn fullscreen, popup, banner (tên field giống JSON config), vị trí banner view
   HDCAdEvent.cs                Dữ liệu sự kiện, HDCAdEventType, HDCAdFormat
-  Internal/                    Cầu nối iOS (DllImport), Android (JNI), Editor (giả lập), main thread
+  Internal/                    Cầu nối iOS (DllImport), Android (JNI), Editor (giả lập), main thread, retry
+  Internal/Gma/                Rewarded, app open, banner view qua plugin GMA
 Plugins/iOS/                   HDCAds.xcframework, HDCAdsBridge.mm
 Plugins/Android/Repository~/   Maven repo chứa thư viện Android (Unity bỏ qua thư mục có đuôi "~")
 Editor/                        Bật/tắt HDC Ads, post-process Xcode, mẫu Dependencies.xml
@@ -42,12 +49,15 @@ HDCAdsSdk.Initialize(() =>
     HDCAdsSdk.LoadFullscreen("fs_main", new[] { "ca-app-pub-xxx/zzz" });
     HDCAdsSdk.LoadPopup("popup_main", new[] { "ca-app-pub-xxx/zzz" }, new HDCPopupOptions { x = 0.5f, y = 0.5f });
     HDCAdsSdk.LoadBanner("banner_main", new[] { "ca-app-pub-xxx/zzz" });
+    HDCAdsSdk.LoadRewarded("rw_main", "ca-app-pub-xxx/rrr");
+    HDCAdsSdk.LoadBannerView("bn_bottom", "ca-app-pub-xxx/bbb", HDCBannerViewPlacement.FullBottom);
 });
 
 if (HDCAdsSdk.IsFullscreenReady("fs_main"))
     HDCAdsSdk.ShowFullscreen("fs_main", new HDCFullscreenOptions { layoutNames = new[] { "fs_single_cls_01" } });
 
-HDCAdsSdk.ShowBanner("banner_main");
+HDCAdsSdk.ShowRewarded("rw_main", rewarded => { if (rewarded) GiveCoins(); });
+HDCAdsSdk.ShowBannerView("bn_bottom");
 ```
 
 - Gọi API từ main thread của Unity. Sự kiện cũng luôn tới trên main thread.
@@ -56,11 +66,21 @@ HDCAdsSdk.ShowBanner("banner_main");
   - `Shown`, `ShowFailed`, `Closed`.
   - `Impression`, `Clicked`.
   - `Paid`: có `valueMicros`, `currency`, `precision`, `adSource`.
+  - `Rewarded`: có `rewardType`, `rewardAmount`.
+- Với banner view, `Shown` báo khi view hiện và đã có ad, `Closed` báo khi ẩn.
+- Load lỗi được thử lại sau 2, 4, 8, 16, 32 rồi 64 giây, và reset khi load được:
+  - Rewarded và app open: sau mỗi lần show sẽ load ad mới. Show lúc chưa có ad thì load ngay, trừ khi đang chờ retry.
+  - Interstitial: KMP load mọi ad unit cùng lúc và dừng khi tất cả lỗi, nên HDCLib gọi load lại.
+  - Banner view: chỉ retry lần load đầu. Sau khi có ad, view tự refresh theo cấu hình ad unit.
+- Rewarded và app open có chế độ `preload`: plugin tự giữ sẵn 1–5 ad và tự load lại.
+- App open quá 4 giờ kể từ lúc load thì coi là chưa sẵn sàng.
+- `HDCAdsSdk.EnableTestDevice()` đăng ký máy đang chạy là test device của Google Mobile Ads, áp dụng cho mọi định dạng.
 - Trên iOS, sự kiện tới ngay cả khi quảng cáo fullscreen đang pause Unity. Trên Android, sự kiện phát ra trong lúc quảng cáo fullscreen che game sẽ tới khi Unity chạy lại.
 - Trong Editor, SDK được giả lập:
   - Load mất 0,5 giây.
   - Show bắn `Shown`, `Impression`, `Paid`.
   - Interstitial và fullscreen đóng sau 1 giây, popup sau 3 giây. Banner giữ đến khi ẩn.
+  - Rewarded, app open và banner view dùng quảng cáo mẫu có sẵn của plugin GMA trong Editor.
 
 ## Cập nhật thư viện native
 
@@ -74,7 +94,7 @@ Lệnh này build `HDCAds.xcframework` bản release (kèm Compose resources). N
 
 ## Yêu cầu
 
-- Plugin Google Mobile Ads của Unity vẫn được giữ trong project. Plugin này ghi App ID của AdMob vào `Info.plist` và `AndroidManifest.xml`.
+- Plugin Google Mobile Ads của Unity (bản 11.x) phải có trong project. Plugin này ghi App ID của AdMob vào `Info.plist` và `AndroidManifest.xml`. Ngoài ra nó phục vụ rewarded, app open và banner view. Assembly `HDC.Ads` dùng trực tiếp các DLL của plugin.
 - GMA Android 25.4.0 (khớp với plugin), GMA iOS 13.x, Meta adapter 6.22.0.0.
 - iOS 15.0 trở lên. Post-process tự nâng deployment target của project Xcode và Podfile.
 - Android minSdk 24, compileSdk 36, và Android Gradle Plugin 8.6 trở lên.
@@ -88,6 +108,7 @@ Lệnh này build `HDCAds.xcframework` bản release (kèm Compose resources). N
   - Native fullscreen, popup và banner trên cả hai nền tảng.
   - Meta test mode.
   - Sự kiện impression/click/paid chung cho mọi định dạng.
-- Sẽ bổ sung ở giai đoạn sau:
-  - Các định dạng của plugin Google Mobile Ads: rewarded, app open, banner thường, MREC.
-  - Logic kênh: capping, vị trí và config từ Firebase Remote Config.
+- Giai đoạn 3:
+  - Rewarded, app open, banner view (6 vị trí và MREC) qua plugin Google Mobile Ads.
+  - Retry khi load lỗi, test device.
+- Sẽ bổ sung ở giai đoạn sau: logic kênh (capping, vị trí, config từ Firebase Remote Config).

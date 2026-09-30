@@ -45,6 +45,12 @@ namespace HDC.Ads
         /// <summary>Precision type of the paid value, as Google Mobile Ads reports it.</summary>
         public int precision;
 
+        /// <summary>Reward type of a <see cref="HDCAdEventType.Rewarded"/> event.</summary>
+        public string rewardType;
+
+        /// <summary>Reward amount of a <see cref="HDCAdEventType.Rewarded"/> event.</summary>
+        public double rewardAmount;
+
         /// <summary>Revenue of a paid event in <see cref="currency"/> units.</summary>
         public double Revenue => valueMicros / 1000000d;
 
@@ -57,6 +63,8 @@ namespace HDC.Ads
                 text += $" source={adSource}";
             if (type == HDCAdEventType.Paid)
                 text += $" value={Revenue} {currency}";
+            if (type == HDCAdEventType.Rewarded)
+                text += $" reward={rewardAmount} {rewardType}";
             if (!string.IsNullOrEmpty(message))
                 text += $" error={code} {message}";
             return text;
@@ -74,6 +82,11 @@ namespace HDC.Ads
         public const string Impression = "Impression";
         public const string Clicked = "Clicked";
         public const string Paid = "Paid";
+
+        /// <summary>The player earned a rewarded ad's reward.</summary>
+        public const string Rewarded = "Rewarded";
+
+        /// <summary>A full-screen ad or popup closed, or a banner was hidden.</summary>
         public const string Closed = "Closed";
     }
 
@@ -85,5 +98,11 @@ namespace HDC.Ads
         public const string Fullscreen = "fullscreen";
         public const string Banner = "banner";
         public const string Popup = "popup";
+        public const string Rewarded = "rewarded";
+        public const string AppOpen = "appOpen";
+
+        /// <summary>A banner from <see cref="HDCAdsSdk.LoadBannerView"/>; MREC views use <see cref="Mrec"/>.</summary>
+        public const string BannerView = "bannerView";
+        public const string Mrec = "mrec";
     }
 }
