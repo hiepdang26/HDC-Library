@@ -1,0 +1,8 @@
+framework module "HDCAds" {
+    umbrella header "HDCAds.h"
+
+    export *
+    module * { export * }
+
+    use Foundation
+}

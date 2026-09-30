@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Native dependencies of HDC ads, read by the External Dependency Manager.
+  Tools > HDC Ads > Enable copies this file to Assets/HDCLib/Editor/HDCAdsDependencies.xml;
+  Disable deletes that copy. Versions match what the HDCAds library was built with.
+-->
+<dependencies>
+  <androidPackages>
+    <repositories>
+      <repository>Assets/HDCLib/Plugins/Android/Repository~</repository>
+    </repositories>
+    <androidPackage spec="com.hdc.adsmultiplatform:shared-android:0.1.0" />
+  </androidPackages>
+  <iosPods>
+    <iosPod name="Google-Mobile-Ads-SDK" version="~> 13.9" minTargetSdk="15.0" />
+    <iosPod name="GoogleMobileAdsMediationFacebook" version="6.22.0.0" minTargetSdk="15.0" />
+  </iosPods>
+</dependencies>

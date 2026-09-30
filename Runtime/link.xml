@@ -1,0 +1,4 @@
+<!-- Keeps HDC.Ads whole under managed code stripping: AndroidJavaProxy methods and JsonUtility fields are only reached by reflection. -->
+<linker>
+  <assembly fullname="HDC.Ads" preserve="all" ignoreIfMissing="1" />
+</linker>

@@ -1,0 +1,2 @@
+# The static framework binaries are over GitHub's 100 MB file limit.
+Plugins/iOS/HDCAds.xcframework/**/HDCAds filter=lfs diff=lfs merge=lfs -text
