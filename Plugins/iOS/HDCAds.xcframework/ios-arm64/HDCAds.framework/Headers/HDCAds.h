@@ -497,6 +497,12 @@ __attribute__((swift_name("BannerNativeAdSizing")))
 + (instancetype)allocWithZone:(struct _NSZone *)zone __attribute__((unavailable));
 + (instancetype)bannerNativeAdSizing __attribute__((swift_name("init()")));
 @property (class, readonly, getter=shared) HDCABannerNativeAdSizing *shared __attribute__((swift_name("shared")));
+
+/**
+ * Height of the banner overlay in a viewport [viewportHeight] tall (dp, or points on iOS): a share of
+ * the viewport, larger and with a minimum while expanded.
+ */
+- (double)overlayHeightIsExpanded:(BOOL)isExpanded viewportHeight:(double)viewportHeight isLandscape:(BOOL)isLandscape __attribute__((swift_name("overlayHeight(isExpanded:viewportHeight:isLandscape:)")));
 @property (readonly) float ExpandedHeightRatioLandscape __attribute__((swift_name("ExpandedHeightRatioLandscape")));
 @property (readonly) float ExpandedHeightRatioPortrait __attribute__((swift_name("ExpandedHeightRatioPortrait")));
 @property (readonly) float HeightRatioLandscape __attribute__((swift_name("HeightRatioLandscape")));
@@ -996,7 +1002,7 @@ __attribute__((swift_name("FullscreenNativeAdRegistry")))
 - (void)notifyDisplayedAlias:(NSString *)alias adUnitId:(NSString *)adUnitId layoutName:(NSString *)layoutName __attribute__((swift_name("notifyDisplayed(alias:adUnitId:layoutName:)")));
 - (void)notifyFailedAlias:(NSString *)alias adUnitId:(NSString *)adUnitId message:(NSString *)message code:(int32_t)code __attribute__((swift_name("notifyFailed(alias:adUnitId:message:code:)")));
 - (void)notifyLoadedAlias:(NSString *)alias adUnitId:(NSString *)adUnitId __attribute__((swift_name("notifyLoaded(alias:adUnitId:)")));
-- (void)notifyStateAlias:(NSString *)alias state:(HDCANativeAdState *)state adUnitId:(NSString * _Nullable)adUnitId errorMessage:(NSString * _Nullable)errorMessage __attribute__((swift_name("notifyState(alias:state:adUnitId:errorMessage:)")));
+- (void)notifyStateAlias:(NSString *)alias state:(HDCANativeAdState *)state adUnitId:(NSString * _Nullable)adUnitId errorMessage:(NSString * _Nullable)errorMessage errorCode:(int32_t)errorCode __attribute__((swift_name("notifyState(alias:state:adUnitId:errorMessage:errorCode:)")));
 - (void)setCallbackAlias:(NSString *)alias callback:(id<HDCAFullscreenNativeAdCallback> _Nullable)callback __attribute__((swift_name("setCallback(alias:callback:)")));
 - (BOOL)shouldReloadAfterShowAlias:(NSString *)alias __attribute__((swift_name("shouldReloadAfterShow(alias:)")));
 - (HDCANativeAdState *)stateForAlias:(NSString *)alias __attribute__((swift_name("stateFor(alias:)")));

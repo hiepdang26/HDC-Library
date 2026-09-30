@@ -1,10 +1,10 @@
 {
   "formatVersion": "1.1",
   "component": {
-    "url": "../../shared/0.1.0/shared-0.1.0.module",
+    "url": "../../shared/0.2.0/shared-0.2.0.module",
     "group": "com.hdc.adsmultiplatform",
     "module": "shared",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "attributes": {
       "org.gradle.status": "release"
     }
@@ -36,12 +36,12 @@
       "files": [
         {
           "name": "shared.aar",
-          "url": "shared-android-0.1.0.aar",
-          "size": 5349886,
-          "sha512": "67e7abe79e465fc6f07f19a33d79a348a269676821d6383aed421011406c7c27f665919174f14065e17a2d83c49f4eb133394f1af1a52406eb8d532b84c6763f",
-          "sha256": "a9a932e1a42924249f3413e22b993dc555f53836084f08bf00455557551d2904",
-          "sha1": "eef11d40355d5b69752cefd3e232960710c2daed",
-          "md5": "292c5474cd3f0a3b7236318219a34f81"
+          "url": "shared-android-0.2.0.aar",
+          "size": 5414828,
+          "sha512": "172508809dc79a3c735a6e2823d732fdf618d27635df885ba193fff66b8071d70fd4698fe2d1b691be61b787b9601b3962d5e9feab85a3330596dd34fde6026f",
+          "sha256": "ed952a5dd775563f7d9e6ef054fdf470442fb5e930f19c9686d373c715866ee6",
+          "sha1": "9dac667364ecc03a653e0e14de6198715bb7d36a",
+          "md5": "4f45af6a58e184fac6bdea05a4a6361c"
         }
       ]
     },
@@ -87,7 +87,7 @@
           "group": "com.google.android.gms",
           "module": "play-services-ads",
           "version": {
-            "requires": "24.9.0"
+            "requires": "25.4.0"
           }
         },
         {
@@ -164,12 +164,12 @@
       "files": [
         {
           "name": "shared.aar",
-          "url": "shared-android-0.1.0.aar",
-          "size": 5349886,
-          "sha512": "67e7abe79e465fc6f07f19a33d79a348a269676821d6383aed421011406c7c27f665919174f14065e17a2d83c49f4eb133394f1af1a52406eb8d532b84c6763f",
-          "sha256": "a9a932e1a42924249f3413e22b993dc555f53836084f08bf00455557551d2904",
-          "sha1": "eef11d40355d5b69752cefd3e232960710c2daed",
-          "md5": "292c5474cd3f0a3b7236318219a34f81"
+          "url": "shared-android-0.2.0.aar",
+          "size": 5414828,
+          "sha512": "172508809dc79a3c735a6e2823d732fdf618d27635df885ba193fff66b8071d70fd4698fe2d1b691be61b787b9601b3962d5e9feab85a3330596dd34fde6026f",
+          "sha256": "ed952a5dd775563f7d9e6ef054fdf470442fb5e930f19c9686d373c715866ee6",
+          "sha1": "9dac667364ecc03a653e0e14de6198715bb7d36a",
+          "md5": "4f45af6a58e184fac6bdea05a4a6361c"
         }
       ]
     }

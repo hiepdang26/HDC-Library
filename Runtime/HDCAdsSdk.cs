@@ -37,73 +37,152 @@ namespace HDC.Ads
                     initializedCallbacks += onInitialized;
             }
 
-            Call("init", new InitArgs { debugLog = DebugLog });
+            Call<BoolResult>("init", "{\"debugLog\":" + (DebugLog ? "true" : "false") + "}");
         }
+
+        // Interstitial
 
         /// <summary>
         /// Loads interstitials for <paramref name="id"/>. The ad units are tried in order, and
         /// <paramref name="bufferSize"/> ads per unit are kept ready. With <paramref name="autoReload"/>,
         /// the next ad loads after each show.
         /// </summary>
-        public static bool LoadInterstitial(string id, string[] adUnitIds, int bufferSize = 1, bool autoReload = true)
-        {
-            var args = new InterstitialLoadArgs
-            {
-                id = id,
-                adUnitIds = adUnitIds,
-                bufferSize = bufferSize,
-                autoReload = autoReload,
-            };
-            return Call("interstitial.load", args).ok;
-        }
+        public static bool LoadInterstitial(string id, string[] adUnitIds, int bufferSize = 1, bool autoReload = true) =>
+            Call("interstitial.load", id, new InterstitialFields { bufferSize = bufferSize, autoReload = autoReload }, adUnitIds).ok;
 
         /// <summary>
         /// Shows a ready interstitial. False when none is ready; a <see cref="HDCAdEventType.ShowFailed"/>
         /// event is also sent then.
         /// </summary>
         public static bool ShowInterstitial(string id, bool immersiveMode = true) =>
-            Call("interstitial.show", new InterstitialShowArgs { id = id, immersiveMode = immersiveMode }).value;
+            Call("interstitial.show", id, new ShowInterstitialFields { immersiveMode = immersiveMode }).value;
 
-        public static bool IsInterstitialReady(string id) =>
-            Call("interstitial.isReady", new IdArgs { id = id }).value;
+        public static bool IsInterstitialReady(string id) => Call("interstitial.isReady", id).value;
 
-        public static void DestroyInterstitial(string id) =>
-            Call("interstitial.destroy", new IdArgs { id = id });
+        public static void DestroyInterstitial(string id) => Call("interstitial.destroy", id);
 
-        private static CallResult Call(string method, object args)
+        // Fullscreen native
+
+        /// <summary>
+        /// Loads a fullscreen native ad for <paramref name="id"/>, trying the ad units in order. With
+        /// <paramref name="reloadAfterShow"/>, the next ad loads when a shown one closes.
+        /// </summary>
+        public static bool LoadFullscreen(string id, string[] adUnitIds, bool reloadAfterShow = true) =>
+            Call("fullscreen.load", id, new FullscreenLoadFields { reloadAfterShow = reloadAfterShow }, adUnitIds).ok;
+
+        /// <summary>
+        /// Shows the loaded fullscreen native ad. False when none is ready; a
+        /// <see cref="HDCAdEventType.ShowFailed"/> event is also sent then.
+        /// </summary>
+        public static bool ShowFullscreen(string id, HDCFullscreenOptions options = null) =>
+            Call("fullscreen.show", id, options ?? new HDCFullscreenOptions()).value;
+
+        public static void HideFullscreen(string id) => Call("fullscreen.hide", id);
+
+        public static bool IsFullscreenReady(string id) => Call("fullscreen.isReady", id).value;
+
+        public static void DestroyFullscreen(string id) => Call("fullscreen.destroy", id);
+
+        // Popup native
+
+        /// <summary>Loads a native popup for <paramref name="id"/>, trying the ad units in turn.</summary>
+        public static bool LoadPopup(string id, string[] adUnitIds, HDCPopupOptions options = null) =>
+            Call("popup.load", id, options ?? new HDCPopupOptions(), adUnitIds).ok;
+
+        /// <summary>Moves or resizes the popup; see <see cref="HDCPopupOptions"/> for the units.</summary>
+        public static void UpdatePopupPlacement(string id, float x, float y, float width, float height) =>
+            Call("popup.updatePlacement", id, new PlacementFields { x = x, y = y, width = width, height = height });
+
+        /// <summary>
+        /// Shows the loaded popup. False when it cannot show now; a <see cref="HDCAdEventType.ShowFailed"/>
+        /// event is also sent then.
+        /// </summary>
+        public static bool ShowPopup(string id) => Call("popup.show", id).value;
+
+        /// <summary>Closes the shown popup, as its close button does.</summary>
+        public static void ClosePopup(string id) => Call("popup.close", id);
+
+        public static void HidePopup(string id) => Call("popup.hide", id);
+
+        /// <summary>Stops the popup's reloads and timers.</summary>
+        public static void StopPopup(string id) => Call("popup.stop", id);
+
+        public static void DestroyPopup(string id) => Call("popup.destroy", id);
+
+        public static bool IsPopupReady(string id) => Call("popup.isReady", id).value;
+
+        /// <summary>True when a loaded popup can show right now.</summary>
+        public static bool IsPopupDisplayable(string id) => Call("popup.isDisplayable", id).value;
+
+        /// <summary>
+        /// The popup's display state: NotLoaded, Loading, Loaded, Displayable, Showing, Closed, Failed or Destroyed.
+        /// </summary>
+        public static string GetPopupState(string id) =>
+            Call<StringResult>("popup.state", HDCJson.Args(id)).value ?? string.Empty;
+
+        // Banner native
+
+        /// <summary>Loads the native banner for <paramref name="id"/>, trying the ad units in turn.</summary>
+        public static bool LoadBanner(string id, string[] adUnitIds, HDCBannerOptions options = null) =>
+            Call("banner.load", id, options ?? new HDCBannerOptions(), adUnitIds).ok;
+
+        /// <summary>Shows the banner along the bottom of the screen once an ad is loaded.</summary>
+        public static void ShowBanner(string id) => Call("banner.show", id);
+
+        public static void HideBanner(string id) => Call("banner.hide", id);
+
+        /// <summary>Expands the shown banner. False when it cannot expand now.</summary>
+        public static bool ExpandBanner(string id, bool enableClick = true) =>
+            Call("banner.expand", id, new ExpandFields { enableClick = enableClick }).value;
+
+        public static void CollapseBanner(string id) => Call("banner.collapse", id);
+
+        public static void DestroyBanner(string id) => Call("banner.destroy", id);
+
+        // Meta Audience Network test mode
+
+        /// <summary>
+        /// Registers this device, plus <paramref name="extraDeviceHashes"/>, as Meta test devices. Call it
+        /// before ads load: ads loaded earlier are not test ads. <paramref name="testAdType"/> picks Meta's
+        /// test creative; 0 is the default one. Returns whether test mode is on.
+        /// </summary>
+        public static bool EnableMetaTestMode(string[] extraDeviceHashes = null, int testAdType = 0) =>
+            Call<BoolResult>(
+                "meta.enableTestMode",
+                JsonUtility.ToJson(new MetaFields { deviceHashes = extraDeviceHashes ?? new string[0], testAdType = testAdType })).value;
+
+        /// <summary>Removes every Meta test device, so Meta serves live ads again.</summary>
+        public static void DisableMetaTestMode() => Call<BoolResult>("meta.disableTestMode", "{}");
+
+        public static bool IsMetaTestMode() => Call<BoolResult>("meta.isTestMode", "{}").value;
+
+        /// <summary>This device's Meta test device hash.</summary>
+        public static string GetMetaTestDeviceHash() =>
+            Call<StringResult>("meta.deviceHash", "{}").value ?? string.Empty;
+
+        private static BoolResult Call(string method, string id, object fields = null, string[] adUnitIds = null) =>
+            Call<BoolResult>(method, HDCJson.Args(id, fields, adUnitIds));
+
+        private static TResult Call<TResult>(string method, string argsJson)
+            where TResult : Result, new()
         {
             EnsureBridge();
-            string argsJson = JsonUtility.ToJson(args);
             if (DebugLog)
                 Debug.Log($"{LogTag} call {method} {argsJson}");
 
-            string resultJson;
+            TResult result;
             try
             {
-                resultJson = bridge.Call(method, argsJson);
+                result = JsonUtility.FromJson<TResult>(bridge.Call(method, argsJson)) ?? new TResult { error = "Empty result" };
             }
             catch (Exception exception)
             {
-                Debug.LogError($"{LogTag} {method} failed: {exception.Message}");
-                return new CallResult { error = exception.Message };
+                result = new TResult { error = exception.Message };
             }
 
-            CallResult result = ParseResult(resultJson);
             if (!result.ok)
                 Debug.LogWarning($"{LogTag} {method} failed: {result.error}");
             return result;
-        }
-
-        private static CallResult ParseResult(string resultJson)
-        {
-            try
-            {
-                return JsonUtility.FromJson<CallResult>(resultJson) ?? new CallResult { error = "Empty result" };
-            }
-            catch (Exception exception)
-            {
-                return new CallResult { error = $"Invalid result {resultJson}: {exception.Message}" };
-            }
         }
 
         private static void EnsureBridge()
@@ -169,40 +248,64 @@ namespace HDC.Ads
 
 #pragma warning disable 0649 // Assigned by JsonUtility.
         [Serializable]
-        private sealed class CallResult
+        private class Result
         {
             public bool ok;
-            public bool value;
             public string error;
+        }
+
+        [Serializable]
+        private sealed class BoolResult : Result
+        {
+            public bool value;
+        }
+
+        [Serializable]
+        private sealed class StringResult : Result
+        {
+            public string value;
         }
 #pragma warning restore 0649
 
         [Serializable]
-        private sealed class InitArgs
+        private sealed class InterstitialFields
         {
-            public bool debugLog;
-        }
-
-        [Serializable]
-        private sealed class IdArgs
-        {
-            public string id;
-        }
-
-        [Serializable]
-        private sealed class InterstitialLoadArgs
-        {
-            public string id;
-            public string[] adUnitIds;
             public int bufferSize;
             public bool autoReload;
         }
 
         [Serializable]
-        private sealed class InterstitialShowArgs
+        private sealed class ShowInterstitialFields
         {
-            public string id;
             public bool immersiveMode;
+        }
+
+        [Serializable]
+        private sealed class FullscreenLoadFields
+        {
+            public bool reloadAfterShow;
+        }
+
+        [Serializable]
+        private sealed class PlacementFields
+        {
+            public float x;
+            public float y;
+            public float width;
+            public float height;
+        }
+
+        [Serializable]
+        private sealed class ExpandFields
+        {
+            public bool enableClick;
+        }
+
+        [Serializable]
+        private sealed class MetaFields
+        {
+            public string[] deviceHashes;
+            public int testAdType;
         }
     }
 }

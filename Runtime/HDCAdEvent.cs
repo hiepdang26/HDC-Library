@@ -28,6 +28,9 @@ namespace HDC.Ads
 
         public string responseId;
 
+        /// <summary>Layout a fullscreen native ad was shown with.</summary>
+        public string layout;
+
         /// <summary>Error code of a failed load or show.</summary>
         public int code;
 
@@ -79,5 +82,8 @@ namespace HDC.Ads
     {
         public const string Sdk = "sdk";
         public const string Interstitial = "interstitial";
+        public const string Fullscreen = "fullscreen";
+        public const string Banner = "banner";
+        public const string Popup = "popup";
     }
 }
