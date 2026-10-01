@@ -57,7 +57,13 @@ Mặc định HDCLib ở trạng thái **tắt**, và không có gì của HDCLi
   - Cách này chạy giống nhau trên mọi bản Unity, kể cả khi HDCLib là package chỉ đọc.
   - Nếu build không có `HDC_ADS` đè lên (Append) một bản export cũ, post-process gỡ hai file đó ra.
 
-Chỉ bật khi trong project không còn bản framework nào khác build từ cùng dự án KMP. Hai static framework Kotlin/Native (đều chứa Compose và Skia) không link chung được vào một app iOS.
+Hai static framework build từ cùng dự án KMP không link chung được vào một app iOS: chúng trùng class Compose UIKit và bridge native. Nếu project còn một framework như vậy (ví dụ của thư viện ads cũ), thì khi HDC bật, post-process iOS sẽ:
+
+- Bỏ framework đó khỏi project Xcode, và xoá bản copy của nó trong thư mục export, để không script nào copy resources của nó đè lên resources của HDCAds.
+- Bỏ các file native import framework đó.
+- Sinh `Libraries/HDCAds/HDCAdsStandIns.mm`. Các hàm C của những file đó mà code C# gọi được thay bằng hàm không làm gì, nên bản build vẫn link được.
+
+Tính năng native dùng framework đó không chạy trong bản build này, và log build ghi rõ những gì đã bị bỏ ra. Muốn build với framework đó thì tắt HDC (`HDC > Ads > Disable`) rồi export kiểu Replace.
 
 ## Scene đầu tiên: prefab HDCAdsSetup
 

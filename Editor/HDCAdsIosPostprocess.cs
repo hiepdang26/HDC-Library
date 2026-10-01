@@ -13,8 +13,9 @@ namespace HDC.Ads.Editor
     /// <summary>
     /// Puts the HDCAds framework and its Unity bridge into the Xcode project, with the settings they need,
     /// while HDC ads are enabled for iOS. The plugin importers stay off: adding the files here works the same
-    /// in every Unity version and from read-only packages. A build without HDC ads over an earlier export
-    /// (Append) takes them out again.
+    /// in every Unity version and from read-only packages. Another framework built from the same KMP project is
+    /// left out (see <see cref="HDCAdsIosConflicts"/>). A build without HDC ads over an earlier export (Append)
+    /// takes the HDC files out again.
     /// </summary>
     internal static class HDCAdsIosPostprocess
     {
@@ -105,6 +106,7 @@ namespace HDC.Ads.Editor
                 project.AddFileToBuild(frameworkTarget, bridgeGuid);
             }
 
+            HDCAdsIosConflicts.LeaveOut(project, frameworkTarget, buildPath, FrameworkPath);
             ReplaceAllLoad(project, frameworkTarget, projectText);
             RaiseDeploymentTarget(project, mainTarget);
             RaiseDeploymentTarget(project, frameworkTarget);
@@ -176,7 +178,7 @@ namespace HDC.Ads.Editor
             string bridgeCopy = Path.Combine(buildPath, BridgePath);
             if (File.Exists(bridgeCopy))
                 File.Delete(bridgeCopy);
-            return removed;
+            return HDCAdsIosConflicts.RemoveStandIns(project, buildPath) || removed;
         }
 
         // Whether a file reference other than this postprocess's points at the file, as when its plugin
