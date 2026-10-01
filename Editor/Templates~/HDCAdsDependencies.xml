@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Native dependencies of HDC ads, read by the External Dependency Manager.
-  Tools > HDC Ads > Enable writes this file, with {HDC_ROOT} replaced by where HDCLib is, to
+  HDC > Ads > Enable writes this file, with {HDC_ROOT} replaced by where HDCLib is, to
   <HDCLib>/Editor/HDCAdsDependencies.xml, or to Assets/HDCAds/Editor/ when HDCLib is a package;
   Disable deletes it.
   Android: the library leaves Google Mobile Ads to the GMA Unity plugin and Meta Audience Network to its
