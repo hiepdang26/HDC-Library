@@ -82,7 +82,9 @@ Các trường của prefab:
 - `maxWaitSeconds` (mặc định 30): quá thời gian này thì vẫn mở scene tiếp, dù ads chưa xong.
 - `startAllChannels` (mặc định bật): bật cả các kênh có `autoInit` tắt trong config, để scene sau có sẵn ad.
 - `debugLog`: log mọi lệnh và sự kiện ads.
-- `googleTestAds` (mặc định tắt): biến máy đang chạy thành test device của Google trước khi load ad, nên mọi định dạng nhận quảng cáo test. Dùng cho bản test: ad unit thật thường trả no fill ở bản build ký bằng bundle ID khác, và bấm quảng cáo thật khi test có thể làm hỏng tài khoản AdMob. Nhớ tắt trước khi phát hành. Trên bảng debug, nút `Use Google Test Ads` ở trang Device làm việc tương tự lúc đang chạy.
+- `googleTestAds` (mặc định tắt): biến máy đang chạy thành test device của Google trước khi load ad. Request vẫn dùng ad unit thật trong config, Google trả về quảng cáo test (tiêu đề có chữ `Test mode`) cho chính các unit đó. Đây là cách Google khuyên dùng khi test unit thật; bấm quảng cáo thật khi test có thể làm hỏng tài khoản AdMob. Nút `Make Test Device` ở trang Device của bảng debug làm việc tương tự lúc đang chạy.
+- `googleTestAdUnits` (mặc định tắt): thay mọi ad unit trong config bằng ad unit mẫu của Google (`ca-app-pub-3940256099942544/...`, theo định dạng và nền tảng), nên mọi vị trí đều ra quảng cáo test kể cả khi unit thật không có quảng cáo (ví dụ bản build ký bằng bundle ID khác). Áp dụng từ lần load đầu tiên; quảng cáo đã load trước đó giữ unit cũ.
+- Cả hai tuỳ chọn trên chỉ dành cho bản test: khi bật, log có cảnh báo; nhớ tắt trước khi phát hành.
 - `onAdsReady`, `onFinished`: sự kiện khi HDCAds khởi tạo xong, và ngay trước khi mở scene tiếp.
 
 Assembly của prefab luôn được biên dịch. Khi HDC tắt, prefab chỉ mở scene tiếp theo, nên scene đầu không bị kẹt. Nếu HDCAds đã khởi tạo rồi (ví dụ quay lại scene đầu), prefab bỏ qua bước khởi tạo.
@@ -251,7 +253,7 @@ Prefab `Debug/HDCAdsDebugPanel.prefab` là bảng debug nằm đè lên game. Ch
 ### Trang Device
 
 - Build: version, bundle ID, bản Unity, platform, development hay release, scripting backend.
-- HDC Ads: thư viện native, Remote Config có bật không (`HDC_FIREBASE`), trạng thái khởi tạo, ads removed. Nút `Debug Log`, `Use Google Test Ads` (máy này nhận quảng cáo test, áp dụng cho các lần load sau), `Meta Test Mode On/Off` kèm device hash.
+- HDC Ads: thư viện native, Remote Config có bật không (`HDC_FIREBASE`), trạng thái khởi tạo, ads removed, `Google Test Device` và `Google Test Ad Units`. Nút `Debug Log`, `Make Test Device` (máy này thành test device: request vẫn dùng ad unit thật, Google trả quảng cáo test, áp dụng cho các lần load sau), `Meta Test Mode On/Off` kèm device hash. Muốn thay hẳn ad unit bằng unit test của Google thì bật `HDCAdsSetup > Google Test Ad Units` (xem phần HDCAdsSetup).
 - Device: model, hệ điều hành, CPU, RAM, GPU, màn hình, safe area, pin.
 - Network: kết nối, và IP công khai, quốc gia, nhà mạng (tra từ ipwho.is khi mở trang lần đầu hoặc bấm `Check Public IP`), để biết điều kiện quốc gia của Remote Config nhận máy là ở đâu.
 - Adjust: phiên bản SDK, adid và attribution, nếu game có Adjust SDK (HDC Ads không dùng Adjust nên đọc qua reflection).

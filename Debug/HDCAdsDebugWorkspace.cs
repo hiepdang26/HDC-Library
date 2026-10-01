@@ -299,7 +299,8 @@ namespace HDC.Ads.DebugUI
             else if (selected.Units.Count == 0)
                 unitsNoticeText.text = "Group này không có ad unit nào trong ad core config.";
             else
-                unitsNoticeText.text = $"{selected.Units.Count} ad unit, theo thứ tự group thử. Lỗi hiện mã lỗi của SDK và ý nghĩa.";
+                unitsNoticeText.text = $"{selected.Units.Count} ad unit, theo thứ tự group thử. Lỗi hiện mã lỗi của SDK và ý nghĩa."
+                    + (HDCAdsSdk.UseTestAdUnits ? " Đang dùng ad unit test của Google thay cho ad unit trong config." : string.Empty);
 
             int used = 0;
             foreach (HDCDebugUnit unit in selected?.Units ?? new List<HDCDebugUnit>())

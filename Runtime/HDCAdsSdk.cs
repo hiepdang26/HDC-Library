@@ -52,6 +52,7 @@ namespace HDC.Ads
         /// </summary>
         public static bool LoadInterstitial(string id, string[] adUnitIds, int bufferSize = 1, bool autoReload = true)
         {
+            adUnitIds = HDCTestAdUnits.Pick(HDCAdFormat.Interstitial, adUnitIds);
             string argsJson = HDCJson.Args(id, new InterstitialFields { bufferSize = bufferSize, autoReload = autoReload }, adUnitIds);
             if (!Call<BoolResult>("interstitial.load", argsJson).ok)
                 return false;
@@ -102,9 +103,12 @@ namespace HDC.Ads
         /// Loads a fullscreen native ad for <paramref name="id"/>, trying the ad units in order. With
         /// <paramref name="reloadAfterShow"/>, the next ad loads when a shown one closes.
         /// </summary>
-        public static bool LoadFullscreen(string id, string[] adUnitIds, bool reloadAfterShow = true) =>
-            Requested(HDCAdFormat.Fullscreen, id, adUnitIds,
+        public static bool LoadFullscreen(string id, string[] adUnitIds, bool reloadAfterShow = true)
+        {
+            adUnitIds = HDCTestAdUnits.Pick(HDCAdFormat.Fullscreen, adUnitIds);
+            return Requested(HDCAdFormat.Fullscreen, id, adUnitIds,
                 Call("fullscreen.load", id, new FullscreenLoadFields { reloadAfterShow = reloadAfterShow }, adUnitIds).ok);
+        }
 
         /// <summary>
         /// Shows the loaded fullscreen native ad. False when none is ready; a
@@ -126,8 +130,11 @@ namespace HDC.Ads
         // Popup native
 
         /// <summary>Loads a native popup for <paramref name="id"/>, trying the ad units in turn.</summary>
-        public static bool LoadPopup(string id, string[] adUnitIds, HDCPopupOptions options = null) =>
-            Requested(HDCAdFormat.Popup, id, adUnitIds, Call("popup.load", id, options ?? new HDCPopupOptions(), adUnitIds).ok);
+        public static bool LoadPopup(string id, string[] adUnitIds, HDCPopupOptions options = null)
+        {
+            adUnitIds = HDCTestAdUnits.Pick(HDCAdFormat.Popup, adUnitIds);
+            return Requested(HDCAdFormat.Popup, id, adUnitIds, Call("popup.load", id, options ?? new HDCPopupOptions(), adUnitIds).ok);
+        }
 
         /// <summary>Moves or resizes the popup; see <see cref="HDCPopupOptions"/> for the units.</summary>
         public static void UpdatePopupPlacement(string id, float x, float y, float width, float height) =>
@@ -167,8 +174,11 @@ namespace HDC.Ads
         // Banner native
 
         /// <summary>Loads the native banner for <paramref name="id"/>, trying the ad units in turn.</summary>
-        public static bool LoadBanner(string id, string[] adUnitIds, HDCBannerOptions options = null) =>
-            Requested(HDCAdFormat.Banner, id, adUnitIds, Call("banner.load", id, options ?? new HDCBannerOptions(), adUnitIds).ok);
+        public static bool LoadBanner(string id, string[] adUnitIds, HDCBannerOptions options = null)
+        {
+            adUnitIds = HDCTestAdUnits.Pick(HDCAdFormat.Banner, adUnitIds);
+            return Requested(HDCAdFormat.Banner, id, adUnitIds, Call("banner.load", id, options ?? new HDCBannerOptions(), adUnitIds).ok);
+        }
 
         /// <summary>Shows the banner along the bottom of the screen once an ad is loaded.</summary>
         public static void ShowBanner(string id) => Call("banner.show", id);
@@ -222,6 +232,7 @@ namespace HDC.Ads
             IsInitialized = false;
             DebugLog = false;
             IsTestDevice = false;
+            UseTestAdUnits = false;
         }
 
         // Records a load request that the native side accepted, for the debug panel.

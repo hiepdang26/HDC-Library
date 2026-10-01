@@ -25,7 +25,7 @@ namespace HDC.Ads.Internal
         {
             this.format = format;
             Id = id;
-            AdUnitId = adUnitId;
+            AdUnitId = HDCTestAdUnits.Pick(format, adUnitId);
             Preload = preload;
             BufferSize = PreloadBufferSize(bufferSize);
         }

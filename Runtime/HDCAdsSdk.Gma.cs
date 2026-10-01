@@ -25,6 +25,13 @@ namespace HDC.Ads
         /// <summary>True once <see cref="EnableTestDevice"/> made this device a Google test device.</summary>
         public static bool IsTestDevice { get; private set; }
 
+        /// <summary>
+        /// Loads every format from Google's sample ad units in place of the given ones, so all of them serve test
+        /// ads. Unlike <see cref="EnableTestDevice"/>, which keeps the real ad units, this checks the ad flows
+        /// without them. Set it before ads load: ads already loaded keep their ad units. Off for release.
+        /// </summary>
+        public static bool UseTestAdUnits { get; set; }
+
         // Rewarded
 
         /// <summary>
@@ -34,7 +41,7 @@ namespace HDC.Ads
         /// (1 to 5; 0 means 2).
         /// </summary>
         public static bool LoadRewarded(string id, string adUnitId, bool preload = false, int bufferSize = 0) =>
-            LoadPluginAd(rewardedAds, "LoadRewarded", id, adUnitId, preload, bufferSize,
+            LoadPluginAd(rewardedAds, "LoadRewarded", id, HDCTestAdUnits.Pick(HDCAdFormat.Rewarded, adUnitId), preload, bufferSize,
                 () => new HDCGmaRewardedAd(id, adUnitId, preload, bufferSize));
 
         /// <summary>
@@ -53,7 +60,7 @@ namespace HDC.Ads
 
         /// <summary>Loads app open ads for <paramref name="id"/>; the options work as in <see cref="LoadRewarded"/>.</summary>
         public static bool LoadAppOpen(string id, string adUnitId, bool preload = false, int bufferSize = 0) =>
-            LoadPluginAd(appOpenAds, "LoadAppOpen", id, adUnitId, preload, bufferSize,
+            LoadPluginAd(appOpenAds, "LoadAppOpen", id, HDCTestAdUnits.Pick(HDCAdFormat.AppOpen, adUnitId), preload, bufferSize,
                 () => new HDCGmaAppOpenAd(id, adUnitId, preload, bufferSize));
 
         /// <summary>
@@ -76,6 +83,7 @@ namespace HDC.Ads
         /// </summary>
         public static bool LoadBannerView(string id, string adUnitId, HDCBannerViewPlacement placement)
         {
+            adUnitId = HDCTestAdUnits.PickBanner(placement, adUnitId);
             if (!CheckPluginArgs("LoadBannerView", id, adUnitId))
                 return false;
 

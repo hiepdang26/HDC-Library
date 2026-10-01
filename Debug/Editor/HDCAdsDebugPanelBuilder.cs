@@ -396,7 +396,7 @@ namespace HDC.Ads.DebugUI.Editor
             HDCKeyValueList libraryList = KeyValueList(libraryCard.transform, "Library List");
             GameObject libraryButtons = Grid(libraryCard.transform, "Library Buttons", 2, 462f, ChipHeight);
             Button debugLog = ButtonWithLabel(libraryButtons.transform, "Debug Log Button", "Debug Log: Off", ButtonColor, 24);
-            Button testDevice = ButtonWithLabel(libraryButtons.transform, "Test Device Button", "Use Google Test Ads", ButtonColor, 24);
+            Button testDevice = ButtonWithLabel(libraryButtons.transform, "Test Device Button", "Make Test Device", ButtonColor, 24);
             Button metaOn = ButtonWithLabel(libraryButtons.transform, "Meta Test On Button", "Meta Test Mode On", ButtonColor, 24);
             Button metaOff = ButtonWithLabel(libraryButtons.transform, "Meta Test Off Button", "Meta Test Mode Off", ButtonColor, 24);
 

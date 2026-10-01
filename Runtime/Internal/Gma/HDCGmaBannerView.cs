@@ -19,7 +19,7 @@ namespace HDC.Ads.Internal
         internal HDCGmaBannerView(string id, string adUnitId, HDCBannerViewPlacement placement)
         {
             Id = id;
-            AdUnitId = adUnitId;
+            AdUnitId = HDCTestAdUnits.PickBanner(placement, adUnitId);
             Placement = placement;
             format = placement == HDCBannerViewPlacement.Mrec ? HDCAdFormat.Mrec : HDCAdFormat.BannerView;
         }

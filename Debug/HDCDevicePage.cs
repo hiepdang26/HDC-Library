@@ -149,7 +149,12 @@ namespace HDC.Ads.DebugUI
             libraryList.Row("HDCAds Initialized", HDCAds.IsInitialized ? "Yes" : "No", HDCAds.IsInitialized ? HDCDebugStyle.GoodColor : HDCDebugStyle.WarnColor);
             libraryList.Row("Ads Removed", HDCAds.IsAdsRemoved ? "Yes: only rewarded ads show" : "No", HDCAds.IsAdsRemoved ? HDCDebugStyle.WarnColor : HDCDebugStyle.TextColor);
             libraryList.Row("Debug Log", HDCAdsSdk.DebugLog ? "On" : "Off", HDCAdsSdk.DebugLog ? HDCDebugStyle.GoodColor : HDCDebugStyle.MutedColor);
-            libraryList.Row("Google Test Ads", HDCAdsSdk.IsTestDevice ? "On: this device gets Google test ads" : "Off: real ads", HDCAdsSdk.IsTestDevice ? HDCDebugStyle.GoodColor : HDCDebugStyle.MutedColor);
+            libraryList.Row("Google Test Device", HDCAdsSdk.IsTestDevice
+                    ? "On: requests keep the real ad units, and Google answers with test ads"
+                    : "Off", HDCAdsSdk.IsTestDevice ? HDCDebugStyle.GoodColor : HDCDebugStyle.MutedColor);
+            libraryList.Row("Google Test Ad Units", HDCAdsSdk.UseTestAdUnits
+                    ? "On: every position loads Google's sample ad unit"
+                    : "Off: turn on HDCAdsSetup > Google Test Ad Units, before ads load", HDCAdsSdk.UseTestAdUnits ? HDCDebugStyle.GoodColor : HDCDebugStyle.MutedColor);
             bool metaTest = metaTestMode;
             libraryList.Row("Meta Test Mode", metaTest ? "On" : "Off", metaTest ? HDCDebugStyle.GoodColor : HDCDebugStyle.MutedColor);
             if (!string.IsNullOrEmpty(metaDeviceHash))
