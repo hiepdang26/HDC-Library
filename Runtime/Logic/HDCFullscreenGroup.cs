@@ -35,7 +35,8 @@ namespace HDC.Ads
 
         internal void Initialize()
         {
-            if (started == 0 && !IsStopped)
+            // A channel can be on with no unit configured for it.
+            if (started == 0 && !IsStopped && sources.Count > 0)
                 StartNext();
         }
 

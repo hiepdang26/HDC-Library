@@ -147,9 +147,10 @@ Hành vi các kênh:
   - `StartBreakAd()` chạy đồng hồ break ad. Đồng hồ reset mỗi khi có fullscreen mở. Có các event `BreakAdNotice`, `BreakAdShown`, `BreakAdClosed`, `BreakAdShowFailed`.
 - Group có `useBackup`: ban đầu chỉ load unit đầu. Unit đang dùng mà lỗi load hoặc lỗi show thì load unit kế tiếp. Show lấy unit sẵn sàng đầu tiên.
 - App launch:
-  - Đồng hồ chạy từ lúc SDK sẵn sàng (hoặc từ `AppLaunch.Initialize()` khi `autoInit` tắt).
+  - Đồng hồ chạy từ lúc SDK sẵn sàng (hoặc từ `AppLaunch.Initialize()` khi `autoInit` tắt). Gọi `Initialize()` trước khi SDK sẵn sàng thì đồng hồ chờ tới lúc sẵn sàng.
   - Ad hiện khi đã qua `minWaitSeconds` (mặc định 5 giây) và ad đã sẵn sàng.
   - Quá `timeoutSeconds` thì bỏ qua ad.
+  - Kênh tắt, đã gỡ quảng cáo hoặc không có unit nào: `Completed` được gọi ngay, không chờ.
   - `Completed` luôn được gọi đúng một lần.
 - App resume:
   - Load native fullscreen khi app xuống nền và hiện khi load xong.

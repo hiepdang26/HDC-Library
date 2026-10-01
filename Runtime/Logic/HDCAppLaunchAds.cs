@@ -7,8 +7,8 @@ namespace HDC.Ads
     /// <summary>
     /// The ad shown while the app starts: the force ad group or app open ad picked by the ad core config's
     /// comeback channel. Once the launch clock starts, the ad shows as soon as it is ready and the minimum
-    /// wait has passed; after the timeout the launch goes on without it. <see cref="Completed"/> fires once
-    /// either way.
+    /// wait has passed; after the timeout the launch goes on without it. With no ad to show (channel off,
+    /// ads removed, no unit) the launch completes right away. <see cref="Completed"/> fires once either way.
     /// </summary>
     public sealed class HDCAppLaunchAds
     {
@@ -16,6 +16,7 @@ namespace HDC.Ads
         private const float CloseFallbackSeconds = 15f;
         private const float ReadyCheckInterval = 0.25f;
 
+        private bool startRequested;
         private bool clockStarted;
         private float clockStart;
         private bool ticking;
@@ -57,16 +58,25 @@ namespace HDC.Ads
 
         private bool TimedOut => clockStarted && Elapsed >= Timeout;
 
-        /// <summary>Starts the launch clock and loading, when the channel does not on its own (autoInit off).</summary>
+        /// <summary>
+        /// Starts the launch clock and loading, when the channel does not on its own (autoInit off). Called
+        /// before the SDK is ready, it starts once the SDK is.
+        /// </summary>
         public void Initialize()
         {
+            if (!HDCAds.IsInitialized)
+            {
+                startRequested = true;
+                return;
+            }
+
             if (!Channel.autoInit)
                 Start();
         }
 
         internal void OnSdkInitialized()
         {
-            if (Channel.autoInit)
+            if (Channel.autoInit || startRequested)
                 Start();
         }
 
@@ -99,17 +109,18 @@ namespace HDC.Ads
                 return;
             }
 
+            // Nothing to wait for.
+            if (IsDisabled || IgnoreAds || Group() == null || Group().IsEmpty)
+            {
+                Complete("no launch ad");
+                return;
+            }
+
             if (!MinimumWaitPassed)
                 return;
             if (TimedOut)
             {
                 Complete("timed out");
-                return;
-            }
-
-            if (IsDisabled || IgnoreAds || Group() == null || Group().IsEmpty)
-            {
-                Complete("no launch ad");
                 return;
             }
 
