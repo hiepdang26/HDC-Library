@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Text;
 using HDC.Ads.Internal;
 using UnityEngine;
 
@@ -105,25 +104,14 @@ namespace HDC.Ads
             return null;
         }
 
-        /// <summary>The group's units and their state, for the debug panel.</summary>
-        internal string Describe()
-        {
-            var text = new StringBuilder()
-                .Line("group", Name)
-                .Line("ready", IsReady)
-                .Line("showing", IsShowing)
-                .Line("shows left", remainingShows < 0 ? "unlimited" : remainingShows.ToString())
-                .Line("backup", useBackup)
-                .Line("units started", started + "/" + sources.Count);
-            for (int i = 0; i < sources.Count; i++)
-            {
-                HDCFullscreenSource source = sources[i];
-                string state = i >= started ? "not started" : source.IsShowing ? "showing" : source.IsReady ? "ready" : "loading";
-                text.Append("  ").Append(i + 1).Append(". ").Append(source.Format).Append(' ').Append(source.Id).Append(": ").AppendLine(state);
-            }
-
-            return text.Done();
-        }
+        /// <summary>The group's state, for the debug panel, which shows its units on their own.</summary>
+        internal void DescribeTo(HDCDebugInfo info) =>
+            info.Line("Group", Name)
+                .Line("Ready", IsReady)
+                .Line("Showing", IsShowing)
+                .Line("Shows Left", remainingShows < 0 ? "No limit" : remainingShows.ToString())
+                .Line("Backup", useBackup)
+                .Line("Units Started", started + " / " + sources.Count);
 
         private void OnSourceFailed(HDCFullscreenSource source)
         {

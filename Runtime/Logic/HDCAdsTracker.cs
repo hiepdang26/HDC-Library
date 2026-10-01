@@ -94,6 +94,9 @@ namespace HDC.Ads
         /// <summary>The latest events, oldest first.</summary>
         internal static IReadOnlyList<HDCTrackedEvent> Events => events;
 
+        /// <summary>Events seen since the start or the last <see cref="ClearEvents"/>, including the ones no longer kept.</summary>
+        internal static long TotalEvents { get; private set; }
+
         internal static IEnumerable<HDCAdRecord> Records => records.Values;
 
         private static float Now => Time.realtimeSinceStartup;
@@ -142,6 +145,7 @@ namespace HDC.Ads
             if (events.Count == EventCapacity)
                 events.RemoveAt(0);
             events.Add(new HDCTrackedEvent(adEvent, clock));
+            TotalEvents++;
 
             HDCAdRecord record = adEvent.format == HDCAdFormat.Sdk ? null : Get(adEvent.format, adEvent.id);
             if (record == null)
@@ -198,10 +202,17 @@ namespace HDC.Ads
             }
         }
 
+        /// <summary>Forgets the events; the ad instances keep their state and counts.</summary>
+        internal static void ClearEvents()
+        {
+            events.Clear();
+            TotalEvents = 0;
+        }
+
         internal static void Reset()
         {
             records.Clear();
-            events.Clear();
+            ClearEvents();
         }
 
         private static bool IsView(string format) =>

@@ -3,6 +3,7 @@
     "rootNamespace": "HDC.Ads.DebugUI",
     "references": [
         "HDC.Ads",
+        "HDC.Ads.Settings",
         "HDC.Ads.Setup",
         "UnityEngine.UI",
         "Unity.InputSystem"
@@ -21,6 +22,11 @@
             "name": "com.unity.inputsystem",
             "expression": "1.0.0",
             "define": "HDC_INPUT_SYSTEM"
+        },
+        {
+            "name": "com.unity.modules.unitywebrequest",
+            "expression": "1.0.0",
+            "define": "HDC_WEB_REQUEST"
         }
     ],
     "noEngineReferences": false

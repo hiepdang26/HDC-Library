@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -9,9 +10,10 @@ using UnityEngine.InputSystem.UI;
 namespace HDC.Ads.DebugUI
 {
     /// <summary>
-    /// The ads debug overlay. It stays hidden until opened with three quick taps in a top corner of the screen, or
-    /// with F10, and closes with its close button. It keeps to the screen's safe area and switches its scale to
-    /// landscape screens. A debug tool: leave it out of release builds.
+    /// The ads debug overlay: the Ads, Remote Config, Events and Device pages under a header with the ads' state.
+    /// It stays hidden until opened with three quick taps in a top corner of the screen, or with F10, and closes
+    /// with its close button. It keeps to the screen's safe area and switches its scale to landscape screens.
+    /// A debug tool: leave it out of release builds.
     /// </summary>
     public sealed class HDCAdsDebugPanel : MonoBehaviour
     {
@@ -24,13 +26,27 @@ namespace HDC.Ads.DebugUI
             TopRight,
         }
 
+        [Serializable]
+        private sealed class PageTab
+        {
+            public Button button;
+            public HDCDebugPage page;
+        }
+
         [SerializeField] private GameObject window;
         [SerializeField] private RectTransform safeArea;
         [SerializeField] private CanvasScaler scaler;
         [SerializeField] private Button closeButton;
-        [SerializeField] private HDCAdsDebugWorkspace workspace;
         [SerializeField] private HDCOptionPicker picker;
         [SerializeField] private HDCAdsDebugViewer viewer;
+
+        [Header("Header")]
+        [SerializeField] private Text statusText;
+        [SerializeField] private Button initSdkButton;
+        [SerializeField] private Button refreshButton;
+
+        [Header("Pages")]
+        [SerializeField] private PageTab[] pages = new PageTab[0];
 
         [Header("Opening")]
         [Tooltip("Open the panel when the scene starts.")]
@@ -53,8 +69,13 @@ namespace HDC.Ads.DebugUI
         private float lastToggleTime = float.MinValue;
         private Rect appliedSafeArea;
         private Vector2Int appliedScreen;
+        private int currentPage;
+        private float nextStatus;
 
         public bool IsOpen => window.activeSelf;
+
+        /// <summary>The page shown: 0 Ads, 1 Remote Config, 2 Events, 3 Device.</summary>
+        public int CurrentPage => currentPage;
 
         private void Awake()
         {
@@ -73,7 +94,16 @@ namespace HDC.Ads.DebugUI
             FillMissingFonts();
             EnsureEventSystem();
             closeButton.onClick.AddListener(Close);
+            initSdkButton.onClick.AddListener(InitializeSdk);
+            refreshButton.onClick.AddListener(() => pages[currentPage].page.Refresh());
+            for (int i = 0; i < pages.Length; i++)
+            {
+                int index = i;
+                pages[i].button.onClick.AddListener(() => ShowPage(index));
+            }
+
             window.SetActive(false);
+            ShowPage(0);
             FitScreen();
         }
 
@@ -98,6 +128,8 @@ namespace HDC.Ads.DebugUI
                 return;
             }
 
+            if (IsOpen && Time.unscaledTime >= nextStatus)
+                RefreshStatus();
             if (!IsOpen && TapBegan(out Vector2 point) && InCorner(point))
                 CountTap();
         }
@@ -107,7 +139,59 @@ namespace HDC.Ads.DebugUI
             taps = 0;
             lastToggleTime = Time.unscaledTime;
             window.SetActive(true);
-            workspace.Refresh();
+            RefreshStatus();
+        }
+
+        /// <summary>Shows one page: 0 Ads, 1 Remote Config, 2 Events, 3 Device.</summary>
+        public void ShowPage(int index)
+        {
+            currentPage = Mathf.Clamp(index, 0, pages.Length - 1);
+            for (int i = 0; i < pages.Length; i++)
+            {
+                bool shown = i == currentPage;
+                HDCDebugStyle.Highlight(pages[i].button, shown);
+                if (pages[i].page.gameObject.activeSelf != shown)
+                    pages[i].page.gameObject.SetActive(shown);
+            }
+        }
+
+        private void RefreshStatus()
+        {
+            nextStatus = Time.unscaledTime + 1f;
+            initSdkButton.gameObject.SetActive(!HDCAds.IsInitialized);
+            if (!HDCAds.IsInitialized)
+            {
+                statusText.text = HDCDebugStyle.Colored(HDCDebugStyle.WarnHex, "HDCAds chưa khởi tạo")
+                    + " · mở game từ scene có HDCAdsSetup, hoặc bấm Init SDK.";
+                return;
+            }
+
+            string core = string.IsNullOrEmpty(HDCAds.Config.selectedAdCoreName) ? "-" : HDCAds.Config.selectedAdCoreName;
+            statusText.text = HDCDebugStyle.Colored(HDCDebugStyle.GoodHex, "SDK ready") + $" · {Platform} · Ad core: {core}"
+                + (HDCAds.IsAdsRemoved ? " · " + HDCDebugStyle.Colored(HDCDebugStyle.WarnHex, "Ads removed") : string.Empty);
+        }
+
+        private void InitializeSdk()
+        {
+            if (!HDCAds.IsInitialized)
+                HDCAdsSetup.InitializeAds();
+            RefreshStatus();
+        }
+
+        private static string Platform
+        {
+            get
+            {
+#if UNITY_EDITOR
+                return "Editor simulation";
+#elif UNITY_IOS
+                return "iOS";
+#elif UNITY_ANDROID
+                return "Android";
+#else
+                return Application.platform.ToString();
+#endif
+            }
         }
 
         public void Close()

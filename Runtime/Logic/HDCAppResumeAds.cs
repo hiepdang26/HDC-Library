@@ -59,22 +59,22 @@ namespace HDC.Ads
         }
 
         /// <summary>Configs and state, for the debug panel.</summary>
-        internal string Describe() =>
-            HDCAdsDebugText.Title("App resume (AR)")
+        internal HDCDebugInfo Describe() =>
+            new HDCDebugInfo()
                 .Section("Configs")
-                .Line("isEnabled", Channel.isEnabled)
-                .Line("autoInit", Channel.autoInit)
-                .Line("adUnitId", Channel.adUnitId)
-                .Line("layoutGroup", Channel.layoutGroup)
+                .Needed("Enabled", Channel.isEnabled)
+                .Line("Auto Init", Channel.autoInit)
+                .Line("Ad Unit ID", Channel.adUnitId)
+                .Line("Layout Group", Channel.layoutGroup)
                 .Section("Runtime")
-                .Line("initialized", IsInitialized)
-                .Line("blocked", blocked)
-                .Line("showing", showing)
-                .Line("show when loaded", showWhenLoaded)
-                .Line("IgnoreAds", IgnoreAds)
+                .Line("Started", IsInitialized)
+                .Line("Blocked For Next Resume", blocked)
+                .Line("Showing", showing)
+                .Line("Shows Once Loaded", showWhenLoaded)
+                .Line("Ignore Ads", IgnoreAds)
                 .Section("Gates")
-                .Line("disabled", IsDisabled)
-                .Done();
+                .Gate("Disabled", IsDisabled)
+                .Gate("Ads Removed", HDCAds.IsAdsRemoved);
 
         internal void OnSdkInitialized()
         {

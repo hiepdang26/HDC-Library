@@ -74,27 +74,34 @@ namespace HDC.Ads
                 Start();
         }
 
-        /// <summary>Configs, clock and ad units, for the debug panel.</summary>
-        internal string Describe() =>
-            HDCAdsDebugText.Title("App launch (AL)")
+        /// <summary>Configs, clock and state, for the debug panel. It reads the group without making it.</summary>
+        internal HDCDebugInfo Describe()
+        {
+            HDCAdCoreConfig.Comeback comeback = HDCAds.CoreConfig.comebackChannel ?? new HDCAdCoreConfig.Comeback();
+            HDCDebugInfo info = new HDCDebugInfo()
                 .Section("Configs")
-                .Line("isEnabled", Channel.isEnabled)
-                .Line("autoInit", Channel.autoInit)
-                .Line("minimum wait seconds", MinimumWait)
-                .Line("timeout seconds", Timeout)
-                .Line("launch ad type", HDCAds.CoreConfig.comebackChannel?.launchAdType == 0 ? "force ad group" : "app open")
+                .Needed("Enabled", Channel.isEnabled)
+                .Line("Auto Init", Channel.autoInit)
+                .Line("Minimum Wait (s)", MinimumWait)
+                .Line("Timeout (s)", Timeout)
+                .Line("Launch Ad", comeback.launchAdType == 0 ? "Force ad group " + comeback.launchForceAdGroupName : "App open")
                 .Section("Runtime")
-                .Line("clock started", clockStarted)
-                .Line("elapsed seconds", Elapsed)
-                .Line("showing", showing)
-                .Line("completed", IsCompleted)
-                .Line("before show raised", IsBeforeShowRaised)
-                .Line("IgnoreAds", IgnoreAds)
+                .Line("Clock Started", clockStarted)
+                .Line("Elapsed (s)", Elapsed)
+                .Line("Showing", showing)
+                .Line("Completed", IsCompleted)
+                .Line("Before Show Raised", IsBeforeShowRaised)
+                .Line("Ignore Ads", IgnoreAds)
                 .Section("Gates")
-                .Line("disabled", IsDisabled)
-                .Section("Group")
-                .Lines(Group()?.Describe())
-                .Done();
+                .Gate("Disabled", IsDisabled)
+                .Gate("Ads Removed", HDCAds.IsAdsRemoved)
+                .Section("Group");
+            if (group != null)
+                group.DescribeTo(info);
+            else
+                info.Add("State", "Not started", HDCDebugTone.Muted);
+            return info;
+        }
 
         internal void OnSdkInitialized()
         {

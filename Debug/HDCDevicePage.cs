@@ -1,0 +1,350 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Globalization;
+using UnityEngine;
+#if HDC_WEB_REQUEST
+using UnityEngine.Networking;
+#endif
+using UnityEngine.UI;
+
+namespace HDC.Ads.DebugUI
+{
+    /// <summary>
+    /// The device page: the build, the ads library's switches (debug log, test ads), the device, the network
+    /// with the public IP and country Remote Config conditions see, and Adjust when the game has it.
+    /// </summary>
+    public sealed class HDCDevicePage : HDCDebugPage
+    {
+        private const string IpLookupUrl = "https://ipwho.is/";
+        private const float ProbeCooldownSeconds = 60f;
+
+        [SerializeField] private HDCKeyValueList buildList;
+        [SerializeField] private HDCKeyValueList libraryList;
+        [SerializeField] private Button debugLogButton;
+        [SerializeField] private Button testDeviceButton;
+        [SerializeField] private Button metaOnButton;
+        [SerializeField] private Button metaOffButton;
+        [SerializeField] private HDCKeyValueList deviceList;
+        [SerializeField] private HDCKeyValueList networkList;
+        [SerializeField] private Button probeButton;
+        [SerializeField] private HDCKeyValueList adjustList;
+        [SerializeField] private Button adjustButton;
+
+        private bool testDeviceRequested;
+        private bool probing;
+        private bool probedOnce;
+        private float lastProbe = float.MinValue;
+        private DateTime? lastProbeClock;
+        private string probeError;
+        private PublicInfo publicInfo;
+
+        [Serializable]
+        private sealed class PublicInfo
+        {
+            public bool success;
+            public string message = string.Empty;
+            public string ip = string.Empty;
+            public string type = string.Empty;
+            public string city = string.Empty;
+            public string region = string.Empty;
+            public string country = string.Empty;
+            public string country_code = string.Empty;
+            public float latitude;
+            public float longitude;
+            public Connection connection = new Connection();
+            public TimeZoneInfo timezone = new TimeZoneInfo();
+        }
+
+        [Serializable]
+        private sealed class Connection
+        {
+            public string isp = string.Empty;
+            public string org = string.Empty;
+        }
+
+        [Serializable]
+        private sealed class TimeZoneInfo
+        {
+            public string id = string.Empty;
+            public string utc = string.Empty;
+        }
+
+        private void Awake()
+        {
+            debugLogButton.onClick.AddListener(() =>
+            {
+                HDCAdsSdk.DebugLog = !HDCAdsSdk.DebugLog;
+                Refresh();
+            });
+            testDeviceButton.onClick.AddListener(() =>
+            {
+                HDCAdsSdk.EnableTestDevice();
+                testDeviceRequested = true;
+                Refresh();
+            });
+            metaOnButton.onClick.AddListener(() =>
+            {
+                HDCAdsSdk.EnableMetaTestMode();
+                Refresh();
+            });
+            metaOffButton.onClick.AddListener(() =>
+            {
+                HDCAdsSdk.DisableMetaTestMode();
+                Refresh();
+            });
+            probeButton.onClick.AddListener(() => Probe(true));
+            adjustButton.onClick.AddListener(() =>
+            {
+                HDCAdjustProbe.Ask();
+                Refresh();
+            });
+        }
+
+        protected override void OnEnable()
+        {
+            base.OnEnable();
+            // The first visit looks up the public network and asks Adjust; later visits refresh with the buttons.
+            if (!probedOnce)
+            {
+                probedOnce = true;
+                Probe(false);
+                HDCAdjustProbe.Ask();
+            }
+        }
+
+        protected override void Redraw()
+        {
+            RedrawBuild();
+            RedrawLibrary();
+            RedrawDevice();
+            RedrawNetwork();
+            RedrawAdjust();
+        }
+
+        private void RedrawBuild()
+        {
+            buildList.Begin();
+            buildList.Row("App Version", Application.version);
+            buildList.Row("Bundle ID", Application.identifier);
+            buildList.Row("Unity Version", Application.unityVersion);
+            buildList.Row("Platform", Application.platform.ToString());
+            buildList.Row("Build", Debug.isDebugBuild ? "Development" : "Release", Debug.isDebugBuild ? HDCDebugStyle.WarnColor : HDCDebugStyle.TextColor);
+            buildList.Row("Scripting Backend", ScriptingBackend);
+            buildList.Row("Install Mode", Application.installMode.ToString());
+            buildList.Row("Language", Application.systemLanguage.ToString());
+            buildList.End();
+        }
+
+        private void RedrawLibrary()
+        {
+            libraryList.Begin();
+            libraryList.Row("Native Library", NativeLibrary);
+            libraryList.Row("Remote Config (HDC_FIREBASE)", FirebaseBuilt ? "On" : "Off: configs from the defaults", FirebaseBuilt ? HDCDebugStyle.GoodColor : HDCDebugStyle.WarnColor);
+            libraryList.Row("SDK Initialized", HDCAdsSdk.IsInitialized ? "Yes" : "No", HDCAdsSdk.IsInitialized ? HDCDebugStyle.GoodColor : HDCDebugStyle.WarnColor);
+            libraryList.Row("HDCAds Initialized", HDCAds.IsInitialized ? "Yes" : "No", HDCAds.IsInitialized ? HDCDebugStyle.GoodColor : HDCDebugStyle.WarnColor);
+            libraryList.Row("Ads Removed", HDCAds.IsAdsRemoved ? "Yes: only rewarded ads show" : "No", HDCAds.IsAdsRemoved ? HDCDebugStyle.WarnColor : HDCDebugStyle.TextColor);
+            libraryList.Row("Debug Log", HDCAdsSdk.DebugLog ? "On" : "Off", HDCAdsSdk.DebugLog ? HDCDebugStyle.GoodColor : HDCDebugStyle.MutedColor);
+            libraryList.Row("Google Test Ads", testDeviceRequested ? "This device is a test device (ads loaded from now on)" : "Off", testDeviceRequested ? HDCDebugStyle.GoodColor : HDCDebugStyle.MutedColor);
+            bool metaTest = Try(HDCAdsSdk.IsMetaTestMode);
+            libraryList.Row("Meta Test Mode", metaTest ? "On" : "Off", metaTest ? HDCDebugStyle.GoodColor : HDCDebugStyle.MutedColor);
+            string hash = Try(HDCAdsSdk.GetMetaTestDeviceHash);
+            if (!string.IsNullOrEmpty(hash))
+                libraryList.Row("Meta Test Device Hash", hash);
+            libraryList.End();
+
+            HDCDebugStyle.SetLabel(debugLogButton, HDCAdsSdk.DebugLog ? "Debug Log: On" : "Debug Log: Off");
+            HDCDebugStyle.Highlight(debugLogButton, HDCAdsSdk.DebugLog);
+            HDCDebugStyle.Highlight(testDeviceButton, testDeviceRequested);
+            HDCDebugStyle.Highlight(metaOnButton, metaTest);
+            HDCDebugStyle.Highlight(metaOffButton, !metaTest);
+        }
+
+        private void RedrawDevice()
+        {
+            Rect safe = Screen.safeArea;
+            deviceList.Begin();
+            deviceList.Row("Device Name", SystemInfo.deviceName);
+            deviceList.Row("Device Model", SystemInfo.deviceModel);
+            deviceList.Row("Device Type", SystemInfo.deviceType.ToString());
+            deviceList.Row("Operating System", SystemInfo.operatingSystem);
+            deviceList.Row("CPU", $"{SystemInfo.processorType} · {SystemInfo.processorCount} cores");
+            deviceList.Row("Memory", SystemInfo.systemMemorySize.ToString("#,0", CultureInfo.InvariantCulture) + " MB");
+            deviceList.Row("GPU", $"{SystemInfo.graphicsDeviceName} · {SystemInfo.graphicsMemorySize:#,0} MB");
+            deviceList.Row("Screen", $"{Screen.width} x {Screen.height} · {Screen.dpi:0.#} dpi · {Screen.orientation}");
+            deviceList.Row("Safe Area", $"x {safe.x:0}, y {safe.y:0}, {safe.width:0} x {safe.height:0}");
+            deviceList.Row("Battery", SystemInfo.batteryLevel < 0f ? SystemInfo.batteryStatus.ToString() : $"{SystemInfo.batteryStatus} · {SystemInfo.batteryLevel * 100f:0}%");
+            deviceList.End();
+        }
+
+        private void RedrawNetwork()
+        {
+            networkList.Begin();
+            NetworkReachability reachability = Application.internetReachability;
+            networkList.Row("Connection", Reachability(reachability), reachability == NetworkReachability.NotReachable ? HDCDebugStyle.BadColor : HDCDebugStyle.GoodColor);
+            if (probing)
+            {
+                networkList.Row("Public Network", "Checking...", HDCDebugStyle.MutedColor);
+            }
+            else if (publicInfo != null)
+            {
+                networkList.Row("Public IP", Dash(publicInfo.ip));
+                networkList.Row("Country", $"{Dash(publicInfo.country)} ({Dash(publicInfo.country_code)})");
+                networkList.Row("Region / City", $"{Dash(publicInfo.region)} / {Dash(publicInfo.city)}");
+                networkList.Row("Provider", Dash(!string.IsNullOrEmpty(publicInfo.connection?.isp) ? publicInfo.connection.isp : publicInfo.connection?.org));
+                networkList.Row("IP Type", Dash(publicInfo.type));
+                networkList.Row("Time Zone", $"{Dash(publicInfo.timezone?.id)} (UTC {Dash(publicInfo.timezone?.utc)})");
+                if (Mathf.Abs(publicInfo.latitude) > 0f || Mathf.Abs(publicInfo.longitude) > 0f)
+                    networkList.Row("Lat / Lon", $"{publicInfo.latitude:0.####}, {publicInfo.longitude:0.####}");
+            }
+            else
+            {
+                networkList.Row("Public Network", string.IsNullOrEmpty(probeError) ? "Not checked" : "Unavailable: " + probeError,
+                    string.IsNullOrEmpty(probeError) ? HDCDebugStyle.MutedColor : HDCDebugStyle.WarnColor);
+            }
+
+            if (lastProbeClock.HasValue)
+                networkList.Row("Checked At", lastProbeClock.Value.ToString("HH:mm:ss", CultureInfo.InvariantCulture));
+            networkList.End();
+            probeButton.interactable = !probing;
+        }
+
+        private void RedrawAdjust()
+        {
+            adjustList.Begin();
+            adjustList.Row("State", HDCAdjustProbe.State, HDCAdjustProbe.State == "OK" ? HDCDebugStyle.GoodColor : HDCDebugStyle.MutedColor);
+            foreach (KeyValuePair<string, string> pair in HDCAdjustProbe.Ordered())
+                adjustList.Row(pair.Key, pair.Value);
+            adjustList.End();
+            adjustButton.interactable = HDCAdjustProbe.Found || HDCAdjustProbe.State == "Not checked";
+        }
+
+        // Public network, looked up at most once a minute unless asked.
+
+        private void Probe(bool force)
+        {
+            if (probing || (!force && Time.realtimeSinceStartup - lastProbe < ProbeCooldownSeconds))
+                return;
+#if HDC_WEB_REQUEST
+            StartCoroutine(ProbePublicNetwork());
+#else
+            probeError = "the UnityWebRequest module is off";
+#endif
+        }
+
+#if HDC_WEB_REQUEST
+        private IEnumerator ProbePublicNetwork()
+        {
+            probing = true;
+            MarkDirty();
+            using (UnityWebRequest request = UnityWebRequest.Get(IpLookupUrl))
+            {
+                request.timeout = 6;
+                yield return request.SendWebRequest();
+                if (request.result != UnityWebRequest.Result.Success)
+                {
+                    publicInfo = null;
+                    probeError = string.IsNullOrEmpty(request.error) ? "lookup failed" : request.error;
+                }
+                else
+                {
+                    Apply(request.downloadHandler.text);
+                }
+            }
+
+            lastProbe = Time.realtimeSinceStartup;
+            lastProbeClock = DateTime.Now;
+            probing = false;
+            MarkDirty();
+        }
+#endif
+
+        private void Apply(string json)
+        {
+            try
+            {
+                PublicInfo info = JsonUtility.FromJson<PublicInfo>(json);
+                if (info != null && info.success)
+                {
+                    publicInfo = info;
+                    probeError = null;
+                    return;
+                }
+
+                publicInfo = null;
+                probeError = string.IsNullOrEmpty(info?.message) ? "lookup failed" : info.message;
+            }
+            catch (Exception exception)
+            {
+                publicInfo = null;
+                probeError = exception.Message;
+            }
+        }
+
+        // Helpers
+
+        private static string NativeLibrary
+        {
+            get
+            {
+#if UNITY_EDITOR
+                return "Editor simulation (no real ads)";
+#elif UNITY_ANDROID
+                return "Android (hdc-ads-android)";
+#elif UNITY_IOS
+                return "iOS (HDCAds.xcframework)";
+#else
+                return "Not supported on " + Application.platform;
+#endif
+            }
+        }
+
+        private static bool FirebaseBuilt
+        {
+            get
+            {
+#if HDC_FIREBASE
+                return true;
+#else
+                return false;
+#endif
+            }
+        }
+
+        private static string ScriptingBackend
+        {
+            get
+            {
+#if ENABLE_IL2CPP
+                return "IL2CPP";
+#else
+                return "Mono";
+#endif
+            }
+        }
+
+        private static string Reachability(NetworkReachability reachability)
+        {
+            switch (reachability)
+            {
+                case NetworkReachability.ReachableViaCarrierDataNetwork: return "Mobile data";
+                case NetworkReachability.ReachableViaLocalAreaNetwork: return "Wi-Fi or LAN";
+                default: return "Offline";
+            }
+        }
+
+        private static T Try<T>(Func<T> read)
+        {
+            try
+            {
+                return read();
+            }
+            catch (Exception)
+            {
+                return default;
+            }
+        }
+
+        private static string Dash(string value) => string.IsNullOrEmpty(value) ? "-" : value;
+    }
+}

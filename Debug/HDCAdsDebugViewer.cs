@@ -4,7 +4,7 @@ using UnityEngine.UI;
 
 namespace HDC.Ads.DebugUI
 {
-    /// <summary>A modal for one long text, such as the break ad state, refreshed while it stays open.</summary>
+    /// <summary>A full-screen view of one long text, such as the events or a config, refreshed while it stays open.</summary>
     public sealed class HDCAdsDebugViewer : MonoBehaviour
     {
         private const float CopiedSeconds = 1.5f;
@@ -12,10 +12,14 @@ namespace HDC.Ads.DebugUI
         [SerializeField] private GameObject modalRoot;
         [SerializeField] private Text titleText;
         [SerializeField] private Text bodyText;
+        [SerializeField] private ScrollRect bodyScroll;
         [SerializeField] private Button copyButton;
         [SerializeField] private Button closeButton;
         [Tooltip("Seconds between refreshes of the text.")]
         [SerializeField] private float refreshSeconds = 1f;
+        [SerializeField] private int fontSize = 24;
+        [Tooltip("Font size of the large view, for reading on a phone.")]
+        [SerializeField] private int largeFontSize = 32;
 
         private Func<string> body;
         private float nextRefresh;
@@ -30,13 +34,16 @@ namespace HDC.Ads.DebugUI
             modalRoot.SetActive(false);
         }
 
-        /// <summary>Shows <paramref name="bodyBuilder"/>'s text under <paramref name="title"/>, refreshed every second.</summary>
-        public void Open(string title, Func<string> bodyBuilder)
+        /// <summary>Shows <paramref name="bodyBuilder"/>'s rich text under <paramref name="title"/>, refreshed every second.</summary>
+        public void Open(string title, Func<string> bodyBuilder, bool large = false)
         {
             titleText.text = string.IsNullOrEmpty(title) ? "Viewer" : title;
+            bodyText.fontSize = large ? largeFontSize : fontSize;
             body = bodyBuilder;
             modalRoot.SetActive(true);
             Render();
+            if (bodyScroll != null)
+                bodyScroll.verticalNormalizedPosition = 1f;
         }
 
         public void Close()
@@ -52,7 +59,7 @@ namespace HDC.Ads.DebugUI
             if (copiedUntil > 0f && Time.unscaledTime >= copiedUntil)
             {
                 copiedUntil = 0f;
-                SetLabel(copyButton, "Copy");
+                HDCDebugStyle.SetLabel(copyButton, "Copy");
             }
 
             if (Time.unscaledTime >= nextRefresh)
@@ -77,11 +84,9 @@ namespace HDC.Ads.DebugUI
 
         private void Copy()
         {
-            GUIUtility.systemCopyBuffer = bodyText.text;
+            GUIUtility.systemCopyBuffer = HDCDebugStyle.StripTags(bodyText.text);
             copiedUntil = Time.unscaledTime + CopiedSeconds;
-            SetLabel(copyButton, "Copied");
+            HDCDebugStyle.SetLabel(copyButton, "Copied");
         }
-
-        private static void SetLabel(Button button, string label) => button.GetComponentInChildren<Text>(true).text = label;
     }
 }

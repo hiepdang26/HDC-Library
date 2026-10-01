@@ -47,22 +47,26 @@ namespace HDC.Ads
         }
 
         /// <summary>A slot's configs and ad units, for the debug panel.</summary>
-        internal string Describe(HDCBannerSlot slot)
+        internal HDCDebugInfo Describe(HDCBannerSlot slot)
         {
             HDCAdsConfig.BannerSlot config = Channel.Slot(slot);
-            return HDCAdsDebugText.Title("Banner (BN) " + slot)
+            HDCDebugInfo info = new HDCDebugInfo()
                 .Section("Configs")
-                .Line("channel isEnabled", Channel.isEnabled)
-                .Line("slot isEnabled", config.isEnabled)
-                .Line("autoInit", config.autoInit)
-                .Line("autoShowOnLoad", config.autoShowOnLoad)
+                .Needed("Channel Enabled", Channel.isEnabled)
+                .Needed("Slot Enabled", config.isEnabled)
+                .Line("Auto Init", config.autoInit)
+                .Line("Auto Show On Load", config.autoShowOnLoad)
                 .Section("Runtime")
-                .Line("can show", CanShow(slot))
+                .Line("Can Show", CanShow(slot))
                 .Section("Gates")
-                .Line("enabled", IsEnabled(slot))
-                .Section("Group")
-                .Lines(groups.TryGetValue(slot, out HDCRectGroup group) ? group.Describe() : "(not started)")
-                .Done();
+                .Gate("Disabled", !IsEnabled(slot))
+                .Gate("Ads Removed", HDCAds.IsAdsRemoved)
+                .Section("Placement " + slot);
+            if (groups.TryGetValue(slot, out HDCRectGroup group))
+                group.DescribeTo(info);
+            else
+                info.Add("State", "Not started", HDCDebugTone.Muted);
+            return info;
         }
 
         internal void OnSdkInitialized()

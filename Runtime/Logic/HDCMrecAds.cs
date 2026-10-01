@@ -63,20 +63,27 @@ namespace HDC.Ads
                 Group().Initialize();
         }
 
-        /// <summary>Configs, size and ad units, for the debug panel.</summary>
-        internal string Describe() =>
-            HDCAdsDebugText.Title("MREC")
+        /// <summary>Configs, size and state, for the debug panel. It reads the group without making it.</summary>
+        internal HDCDebugInfo Describe()
+        {
+            Vector2 size = SizeInPixels;
+            HDCDebugInfo info = new HDCDebugInfo()
                 .Section("Configs")
-                .Line("isEnabled", Channel.isEnabled)
-                .Line("autoInit", Channel.autoInit)
+                .Needed("Enabled", Channel.isEnabled)
+                .Line("Auto Init", Channel.autoInit)
                 .Section("Runtime")
-                .Line("can show", CanShow)
-                .Line("size in pixels", SizeInPixels)
+                .Line("Can Show", IsEnabled && group != null && group.IsLoaded)
+                .Line("Size In Pixels", size == Vector2.zero ? "-" : $"{size.x:0} x {size.y:0}")
                 .Section("Gates")
-                .Line("enabled", IsEnabled)
-                .Section("Group")
-                .Lines(group != null ? group.Describe() : "(not started)")
-                .Done();
+                .Gate("Disabled", !IsEnabled)
+                .Gate("Ads Removed", HDCAds.IsAdsRemoved)
+                .Section("Group");
+            if (group != null)
+                group.DescribeTo(info);
+            else
+                info.Add("State", "Not started", HDCDebugTone.Muted);
+            return info;
+        }
 
         /// <summary>The MREC group once the channel made it, for the debug panel.</summary>
         internal HDCRectGroup ExistingGroup => group;

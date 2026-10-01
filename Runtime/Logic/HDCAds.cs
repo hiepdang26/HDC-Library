@@ -84,6 +84,7 @@ namespace HDC.Ads
             }
 
             initializeCalled = true;
+            HDCConfigReport.Applied(adsConfigJson, coreConfigJson);
             Config = HDCAdsConfig.Parse(adsConfigJson);
             CoreConfig = HDCAdCoreConfig.Parse(coreConfigJson);
             if (onInitialized != null)
@@ -302,6 +303,7 @@ namespace HDC.Ads
             HDCMainThread.ResetStatics();
             HDCGma.ResetStatics();
             HDCAdsSdk.ResetStatics();
+            HDCConfigReport.Reset();
 
             forceAdGroups.Clear();
             rewardedGroup = null;

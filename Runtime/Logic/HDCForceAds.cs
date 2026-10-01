@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using HDC.Ads.Internal;
 using UnityEngine;
 
@@ -130,61 +129,46 @@ namespace HDC.Ads
                 ResetBreakCycle(true);
         }
 
-        /// <summary>Configs, state and every position's capping, for the debug panel.</summary>
-        internal string Describe()
+        /// <summary>The configs, the capping of a position and the state of a group, for the debug panel.</summary>
+        internal HDCDebugInfo Describe(string position, string groupName)
         {
             HDCAdsConfig.ForceAdChannel channel = Channel;
-            var text = HDCAdsDebugText.Title("Force ads (FA)")
+            HDCDebugInfo info = new HDCDebugInfo()
                 .Section("Configs")
-                .Line("isEnabled", channel.isEnabled)
-                .Line("launchCappingTime", channel.launchCappingTime)
-                .Line("minimumCappingTime", channel.minimumCappingTime)
-                .Line("cappingDecreasePerImpression", channel.cappingDecreasePerImpression)
-                .Line("positions", channel.positionConfigs?.Length ?? 0)
+                .Needed("Enabled", channel.isEnabled)
+                .Line("Launch Capping (s)", channel.launchCappingTime)
+                .Line("Minimum Capping (s)", channel.minimumCappingTime)
+                .Line("Capping Decrease Per Impression (s)", channel.cappingDecreasePerImpression)
+                .Line("Positions", channel.positionConfigs?.Length ?? 0)
                 .Section("Runtime")
-                .Line("IgnoreAds", IgnoreAds)
-                .Line("first ad of the session", firstAd)
-                .Line("total impressions", TotalImpressionCount)
-                .Line("seconds since last full-screen ad", Time.realtimeSinceStartup - HDCAds.LastFullscreenAdTime)
-                .Line("break ad running", breakRunning)
+                .Line("Ignore Ads", IgnoreAds)
+                .Line("First Ad Of Session", firstAd)
+                .Line("Total Impressions", TotalImpressionCount)
+                .Line("Since Last Full-Screen Ad (s)", Time.realtimeSinceStartup - HDCAds.LastFullscreenAdTime)
                 .Section("Gates")
-                .Line("disabled", IsDisabled)
-                .Line("ads removed", HDCAds.IsAdsRemoved)
-                .Section("Positions");
-            foreach (HDCAdsConfig.ForceAdPosition position in channel.positionConfigs ?? new HDCAdsConfig.ForceAdPosition[0])
+                .Gate("Disabled", IsDisabled)
+                .Gate("Ads Removed", HDCAds.IsAdsRemoved);
+
+            HDCAdsConfig.ForceAdPosition config = PositionConfig(position);
+            if (config != null)
             {
-                bool allowed = Allowed(position.positionName, false, out string reason);
-                text.Append(position.positionName)
-                    .Append(": group ").Append(HDCAds.CoreConfig.ForceAdGroupAt(position.positionName))
-                    .Append(", capping ").Append(Capping(position).ToString("0.#", CultureInfo.InvariantCulture)).Append("s")
-                    .Append(", impressions ").Append(ImpressionCount(position.positionName))
-                    .Append(", can show ").AppendLine(allowed ? "yes" : "no (" + reason + ")");
+                bool allowed = Allowed(position, false, out string reason);
+                info.Section("Position " + position)
+                    .Line("Group", HDCAds.CoreConfig.ForceAdGroupAt(position))
+                    .Line("Can Show (Config)", config.canShow)
+                    .Line("Auto Init", config.autoInit)
+                    .Line("Capping Now (s)", Capping(config))
+                    .Line("Impressions Here", ImpressionCount(position))
+                    .Add("Can Show Now", allowed ? "Yes" : "No · " + reason, allowed ? HDCDebugTone.Good : HDCDebugTone.Bad);
             }
 
-            return text.Done();
-        }
-
-        /// <summary>The break ad's configs and timer, for the debug panel.</summary>
-        internal string DescribeBreakAd()
-        {
-            HDCAdsConfig.BreakAd config = Channel.breakAdConfig ?? new HDCAdsConfig.BreakAd();
-            HDCAdsConfig.ForceAdPosition position = PositionConfig(BreakPosition);
-            bool enabled = BreakEnabled(out string reason);
-            return HDCAdsDebugText.Title("Break ad")
-                .Section("Configs")
-                .Line("forceAd.isEnabled", Channel.isEnabled)
-                .Line("breakAdConfig.isEnabled", config.isEnabled)
-                .Line("breakAdConfig.positionName", config.positionName)
-                .Line("breakAdConfig.notificationLeadTimeSeconds", config.notificationLeadTimeSeconds)
-                .Line("break position capping", position != null ? Capping(position) : 0f)
-                .Section("Runtime")
-                .Line("running", breakRunning)
-                .Line("elapsed seconds", breakElapsed)
-                .Line("showing", breakAttempting)
-                .Line("notice sent", breakNoticeSent)
-                .Section("Gates")
-                .Line("can run", enabled ? "yes" : "no (" + reason + ")")
-                .Done();
+            info.Section("Group " + (string.IsNullOrEmpty(groupName) ? "-" : groupName));
+            HDCFullscreenGroup group = HDCAds.ExistingForceAdGroup(groupName);
+            if (group != null)
+                group.DescribeTo(info);
+            else
+                info.Add("State", "Not started: press Init", HDCDebugTone.Muted);
+            return info;
         }
 
         internal void OnSdkInitialized()

@@ -1,0 +1,531 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace HDC.Ads.DebugUI
+{
+    /// <summary>
+    /// The Remote Config page: how the ads configs were loaded, what is wrong in them, and the configs themselves.
+    /// The viewer shows ads_config and the ad core config as Remote Config has them, as the last run saved them,
+    /// as the project defaults are, and as HDCAds applied them, plus every key Remote Config holds.
+    /// </summary>
+    public sealed class HDCRemoteConfigPage : HDCDebugPage
+    {
+        private const string FoldAllOption = "__all__";
+        private const float CopiedSeconds = 1.5f;
+
+        private enum Mode
+        {
+            Remote,
+            Saved,
+            Default,
+            Applied,
+        }
+
+        private enum Part
+        {
+            Ads,
+            Core,
+            Keys,
+        }
+
+        [Header("Status")]
+        [SerializeField] private HDCKeyValueList statusList;
+        [SerializeField] private HDCKeyValueList checkList;
+
+        [Header("Viewer")]
+        [SerializeField] private Button remoteButton;
+        [SerializeField] private Button savedButton;
+        [SerializeField] private Button defaultButton;
+        [SerializeField] private Button appliedButton;
+        [SerializeField] private Button adsButton;
+        [SerializeField] private Button coreButton;
+        [SerializeField] private Button keysButton;
+        [SerializeField] private Button optionTemplate;
+        [SerializeField] private Text viewerInfoText;
+        [SerializeField] private Text bodyText;
+        [SerializeField] private Button copyButton;
+        [SerializeField] private Button fullScreenButton;
+
+        [Header("Ad units map")]
+        [SerializeField] private Button mapToggleButton;
+        [SerializeField] private GameObject mapBody;
+        [SerializeField] private HDCKeyValueList mapList;
+
+        [Header("Helpers")]
+        [SerializeField] private HDCAdsDebugViewer viewer;
+
+        private readonly List<GameObject> options = new List<GameObject>();
+        private readonly Dictionary<string, HashSet<string>> folded = new Dictionary<string, HashSet<string>>();
+        private Mode mode = Mode.Remote;
+        private Part part = Part.Ads;
+        private string key = string.Empty;
+        private float copiedUntil;
+        private string plainBody = string.Empty;
+
+        private void Awake()
+        {
+            optionTemplate.gameObject.SetActive(false);
+            mapBody.SetActive(false);
+            remoteButton.onClick.AddListener(() => SetMode(Mode.Remote));
+            savedButton.onClick.AddListener(() => SetMode(Mode.Saved));
+            defaultButton.onClick.AddListener(() => SetMode(Mode.Default));
+            appliedButton.onClick.AddListener(() => SetMode(Mode.Applied));
+            adsButton.onClick.AddListener(() => SetPart(Part.Ads));
+            coreButton.onClick.AddListener(() => SetPart(Part.Core));
+            keysButton.onClick.AddListener(() => SetPart(Part.Keys));
+            copyButton.onClick.AddListener(Copy);
+            fullScreenButton.onClick.AddListener(() => viewer.Open(ViewerTitle(), BuildBody, true));
+            mapToggleButton.onClick.AddListener(() =>
+            {
+                mapBody.SetActive(!mapBody.activeSelf);
+                Refresh();
+            });
+        }
+
+        protected override void Redraw()
+        {
+            RedrawStatus();
+            RedrawCheck();
+            RedrawViewer();
+            RedrawMap();
+        }
+
+        // Status
+
+        private void RedrawStatus()
+        {
+            statusList.Begin();
+            statusList.Row("Configs From", ConfigsFrom(out HDCDebugTone tone), HDCDebugStyle.ToneColor(tone));
+            if (HDCConfigReport.Started)
+            {
+                statusList.Row("Firebase", Dash(HDCConfigReport.Firebase), HDCConfigReport.Firebase == "Available" ? HDCDebugStyle.GoodColor : HDCDebugStyle.WarnColor);
+                if (!HDCConfigReport.DefaultsOnly)
+                {
+                    statusList.Row("Fetch", Dash(HDCConfigReport.FetchStatus),
+                        HDCConfigReport.FetchStatus.StartsWith("Success") ? HDCDebugStyle.GoodColor : HDCDebugStyle.WarnColor);
+                    statusList.Row("Last Successful Fetch", Clock(HDCConfigReport.FetchTime));
+                    if (HDCConfigReport.ThrottledUntil.HasValue && HDCConfigReport.ThrottledUntil.Value > DateTime.Now)
+                        statusList.Row("Throttled Until", Clock(HDCConfigReport.ThrottledUntil), HDCDebugStyle.WarnColor);
+                    statusList.Row("Activation", Dash(HDCConfigReport.Activation));
+                }
+
+                statusList.Row("Load Started", HDCConfigReport.StartClock.ToString("HH:mm:ss", CultureInfo.InvariantCulture));
+                statusList.Row("Load Time", HDCConfigReport.LoadSeconds < 0f ? "Loading..." : HDCConfigReport.LoadSeconds.ToString("0.0", CultureInfo.InvariantCulture) + " s");
+                statusList.Row("Ad Core Key", Dash(HDCConfigReport.CoreKey));
+                foreach (HDCConfigEntry entry in HDCConfigReport.Entries)
+                    statusList.Row("Key " + entry.Key, SourceText(entry), SourceColor(entry.Source));
+                if (!HDCConfigReport.DefaultsOnly)
+                    statusList.Row("Keys On Remote Config", HDCConfigReport.RemoteValueCount.ToString(CultureInfo.InvariantCulture));
+            }
+
+            if (HDCConfigReport.AppliedAds != null)
+                statusList.Row("Applied To HDCAds", HDCConfigReport.AppliedClock.ToString("HH:mm:ss", CultureInfo.InvariantCulture)
+                    + " · ads " + Size(HDCConfigReport.AppliedAds) + " · core " + Size(HDCConfigReport.AppliedCore));
+            statusList.End();
+        }
+
+        private static string ConfigsFrom(out HDCDebugTone tone)
+        {
+            tone = HDCDebugTone.Normal;
+            if (!HDCConfigReport.Started)
+            {
+                tone = HDCConfigReport.AppliedAds == null ? HDCDebugTone.Warn : HDCDebugTone.Normal;
+                return HDCConfigReport.AppliedAds == null ? "Not loaded: HDCAds is not initialized" : "Given to HDCAds.Initialize directly";
+            }
+
+            if (!HDCConfigReport.Finished)
+                return "Loading...";
+            if (HDCConfigReport.DefaultsOnly)
+                return "Project defaults (Editor)";
+
+            HDCConfigEntry ads = HDCConfigReport.Find(HDCRemoteConfigKeys.Ads);
+            bool remote = HDCConfigReport.Entries.Count > 0 && HDCConfigReport.Entries.All(entry => entry.Source == HDCConfigSource.Remote);
+            tone = remote ? HDCDebugTone.Good : HDCDebugTone.Warn;
+            string from = remote ? "Remote Config" : ads != null && ads.Source == HDCConfigSource.Remote ? "Remote Config, partly saved or default" : "Saved or default values";
+            return from + " · " + HDCConfigReport.Outcome;
+        }
+
+        private static string SourceText(HDCConfigEntry entry)
+        {
+            string source = entry.Source == HDCConfigSource.Remote ? "Remote" : entry.Source == HDCConfigSource.Saved ? "Saved on device" : "Project default";
+            return source + " · " + Size(entry.Used);
+        }
+
+        private static Color SourceColor(HDCConfigSource source) =>
+            source == HDCConfigSource.Remote ? HDCDebugStyle.GoodColor : HDCDebugStyle.WarnColor;
+
+        // Check
+
+        private void RedrawCheck()
+        {
+            List<HDCConfigCheck.Finding> findings = HDCConfigCheck.Run();
+            checkList.Begin();
+            int errors = findings.Count(finding => finding.Level == HDCConfigCheck.Level.Error);
+            int warnings = findings.Count(finding => finding.Level == HDCConfigCheck.Level.Warning);
+            if (errors == 0 && warnings == 0 && HDCConfigReport.AppliedAds != null)
+                checkList.Note(HDCDebugStyle.Colored(HDCDebugStyle.GoodHex, "<b>OK</b>") + "   Không thấy lỗi nào trong config.");
+            foreach (HDCConfigCheck.Finding finding in findings.OrderBy(finding => finding.Level))
+                checkList.Note(Tag(finding.Level) + "   " + finding.Text);
+            checkList.End();
+        }
+
+        private static string Tag(HDCConfigCheck.Level level)
+        {
+            switch (level)
+            {
+                case HDCConfigCheck.Level.Error: return HDCDebugStyle.Colored(HDCDebugStyle.BadHex, "<b>ERROR</b>");
+                case HDCConfigCheck.Level.Warning: return HDCDebugStyle.Colored(HDCDebugStyle.WarnHex, "<b>WARNING</b>");
+                default: return HDCDebugStyle.Colored(HDCDebugStyle.InfoHex, "<b>INFO</b>");
+            }
+        }
+
+        // Viewer
+
+        private void SetMode(Mode value)
+        {
+            mode = value;
+            Refresh();
+        }
+
+        private void SetPart(Part value)
+        {
+            part = value;
+            Refresh();
+        }
+
+        private void RedrawViewer()
+        {
+            HDCDebugStyle.Highlight(remoteButton, mode == Mode.Remote);
+            HDCDebugStyle.Highlight(savedButton, mode == Mode.Saved);
+            HDCDebugStyle.Highlight(defaultButton, mode == Mode.Default);
+            HDCDebugStyle.Highlight(appliedButton, mode == Mode.Applied);
+            HDCDebugStyle.Highlight(adsButton, part == Part.Ads);
+            HDCDebugStyle.Highlight(coreButton, part == Part.Core);
+            HDCDebugStyle.Highlight(keysButton, part == Part.Keys);
+
+            string text = BuildBody();
+            bodyText.text = text;
+            plainBody = HDCDebugStyle.StripTags(text);
+            viewerInfoText.text = ViewerInfo();
+            RedrawOptions();
+            if (copiedUntil > 0f && Time.unscaledTime >= copiedUntil)
+                copiedUntil = 0f;
+            HDCDebugStyle.SetLabel(copyButton, copiedUntil > 0f ? "Copied" : "Copy");
+        }
+
+        private string ViewerTitle() => part == Part.Keys ? "Remote Config · " + Dash(key) : $"{CurrentKey()} · {mode}";
+
+        private string ViewerInfo()
+        {
+            if (part == Part.Keys)
+            {
+                if (HDCConfigReport.RemoteValueCount == 0)
+                    return HDCConfigReport.DefaultsOnly ? "Editor không fetch Remote Config, nên không có key nào." : "Remote Config chưa có key nào.";
+                return $"Key: {Dash(key)} · Firebase: {Dash(HDCConfigReport.RemoteOrigin(key))} · {Size(HDCConfigReport.RemoteValue(key))}. Mục này luôn là giá trị Remote Config.";
+            }
+
+            string value = RawValue(out string note);
+            return $"Key: {CurrentKey()} · {ModeName()} · {Size(value)}" + (string.IsNullOrEmpty(note) ? string.Empty : " · " + note);
+        }
+
+        private string ModeName()
+        {
+            switch (mode)
+            {
+                case Mode.Remote: return "giá trị trên Remote Config";
+                case Mode.Saved: return "giá trị lần trước lưu trên máy";
+                case Mode.Default: return "config mặc định của project";
+                default: return "config HDCAds đang chạy";
+            }
+        }
+
+        private string CurrentKey()
+        {
+            if (part == Part.Ads)
+                return HDCRemoteConfigKeys.Ads;
+            string coreKey = !string.IsNullOrEmpty(HDCConfigReport.CoreKey) ? HDCConfigReport.CoreKey : HDCAds.Config.selectedAdCoreName;
+            return string.IsNullOrEmpty(coreKey) ? "ad core config" : coreKey;
+        }
+
+        private string BuildBody()
+        {
+            if (part == Part.Keys)
+            {
+                string[] keys = HDCConfigReport.RemoteValues.Select(pair => pair.Key).ToArray();
+                if (keys.Length > 0 && Array.IndexOf(keys, key) < 0)
+                    key = keys[0];
+                return keys.Length == 0 ? "(Không có key nào)" : Show(HDCConfigReport.RemoteValue(key), null);
+            }
+
+            string value = RawValue(out _);
+            return Show(value, FoldedKeys());
+        }
+
+        // The JSON indented, colored, and folded at the chosen top-level keys.
+        private static string Show(string value, HashSet<string> foldedKeys)
+        {
+            if (string.IsNullOrEmpty(value))
+                return HDCDebugStyle.Colored(HDCDebugStyle.MutedHex, "(trống)");
+            string pretty = HDCJsonText.Pretty(value);
+            if (foldedKeys != null)
+            {
+                List<HDCJsonText.Section> sections = HDCJsonText.Sections(pretty);
+                pretty = HDCJsonText.Fold(pretty, sections, foldedKeys);
+            }
+
+            return HDCJsonText.Colored(pretty);
+        }
+
+        private string RawValue(out string note)
+        {
+            note = string.Empty;
+            string currentKey = CurrentKey();
+            HDCConfigEntry entry = HDCConfigReport.Find(currentKey);
+            switch (mode)
+            {
+                case Mode.Remote:
+                    if (entry == null)
+                    {
+                        note = HDCConfigReport.Started ? "HDC không đọc key này" : "chưa tải Remote Config";
+                        return HDCConfigReport.RemoteValue(currentKey) ?? string.Empty;
+                    }
+
+                    note = "Firebase: " + Dash(entry.RemoteOrigin);
+                    return entry.Remote;
+                case Mode.Saved:
+                    if (entry != null)
+                    {
+                        note = "đọc lúc tải config";
+                        return entry.Saved;
+                    }
+
+                    note = "đọc lúc này";
+                    return Saved(currentKey);
+                case Mode.Default:
+                    if (entry != null)
+                        return entry.Default;
+                    HDCAdsSettings settings = HDCAdsSettings.Load();
+                    return part == Part.Ads ? settings.AdsConfig : settings.CoreConfig;
+                default:
+                    if (HDCConfigReport.AppliedAds == null)
+                        note = "HDCAds chưa khởi tạo";
+                    return (part == Part.Ads ? HDCConfigReport.AppliedAds : HDCConfigReport.AppliedCore) ?? string.Empty;
+            }
+        }
+
+        private static string Saved(string currentKey)
+        {
+            try
+            {
+                return PlayerPrefs.GetString(currentKey, string.Empty);
+            }
+            catch (Exception)
+            {
+                return string.Empty;
+            }
+        }
+
+        // Folded top-level keys per key and mode; every key starts folded.
+        private HashSet<string> FoldedKeys()
+        {
+            string state = CurrentKey() + "/" + mode;
+            if (folded.TryGetValue(state, out HashSet<string> keys))
+                return keys;
+            keys = new HashSet<string>(HDCJsonText.Sections(HDCJsonText.Pretty(RawValue(out _))).Select(section => section.Key));
+            folded[state] = keys;
+            return keys;
+        }
+
+        private void RedrawOptions()
+        {
+            int used = 0;
+            if (part == Part.Keys)
+            {
+                foreach (KeyValuePair<string, string> pair in HDCConfigReport.RemoteValues)
+                {
+                    string picked = pair.Key;
+                    Option(ref used, picked, picked == key, () =>
+                    {
+                        key = picked;
+                        Refresh();
+                    });
+                }
+            }
+            else
+            {
+                List<HDCJsonText.Section> sections = HDCJsonText.Sections(HDCJsonText.Pretty(RawValue(out _)));
+                HashSet<string> keys = FoldedKeys();
+                if (sections.Count > 0)
+                {
+                    bool allFolded = sections.All(section => keys.Contains(section.Key));
+                    Option(ref used, allFolded ? "Expand All" : "Collapse All", false, () => Fold(FoldAllOption));
+                }
+
+                foreach (HDCJsonText.Section section in sections)
+                {
+                    string sectionKey = section.Key;
+                    bool isFolded = keys.Contains(sectionKey);
+                    Option(ref used, (isFolded ? "+ " : "- ") + sectionKey, !isFolded, () => Fold(sectionKey));
+                }
+            }
+
+            HDCDebugStyle.HideRest(options, used);
+        }
+
+        private void Option(ref int used, string label, bool selected, Action onClick)
+        {
+            GameObject option = HDCDebugStyle.Take(options, optionTemplate.gameObject, ref used);
+            var button = option.GetComponent<Button>();
+            HDCDebugStyle.SetLabel(button, label);
+            HDCDebugStyle.Highlight(button, selected);
+            button.onClick.RemoveAllListeners();
+            button.onClick.AddListener(() => onClick());
+        }
+
+        private void Fold(string sectionKey)
+        {
+            HashSet<string> keys = FoldedKeys();
+            List<HDCJsonText.Section> sections = HDCJsonText.Sections(HDCJsonText.Pretty(RawValue(out _)));
+            if (sectionKey == FoldAllOption)
+            {
+                bool allFolded = sections.All(section => keys.Contains(section.Key));
+                keys.Clear();
+                if (!allFolded)
+                    keys.UnionWith(sections.Select(section => section.Key));
+            }
+            else if (!keys.Remove(sectionKey))
+            {
+                keys.Add(sectionKey);
+            }
+
+            Refresh();
+        }
+
+        private void Copy()
+        {
+            GUIUtility.systemCopyBuffer = part == Part.Keys
+                ? HDCConfigReport.RemoteValue(key) ?? string.Empty
+                : HDCJsonText.Pretty(RawValue(out _));
+            copiedUntil = Time.unscaledTime + CopiedSeconds;
+            Refresh();
+        }
+
+        // Ad units map: which ad units and positions each channel uses.
+
+        private void RedrawMap()
+        {
+            HDCDebugStyle.SetLabel(mapToggleButton, mapBody.activeSelf ? "Collapse" : "Expand");
+            if (!mapBody.activeSelf)
+                return;
+
+            mapList.Begin();
+            if (!HDCAds.IsInitialized)
+            {
+                mapList.Note(HDCDebugStyle.Colored(HDCDebugStyle.MutedHex, "HDCAds chưa khởi tạo: bản đồ lấy từ config HDCAds đang chạy."));
+                mapList.End();
+                return;
+            }
+
+            HDCAdsConfig ads = HDCAds.Config;
+            HDCAdCoreConfig core = HDCAds.CoreConfig;
+            HDCAdCoreConfig.Comeback comeback = core.comebackChannel ?? new HDCAdCoreConfig.Comeback();
+
+            mapList.Header("App Launch · AL");
+            Switch("Enabled", ads.appLaunchChannel?.isEnabled ?? false);
+            mapList.Row("Launch Ad", comeback.launchAdType == 0 ? "Force ad group " + Dash(comeback.launchForceAdGroupName) : "App open");
+            if (comeback.launchAdType != 0)
+                mapList.Row("App Open Unit", Dash(core.appOpenUnit?.admobUnit?.id));
+
+            mapList.Header("App Resume · AR");
+            Switch("Enabled", ads.appResumeChannel?.isEnabled ?? false);
+            mapList.Row("Native Unit", Dash(ads.appResumeChannel?.adUnitId));
+            mapList.Row("Layout Group", Dash(ads.appResumeChannel?.layoutGroup));
+
+            mapList.Header("Rewarded · RW");
+            Switch("Enabled", ads.rewardedChannel?.isEnabled ?? false);
+            Units(core.rewardedUnit);
+
+            foreach (HDCAdCoreConfig.ForceAdGroup group in core.forceAdGroups ?? new HDCAdCoreConfig.ForceAdGroup[0])
+            {
+                if (group == null)
+                    continue;
+                mapList.Header("Force Ad · " + group.groupName);
+                mapList.Row("Positions", Join(group.positionNames));
+                mapList.Row("Priority", Priority(group.mediationPriority) + (group.useBackup ? " · backup on" : string.Empty));
+                mapList.Row("AdMob Unit", Dash(group.admobUnit?.id));
+                bool interstitial = group.androidUnit?.androidInterstitials?.switchToInterstitialAndroid ?? false;
+                mapList.Row(interstitial ? "Native Unit (Interstitial)" : "Native Unit", Dash(group.androidUnit?.id));
+                if (!interstitial && !string.IsNullOrEmpty(group.androidUnit?.id))
+                    mapList.Row("Layout Group", Dash(group.androidUnit.layoutGroupName));
+            }
+
+            foreach (HDCBannerSlot slot in (HDCBannerSlot[])Enum.GetValues(typeof(HDCBannerSlot)))
+            {
+                HDCAdCoreConfig.FullscreenUnit unit = core.bannerUnit?.Slot(slot) ?? new HDCAdCoreConfig.FullscreenUnit();
+                bool enabled = (ads.bannerChannel?.isEnabled ?? false) && (ads.bannerChannel?.Slot(slot).isEnabled ?? false);
+                if (!enabled && string.IsNullOrEmpty(unit.admobUnit?.id) && string.IsNullOrEmpty(unit.androidUnit?.id))
+                    continue;
+                mapList.Header("Banner · " + slot);
+                Switch("Enabled", enabled);
+                mapList.Row("Priority", Priority(unit.mediationPriority) + (unit.useBackup ? " · backup on" : string.Empty));
+                mapList.Row("AdMob Unit", Dash(unit.admobUnit?.id));
+                if (slot == HDCBannerSlot.FullBottom)
+                    mapList.Row("Native Units", Join(new[] { unit.androidUnit?.id }.Concat(unit.androidUnit?.ids ?? new string[0])));
+            }
+
+            mapList.Header("MREC");
+            Switch("Enabled", ads.mrecChannel?.isEnabled ?? false);
+            mapList.Row("AdMob Unit", Dash(core.mrecUnit?.admobUnit?.id));
+
+            foreach (HDCAdCoreConfig.PopupGroup group in core.popupGroups ?? new HDCAdCoreConfig.PopupGroup[0])
+            {
+                if (group == null)
+                    continue;
+                mapList.Header("Popup · " + group.groupName);
+                mapList.Row("Positions", Join(group.positionNames));
+                mapList.Row("Native Unit", Dash(group.androidUnit?.id));
+                mapList.Row("Layout", Dash(group.androidUnit?.layout));
+            }
+
+            mapList.End();
+        }
+
+        private void Units(HDCAdCoreConfig.FullscreenUnit unit)
+        {
+            unit = unit ?? new HDCAdCoreConfig.FullscreenUnit();
+            mapList.Row("Priority", Priority(unit.mediationPriority) + (unit.useBackup ? " · backup on" : string.Empty));
+            mapList.Row("AdMob Unit", Dash(unit.admobUnit?.id));
+            mapList.Row("Native Unit", Dash(unit.androidUnit?.id));
+        }
+
+        private void Switch(string label, bool on) => mapList.Row(label, on ? "Yes" : "No", on ? HDCDebugStyle.GoodColor : HDCDebugStyle.MutedColor);
+
+        // Helpers
+
+        private static string Priority(int priority) =>
+            priority == HDCAds.PluginUnit ? "AdMob first" : priority == HDCAds.NativeUnit ? "Native first" : priority.ToString(CultureInfo.InvariantCulture);
+
+        private static string Join(IEnumerable<string> values)
+        {
+            string[] list = (values ?? new string[0]).Where(value => !string.IsNullOrEmpty(value)).ToArray();
+            return list.Length == 0 ? "-" : string.Join(", ", list);
+        }
+
+        private static string Size(string value) =>
+            string.IsNullOrEmpty(value) ? "empty" : value.Length.ToString("#,0", CultureInfo.InvariantCulture) + " chars";
+
+        private static string Clock(DateTime? time) => time.HasValue ? time.Value.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) : "-";
+
+        private static string Dash(string value) => string.IsNullOrEmpty(value) ? "-" : value;
+    }
+
+    /// <summary>The Remote Config key of the ads config, as HDCRemoteConfig reads it.</summary>
+    internal static class HDCRemoteConfigKeys
+    {
+        internal const string Ads = "ads_config";
+    }
+}

@@ -182,7 +182,7 @@ Config giữ nguyên key và schema JSON của hệ thống cũ, nên dùng lạ
 - `admobUnit` chạy qua plugin Google Mobile Ads. `androidUnit` chạy qua thư viện native trên cả Android và iOS:
   - Native fullscreen dùng layout ngẫu nhiên trong layout group, không lặp cho tới khi dùng hết.
   - Nếu bật `switchToInterstitialAndroid` thì dùng interstitial.
-- Trên máy thật, `HDCRemoteConfig` lấy giá trị theo thứ tự: Remote Config, giá trị máy lưu từ lần trước, rồi config mặc định. Nó luôn fetch mới, timeout mặc định 10 giây. Trong Editor nó dùng config mặc định, trừ khi bật `HDCRemoteConfig.FetchInEditor`.
+- Trên máy thật, `HDCRemoteConfig` lấy giá trị theo thứ tự: Remote Config, giá trị máy lưu từ lần trước, rồi config mặc định. Nó luôn fetch mới, timeout mặc định 10 giây. Firebase không chạy được (kể cả khi thiếu thư viện native) thì nó cũng dùng giá trị máy lưu rồi config mặc định. Trong Editor nó dùng config mặc định, trừ khi bật `HDCRemoteConfig.FetchInEditor`. Trang Remote Config của bảng debug cho thấy từng key lấy từ nguồn nào.
 - Giá trị Remote Config là `{}` vẫn được coi là có giá trị. Một ad core config `{}` nghĩa là không có ad unit nào.
 
 Hành vi các kênh:
@@ -206,27 +206,56 @@ Hành vi các kênh:
 
 ## Bảng debug
 
-Prefab `Debug/HDCAdsDebugPanel.prefab` là bảng thử quảng cáo nằm đè lên game. Logic bám theo phần Ad Systems trong bảng debug của hệ thống cũ, giao diện làm mới, và thêm trạng thái của từng ad unit.
+Prefab `Debug/HDCAdsDebugPanel.prefab` là bảng debug nằm đè lên game. Chức năng bám theo bảng debug của hệ thống cũ (ad systems, configs, tracking, diagnostics, Adjust, build/device/network), giao diện làm mới, và thêm trạng thái của từng ad unit.
 
 - Thêm vào scene: `HDC > Debug panel > Add to open scene`, hoặc kéo prefab vào scene.
 - Bảng ẩn khi vào scene. Mở bằng cách chạm nhanh 3 lần vào góc trên bên trái (14% chiều rộng và chiều cao, trong 0,9 giây), hoặc nhấn F10; đóng bằng nút `Close`.
   - Chạy được với Input Manager cũ lẫn Input System mới. Scene thiếu EventSystem thì bảng tự tạo, với input module hợp loại input của project.
   - Bảng nằm trong safe area, và tự đổi tỉ lệ khi màn hình nằm ngang.
   - Các tùy chọn trên prefab: góc mở (`activationCorner`), số lần chạm, `startOpen`, `keepAcrossScenes`.
+- Đầu bảng: trạng thái SDK và ad core đang dùng, nút `Refresh`, `Close`, và `Init SDK` khi HDCAds chưa khởi tạo (mở thẳng scene không có HDCAdsSetup; nút gọi `HDCAdsSetup.InitializeAds()`). Bốn trang: Ads, Remote Config, Events, Device.
+
+### Trang Ads
+
 - Tab kênh: AL (app launch), AR (app resume), RW (rewarded), FA (force ad), BN (banner), MREC, CL (collapsible, HDC chưa có), PU (popup). Chấm màu trên tab là trạng thái chung của kênh: xanh lá có ad sẵn sàng, xanh dương đang hiện, cam đang load, đỏ đang lỗi, xám chưa chạy.
-- Thẻ Selection: chọn `Group` và `Position` từ config mà HDCAds đang chạy (ads_config và ad core config, tức giá trị Remote Config trên máy thật). Banner chọn slot, MREC chọn vị trí trên màn hình. Với FA, nút `BreakAd Debug` mở trạng thái break ad, tự cập nhật mỗi giây.
-- Thẻ Actions gọi thẳng API của HDCAds:
+- Thẻ Actions: chọn `Group` và `Position` từ config HDCAds đang chạy (trên máy thật là giá trị Remote Config); banner chọn placement, MREC chọn vị trí trên màn hình. Các nút gọi thẳng API của HDCAds:
   - `Init` và `Show`. Với banner và MREC, nút `Show` thành `Activate`.
   - `Hide` cho banner, MREC và popup.
-  - `Start BreakAd` và `Stop BreakAd` cho FA.
   - `UpdatePos` và `GetSize` cho MREC, `UpdatePos` cho popup. Popup hiện trong vùng `Popup area` ở cuối màn hình.
-- Thẻ Ad units: mọi group của kênh, mỗi ad unit một thẻ theo thứ tự group thử chúng.
-  - Nhãn trạng thái: `LOADING`, `READY`/`LOADED`, `SHOWING`, `LOAD FAILED` (kèm thời gian retry), `SHOW FAILED`, `CLOSED`, `BACKUP · NOT STARTED`, `NOT INITIALIZED`.
-  - Lỗi load hoặc show gần nhất: mã lỗi của SDK cùng tên (ví dụ `3 · NO_FILL`), giải thích bằng tiếng Việt, gợi ý cần kiểm tra gì, và thông điệp gốc. Mã lấy theo Google Mobile Ads Android hoặc iOS; `-1` là lỗi của HDC hoặc native, không có mã của SDK.
-  - Số liệu: request, loaded, load failed, shows, show failed, impressions, clicks, thời gian load gần nhất, doanh thu, nguồn quảng cáo và adapter.
-  - `Copy Report` chép toàn bộ trạng thái của kênh vào clipboard để gửi cho người khác.
-- Thẻ Recent events: 15 sự kiện gần nhất của các ad unit trong kênh. Thẻ System: API của từng kênh, rồi config, trạng thái và các điều kiện chặn của kênh đang chọn.
-- Mở thẳng scene mà không qua scene có HDCAdsSetup thì HDCAds chưa khởi tạo. Khi đó nút `Init SDK` gọi `HDCAdsSetup.InitializeAds()`.
+- Thẻ Detail Information Ad: chỉ group đang chọn (banner: placement đang chọn).
+  - Thông tin group từng dòng: positions, priority, backup, số lần show tối đa, ready, units started...
+  - Mỗi ad unit một thẻ, theo thứ tự group thử chúng. Nhãn trạng thái: `LOADING`, `READY`/`LOADED`, `SHOWING`, `LOAD FAILED` (kèm thời gian retry), `SHOW FAILED`, `CLOSED`, `BACKUP · NOT STARTED`, `NOT INITIALIZED`.
+  - Lỗi load hoặc show gần nhất, mỗi ý một dòng: mã lỗi của SDK cùng tên (ví dụ `3 · NO_FILL`), ý nghĩa bằng tiếng Việt, gợi ý cần kiểm tra gì, ad unit lỗi và thông điệp gốc. Mã lấy theo Google Mobile Ads Android hoặc iOS; `-1` là lỗi của HDC hoặc native, không có mã của SDK.
+  - Số liệu từng dòng: requests, loaded, load failed, shows, show failed, impressions, clicks, thời gian load gần nhất, doanh thu, lần retry tới.
+  - `Copy Report` chép trạng thái group, sự kiện và system của kênh vào clipboard để gửi cho người khác.
+- Thẻ Recent Events (ẩn sẵn): `Expand` mở 15 sự kiện gần nhất của group ngay trong thẻ; `Full Screen` mở toàn màn hình, chữ to, kèm giải thích từng sự kiện.
+- Thẻ System (ẩn sẵn): `Expand` mở config, trạng thái và các điều kiện chặn của riêng kênh đang chọn, kèm position và group đang chọn, rồi API của kênh.
+
+### Trang Remote Config
+
+- Thẻ Remote Config: config lấy từ đâu (Remote Config, giá trị lưu trên máy, hay mặc định), trạng thái Firebase, lần fetch gần nhất, thời gian tải, ad core key, nguồn của từng key và lúc áp dụng vào HDCAds.
+- Thẻ Config Check: lỗi và cảnh báo của config, bằng tiếng Việt: Firebase không chạy, fetch lỗi, key không có trên Remote Config, ad core config rỗng `{}`, kênh bật mà không có ad unit, position không thuộc group nào, layout group không tồn tại, position trùng tên...
+- Thẻ Config Viewer: xem `ads_config`, ad core config hoặc mọi key Remote Config đang có (`All Keys`), theo 4 nguồn:
+  - `Remote`: giá trị trên Remote Config; `Saved`: giá trị lần trước lưu trên máy; `Default`: config mặc định trong `HDC > Edit configs`; `Applied`: config HDCAds đang chạy.
+  - JSON được thụt dòng và tô màu; các key cấp 1 thu gọn sẵn, bấm để mở từng key hoặc `Expand All`. `Copy` chép JSON đầy đủ, `Full Screen` xem toàn màn hình.
+- Thẻ Ad Units Map (ẩn sẵn): ad unit, priority và position của từng kênh, group và placement.
+- Trong Editor HDC dùng config mặc định, không gọi Firebase, trừ khi bật `HDCRemoteConfig.FetchInEditor`.
+
+### Trang Events
+
+- Mọi sự kiện quảng cáo của mọi kênh (giữ 300 sự kiện gần nhất): tổng số, số theo loại và tổng doanh thu.
+- `Sequential` (mới nhất ở trên) hoặc `Count` (gộp theo loại và ad); lọc theo channel và loại sự kiện; `Explain` thêm giải thích tiếng Việt; `Copy`, `Clear`, `Full Screen`.
+
+### Trang Device
+
+- Build: version, bundle ID, bản Unity, platform, development hay release, scripting backend.
+- HDC Ads: thư viện native, Remote Config có bật không (`HDC_FIREBASE`), trạng thái khởi tạo, ads removed. Nút `Debug Log`, `Use Google Test Ads` (máy này nhận quảng cáo test, áp dụng cho các lần load sau), `Meta Test Mode On/Off` kèm device hash.
+- Device: model, hệ điều hành, CPU, RAM, GPU, màn hình, safe area, pin.
+- Network: kết nối, và IP công khai, quốc gia, nhà mạng (tra từ ipwho.is khi mở trang lần đầu hoặc bấm `Check Public IP`), để biết điều kiện quốc gia của Remote Config nhận máy là ở đâu.
+- Adjust: phiên bản SDK, adid và attribution, nếu game có Adjust SDK (HDC Ads không dùng Adjust nên đọc qua reflection).
+
+### Khác
+
 - Trong Editor, ad unit có chữ `fail` trong ID sẽ load lỗi với mã 3 (no fill), để thử cách bảng hiện lỗi.
 - Đây là công cụ debug: gỡ khỏi scene trước khi build bản phát hành.
 - Giao diện prefab được dựng bằng code trong `Debug/Editor/HDCAdsDebugPanelBuilder.cs`. Muốn sửa giao diện thì sửa ở đó rồi chạy `HDC.Ads.DebugUI.Editor.HDCAdsDebugPanelBuilder.Build` để dựng lại prefab.
@@ -316,5 +345,8 @@ Các giới hạn sau đến từ GMA, Meta và AndroidX, không phải từ HDC
   - Cài được như package (UPM).
   - Hỗ trợ tắt domain reload.
 - Menu `HDC` riêng trên thanh menu: bật/tắt Ads, sửa config mặc định trong cửa sổ có kiểm tra JSON.
-- Bảng debug `HDCAdsDebugPanel`: chọn kênh, group và vị trí theo config, rồi gọi init/show/hide. Từng ad unit hiện trạng thái, mã lỗi kèm giải thích, số liệu và sự kiện gần nhất. Native banner và popup giờ cũng báo mã lỗi thật của SDK (thư viện Android 0.3.1 và framework iOS mới).
+- Bảng debug `HDCAdsDebugPanel`, bốn trang:
+  - Ads: chọn kênh, group và vị trí theo config rồi gọi init/show/hide; group đang chọn hiện từng ad unit với trạng thái, mã lỗi kèm giải thích và số liệu. Native banner và popup cũng báo mã lỗi thật của SDK (thư viện Android 0.3.1 và framework iOS mới).
+  - Remote Config: config lấy từ đâu, kiểm tra lỗi config, xem JSON theo Remote, Saved, Default, Applied và mọi key Remote Config.
+  - Events: mọi sự kiện quảng cáo, lọc và giải thích. Device: build, test ads, thiết bị, mạng, Adjust.
 - Prefab `HDCAdsSetup` cho scene đầu: lấy config, khởi tạo ads, chạy app launch rồi mở scene tiếp theo.

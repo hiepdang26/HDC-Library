@@ -59,19 +59,27 @@ namespace HDC.Ads
                 HDCAds.RewardedGroup().Initialize();
         }
 
-        /// <summary>Configs, state and ad units, for the debug panel.</summary>
-        internal string Describe() =>
-            HDCAdsDebugText.Title("Rewarded (RW)")
+        /// <summary>Configs and state, for the debug panel. It reads the group without making it.</summary>
+        internal HDCDebugInfo Describe()
+        {
+            HDCFullscreenGroup group = HDCAds.ExistingRewardedGroup;
+            HDCDebugInfo info = new HDCDebugInfo()
                 .Section("Configs")
-                .Line("isEnabled", IsEnabled)
-                .Line("autoInit", AutoInit)
+                .Needed("Enabled", IsEnabled)
+                .Line("Auto Init", AutoInit)
                 .Section("Runtime")
-                .Line("IgnoreAds", IgnoreAds)
-                .Line("can show", CanShow)
-                .Line("impressions", ImpressionCount)
-                .Section("Group")
-                .Lines(HDCAds.RewardedGroup().Describe())
-                .Done();
+                .Line("Ignore Ads", IgnoreAds)
+                .Line("Can Show", IsEnabled && group != null && group.IsReady)
+                .Line("Impressions", ImpressionCount)
+                .Section("Gates")
+                .Gate("Disabled", !IsEnabled)
+                .Section("Group");
+            if (group != null)
+                group.DescribeTo(info);
+            else
+                info.Add("State", "Not started", HDCDebugTone.Muted);
+            return info;
+        }
 
         internal void OnSdkInitialized()
         {
