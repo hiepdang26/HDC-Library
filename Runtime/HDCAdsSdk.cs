@@ -221,6 +221,7 @@ namespace HDC.Ads
             AdEvent = null;
             IsInitialized = false;
             DebugLog = false;
+            IsTestDevice = false;
         }
 
         // Records a load request that the native side accepted, for the debug panel.

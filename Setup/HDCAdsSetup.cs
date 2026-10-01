@@ -29,6 +29,10 @@ namespace HDC.Ads
 
         [Tooltip("Logs every ads command and event.")]
         [SerializeField] private bool debugLog;
+
+        [Tooltip("Makes this device a Google test device before any ad loads, so every format serves Google test ads. " +
+                 "For test builds: real ad units often get no fill there, and clicking real ads puts the account at risk. Turn it off for release.")]
+        [SerializeField] private bool googleTestAds;
 #pragma warning restore CS0169, CS0414
 
         [Tooltip("Called once HDCAds is initialized.")]
@@ -61,6 +65,12 @@ namespace HDC.Ads
 #if HDC_ADS
             if (debugLog)
                 HDCAdsSdk.DebugLog = true;
+            if (googleTestAds)
+            {
+                HDCAdsSdk.EnableTestDevice();
+                Debug.LogWarning("[HDCAds] Google test ads are on (HDCAdsSetup > Google Test Ads): turn them off before release.");
+            }
+
             if (HDCAds.IsInitialized)
                 onAdsReady.Invoke();
             else

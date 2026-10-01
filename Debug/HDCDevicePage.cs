@@ -31,7 +31,6 @@ namespace HDC.Ads.DebugUI
         [SerializeField] private HDCKeyValueList adjustList;
         [SerializeField] private Button adjustButton;
 
-        private bool testDeviceRequested;
         private bool metaTestMode;
         private string metaDeviceHash;
         private bool probing;
@@ -82,7 +81,6 @@ namespace HDC.Ads.DebugUI
             testDeviceButton.onClick.AddListener(() =>
             {
                 HDCAdsSdk.EnableTestDevice();
-                testDeviceRequested = true;
                 Refresh();
             });
             metaOnButton.onClick.AddListener(() =>
@@ -151,7 +149,7 @@ namespace HDC.Ads.DebugUI
             libraryList.Row("HDCAds Initialized", HDCAds.IsInitialized ? "Yes" : "No", HDCAds.IsInitialized ? HDCDebugStyle.GoodColor : HDCDebugStyle.WarnColor);
             libraryList.Row("Ads Removed", HDCAds.IsAdsRemoved ? "Yes: only rewarded ads show" : "No", HDCAds.IsAdsRemoved ? HDCDebugStyle.WarnColor : HDCDebugStyle.TextColor);
             libraryList.Row("Debug Log", HDCAdsSdk.DebugLog ? "On" : "Off", HDCAdsSdk.DebugLog ? HDCDebugStyle.GoodColor : HDCDebugStyle.MutedColor);
-            libraryList.Row("Google Test Ads", testDeviceRequested ? "This device is a test device (ads loaded from now on)" : "Off", testDeviceRequested ? HDCDebugStyle.GoodColor : HDCDebugStyle.MutedColor);
+            libraryList.Row("Google Test Ads", HDCAdsSdk.IsTestDevice ? "On: this device gets Google test ads" : "Off: real ads", HDCAdsSdk.IsTestDevice ? HDCDebugStyle.GoodColor : HDCDebugStyle.MutedColor);
             bool metaTest = metaTestMode;
             libraryList.Row("Meta Test Mode", metaTest ? "On" : "Off", metaTest ? HDCDebugStyle.GoodColor : HDCDebugStyle.MutedColor);
             if (!string.IsNullOrEmpty(metaDeviceHash))
@@ -160,7 +158,7 @@ namespace HDC.Ads.DebugUI
 
             HDCDebugStyle.SetLabel(debugLogButton, HDCAdsSdk.DebugLog ? "Debug Log: On" : "Debug Log: Off");
             HDCDebugStyle.Highlight(debugLogButton, HDCAdsSdk.DebugLog);
-            HDCDebugStyle.Highlight(testDeviceButton, testDeviceRequested);
+            HDCDebugStyle.Highlight(testDeviceButton, HDCAdsSdk.IsTestDevice);
             HDCDebugStyle.Highlight(metaOnButton, metaTest);
             HDCDebugStyle.Highlight(metaOffButton, !metaTest);
         }

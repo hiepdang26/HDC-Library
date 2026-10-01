@@ -16,7 +16,14 @@ namespace HDC.Ads
         /// Serves Google test ads to this device, in every format including the native ones. Call it before
         /// ads load: ads loaded earlier are live ads.
         /// </summary>
-        public static void EnableTestDevice() => HDCGma.EnableTestDevice();
+        public static void EnableTestDevice()
+        {
+            HDCGma.EnableTestDevice();
+            IsTestDevice = true;
+        }
+
+        /// <summary>True once <see cref="EnableTestDevice"/> made this device a Google test device.</summary>
+        public static bool IsTestDevice { get; private set; }
 
         // Rewarded
 

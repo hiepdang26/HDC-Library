@@ -70,8 +70,8 @@ Tính năng native dùng framework đó không chạy trong bản build này, v�
 Kéo prefab `Setup/HDCAdsSetup.prefab` vào scene đầu tiên của game, hoặc dùng `HDC > Setup > Add to open scene`. Không cần viết code khởi động. Prefab làm lần lượt:
 
 1. Load `nextScene` ở nền.
-2. Lấy config. Trên máy thật, config đến từ Remote Config (cần `HDC_FIREBASE`), chỗ nào thiếu thì dùng config mặc định. Trong Editor, prefab dùng config mặc định.
-3. Khởi tạo HDCAds, rồi bật các kênh:
+2. Lấy config. Trên máy thật, config đến từ Remote Config (cần `HDC_FIREBASE`; bước này cũng khởi tạo Firebase), chỗ nào thiếu thì dùng config mặc định. Trong Editor, prefab dùng config mặc định.
+3. Khởi tạo HDCAds: Google Mobile Ads (cả plugin Unity và thư viện native, cùng các adapter mediation), rồi bật các kênh:
    - App launch luôn được bật, vì splash chờ nó.
    - Các kênh khác chỉ được bật khi `startAllChannels` đang bật.
 4. Chờ app launch xong, tối đa `maxWaitSeconds`, rồi mở `nextScene`.
@@ -82,6 +82,7 @@ Các trường của prefab:
 - `maxWaitSeconds` (mặc định 30): quá thời gian này thì vẫn mở scene tiếp, dù ads chưa xong.
 - `startAllChannels` (mặc định bật): bật cả các kênh có `autoInit` tắt trong config, để scene sau có sẵn ad.
 - `debugLog`: log mọi lệnh và sự kiện ads.
+- `googleTestAds` (mặc định tắt): biến máy đang chạy thành test device của Google trước khi load ad, nên mọi định dạng nhận quảng cáo test. Dùng cho bản test: ad unit thật thường trả no fill ở bản build ký bằng bundle ID khác, và bấm quảng cáo thật khi test có thể làm hỏng tài khoản AdMob. Nhớ tắt trước khi phát hành. Trên bảng debug, nút `Use Google Test Ads` ở trang Device làm việc tương tự lúc đang chạy.
 - `onAdsReady`, `onFinished`: sự kiện khi HDCAds khởi tạo xong, và ngay trước khi mở scene tiếp.
 
 Assembly của prefab luôn được biên dịch. Khi HDC tắt, prefab chỉ mở scene tiếp theo, nên scene đầu không bị kẹt. Nếu HDCAds đã khởi tạo rồi (ví dụ quay lại scene đầu), prefab bỏ qua bước khởi tạo.
