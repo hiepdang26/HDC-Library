@@ -45,6 +45,8 @@ namespace HDC.Ads.DebugUI
         [SerializeField] private Button coreButton;
         [SerializeField] private Button keysButton;
         [SerializeField] private Button optionTemplate;
+        [Tooltip("Says which source the config HDCAds runs on came from: Remote, Saved, Default or Direct.")]
+        [SerializeField] private Text appliedNoteText;
         [SerializeField] private Text viewerInfoText;
         [SerializeField] private Text bodyText;
         [SerializeField] private Button copyButton;
@@ -116,15 +118,21 @@ namespace HDC.Ads.DebugUI
                 statusList.Row("Load Started", HDCConfigReport.StartClock.ToString("HH:mm:ss", CultureInfo.InvariantCulture));
                 statusList.Row("Load Time", HDCConfigReport.LoadSeconds < 0f ? "Loading..." : HDCConfigReport.LoadSeconds.ToString("0.0", CultureInfo.InvariantCulture) + " s");
                 statusList.Row("Ad Core Key", Dash(HDCConfigReport.CoreKey));
-                foreach (HDCConfigEntry entry in HDCConfigReport.Entries)
-                    statusList.Row("Key " + entry.Key, SourceText(entry), SourceColor(entry.Source));
                 if (!HDCConfigReport.DefaultsOnly)
                     statusList.Row("Keys On Remote Config", HDCConfigReport.RemoteValueCount.ToString(CultureInfo.InvariantCulture));
             }
 
             if (HDCConfigReport.AppliedAds != null)
-                statusList.Row("Applied To HDCAds", HDCConfigReport.AppliedClock.ToString("HH:mm:ss", CultureInfo.InvariantCulture)
-                    + " · ads " + Size(HDCConfigReport.AppliedAds) + " · core " + Size(HDCConfigReport.AppliedCore));
+            {
+                foreach (Part target in new[] { Part.Ads, Part.Core })
+                {
+                    string source = AppliedFrom(target, out _, out HDCDebugTone sourceTone);
+                    statusList.Row("Applied: " + KeyOf(target), source + " · " + Size(AppliedJson(target)), HDCDebugStyle.ToneColor(sourceTone));
+                }
+
+                statusList.Row("Applied At", HDCConfigReport.AppliedClock.ToString("HH:mm:ss", CultureInfo.InvariantCulture));
+            }
+
             statusList.End();
         }
 
@@ -149,14 +157,66 @@ namespace HDC.Ads.DebugUI
             return from + " · " + HDCConfigReport.Outcome;
         }
 
-        private static string SourceText(HDCConfigEntry entry)
+        // Which source the config HDCAds runs on came from: Remote, Saved, Default, or Direct when HDCAds.Initialize
+        // got it from elsewhere; with why.
+        private static string AppliedFrom(Part target, out string reason, out HDCDebugTone tone)
         {
-            string source = entry.Source == HDCConfigSource.Remote ? "Remote" : entry.Source == HDCConfigSource.Saved ? "Saved on device" : "Project default";
-            return source + " · " + Size(entry.Used);
+            string applied = AppliedJson(target);
+            string key = KeyOf(target);
+            if (applied == null)
+            {
+                tone = HDCDebugTone.Muted;
+                reason = "HDCAds chưa khởi tạo nên chưa áp dụng config nào.";
+                return "-";
+            }
+
+            HDCConfigEntry entry = HDCConfigReport.Find(key);
+            if (entry == null)
+            {
+                tone = HDCDebugTone.Normal;
+                reason = "Config được truyền thẳng vào HDCAds.Initialize, không qua Remote Config của HDC.";
+                return "Direct";
+            }
+
+            if (Compact(entry.Used) != Compact(applied))
+            {
+                tone = HDCDebugTone.Warn;
+                reason = $"HDCAds.Initialize nhận config khác với giá trị HDCRemoteConfig chọn ({entry.Source}).";
+                return "Direct";
+            }
+
+            switch (entry.Source)
+            {
+                case HDCConfigSource.Remote:
+                    tone = HDCDebugTone.Good;
+                    reason = HDCConfigReport.Outcome == "fetched"
+                        ? $"{key} lấy từ Remote Config, vừa fetch xong."
+                        : $"{key} lấy từ Remote Config: giá trị Firebase đã kích hoạt từ lần trước (lần tải này: {HDCConfigReport.Outcome}).";
+                    return "Remote";
+                case HDCConfigSource.Saved:
+                    tone = HDCDebugTone.Warn;
+                    reason = $"Remote Config không có giá trị cho {key}, nên dùng giá trị lần trước lưu trên máy.";
+                    return "Saved";
+                default:
+                    tone = HDCConfigReport.DefaultsOnly ? HDCDebugTone.Normal : HDCDebugTone.Warn;
+                    reason = HDCConfigReport.DefaultsOnly
+                        ? $"Trong Editor HDC dùng config mặc định cho {key}, không fetch Firebase."
+                        : $"Remote Config không có giá trị cho {key} và máy chưa lưu giá trị nào, nên dùng config mặc định của project.";
+                    return "Default";
+            }
         }
 
-        private static Color SourceColor(HDCConfigSource source) =>
-            source == HDCConfigSource.Remote ? HDCDebugStyle.GoodColor : HDCDebugStyle.WarnColor;
+        private static string AppliedJson(Part target) => target == Part.Ads ? HDCConfigReport.AppliedAds : HDCConfigReport.AppliedCore;
+
+        private static string KeyOf(Part target)
+        {
+            if (target == Part.Ads)
+                return HDCRemoteConfigKeys.Ads;
+            string coreKey = !string.IsNullOrEmpty(HDCConfigReport.CoreKey) ? HDCConfigReport.CoreKey : HDCAds.Config.selectedAdCoreName;
+            return string.IsNullOrEmpty(coreKey) ? "ad core config" : coreKey;
+        }
+
+        private static string Compact(string json) => new string((json ?? string.Empty).Where(c => !char.IsWhiteSpace(c)).ToArray());
 
         // Check
 
@@ -206,6 +266,7 @@ namespace HDC.Ads.DebugUI
             HDCDebugStyle.Highlight(adsButton, part == Part.Ads);
             HDCDebugStyle.Highlight(coreButton, part == Part.Core);
             HDCDebugStyle.Highlight(keysButton, part == Part.Keys);
+            RedrawAppliedSource();
 
             string text = BuildBody();
             bodyText.text = text;
@@ -217,7 +278,51 @@ namespace HDC.Ads.DebugUI
             HDCDebugStyle.SetLabel(copyButton, copiedUntil > 0f ? "Copied" : "Copy");
         }
 
-        private string ViewerTitle() => part == Part.Keys ? "Remote Config · " + Dash(key) : $"{CurrentKey()} · {mode}";
+        // The source of the config in use, on its button and in a note above the JSON.
+        private void RedrawAppliedSource()
+        {
+            if (part == Part.Keys)
+            {
+                HDCDebugStyle.SetLabel(remoteButton, "Remote");
+                HDCDebugStyle.SetLabel(savedButton, "Saved");
+                HDCDebugStyle.SetLabel(defaultButton, "Default");
+                HDCDebugStyle.SetLabel(appliedButton, "Applied");
+                appliedNoteText.text = HDCConfigReport.AppliedAds == null
+                    ? HDCDebugStyle.Colored(HDCDebugStyle.MutedHex, "HDCAds chưa khởi tạo nên chưa áp dụng config nào.")
+                    : "HDC chỉ dùng 2 key: " + Uses(Part.Ads) + ", " + Uses(Part.Core) + ". All Keys luôn là giá trị Remote Config.";
+                return;
+            }
+
+            string source = AppliedFrom(part, out string reason, out HDCDebugTone tone);
+            HDCDebugStyle.SetLabel(remoteButton, source == "Remote" ? "Remote · used" : "Remote");
+            HDCDebugStyle.SetLabel(savedButton, source == "Saved" ? "Saved · used" : "Saved");
+            HDCDebugStyle.SetLabel(defaultButton, source == "Default" ? "Default · used" : "Default");
+            HDCDebugStyle.SetLabel(appliedButton, "Applied: " + source);
+            appliedNoteText.text = $"<b><color={Hex(tone)}>APPLIED = {source.ToUpperInvariant()}</color></b>   {reason}";
+        }
+
+        private static string Uses(Part target)
+        {
+            string source = AppliedFrom(target, out _, out HDCDebugTone tone);
+            return $"{KeyOf(target)} = <b><color={Hex(tone)}>{source}</color></b>";
+        }
+
+        private static string Hex(HDCDebugTone tone)
+        {
+            switch (tone)
+            {
+                case HDCDebugTone.Good: return HDCDebugStyle.GoodHex;
+                case HDCDebugTone.Warn: return HDCDebugStyle.WarnHex;
+                case HDCDebugTone.Bad: return HDCDebugStyle.BadHex;
+                case HDCDebugTone.Muted: return HDCDebugStyle.MutedHex;
+                default: return "#F1F5F9";
+            }
+        }
+
+        private string ViewerTitle() =>
+            part == Part.Keys ? "Remote Config · " + Dash(key)
+            : mode == Mode.Applied ? $"{CurrentKey()} · Applied = {AppliedFrom(part, out _, out _)}"
+            : $"{CurrentKey()} · {mode}";
 
         private string ViewerInfo()
         {
@@ -239,17 +344,11 @@ namespace HDC.Ads.DebugUI
                 case Mode.Remote: return "giá trị trên Remote Config";
                 case Mode.Saved: return "giá trị lần trước lưu trên máy";
                 case Mode.Default: return "config mặc định của project";
-                default: return "config HDCAds đang chạy";
+                default: return "config HDCAds đang chạy (= " + AppliedFrom(part, out _, out _) + ")";
             }
         }
 
-        private string CurrentKey()
-        {
-            if (part == Part.Ads)
-                return HDCRemoteConfigKeys.Ads;
-            string coreKey = !string.IsNullOrEmpty(HDCConfigReport.CoreKey) ? HDCConfigReport.CoreKey : HDCAds.Config.selectedAdCoreName;
-            return string.IsNullOrEmpty(coreKey) ? "ad core config" : coreKey;
-        }
+        private string CurrentKey() => KeyOf(part);
 
         private string BuildBody()
         {
@@ -313,7 +412,7 @@ namespace HDC.Ads.DebugUI
                 default:
                     if (HDCConfigReport.AppliedAds == null)
                         note = "HDCAds chưa khởi tạo";
-                    return (part == Part.Ads ? HDCConfigReport.AppliedAds : HDCConfigReport.AppliedCore) ?? string.Empty;
+                    return AppliedJson(part) ?? string.Empty;
             }
         }
 

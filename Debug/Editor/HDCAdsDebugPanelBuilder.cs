@@ -295,6 +295,9 @@ namespace HDC.Ads.DebugUI.Editor
             Button adsButton = ButtonWithLabel(parts.transform, "Ads Config Button", "ads_config", ButtonColor, 24);
             Button coreButton = ButtonWithLabel(parts.transform, "Ad Core Button", "Ad Core", ButtonColor, 24);
             Button keysButton = ButtonWithLabel(parts.transform, "All Keys Button", "All Keys", ButtonColor, 24);
+            GameObject appliedBox = Box(viewerCard.transform, "Applied Note", UnitColor, true, false);
+            Vertical(appliedBox, new RectOffset(20, 20, 14, 14), 0f);
+            Text appliedNote = Label(appliedBox.transform, "Text", "", 24, FontStyle.Normal, TextColor, TextAnchor.UpperLeft);
             GameObject optionGrid = Grid(viewerCard.transform, "Options", 2, 462f, 64f);
             Button optionTemplate = ButtonWithLabel(optionGrid.transform, "Option Template", "Option", ButtonColor, 22);
             Text info = Label(viewerCard.transform, "Info", "", 22, FontStyle.Italic, MutedTextColor, TextAnchor.UpperLeft);
@@ -319,6 +322,7 @@ namespace HDC.Ads.DebugUI.Editor
             Assign(config, "coreButton", coreButton);
             Assign(config, "keysButton", keysButton);
             Assign(config, "optionTemplate", optionTemplate);
+            Assign(config, "appliedNoteText", appliedNote);
             Assign(config, "viewerInfoText", info);
             Assign(config, "bodyText", body);
             Assign(config, "copyButton", viewerButtons[0]);
