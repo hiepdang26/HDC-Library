@@ -84,6 +84,11 @@ namespace HDC.Ads
                 group.Hide();
         }
 
+        /// <summary>A slot's group once the channel made it, for the debug panel.</summary>
+        internal HDCRectGroup ExistingGroup(HDCBannerSlot slot) => groups.TryGetValue(slot, out HDCRectGroup group) ? group : null;
+
+        internal static bool IsSlotEnabled(HDCBannerSlot slot) => IsEnabled(slot);
+
         private static bool IsEnabled(HDCBannerSlot slot) => Channel.isEnabled && Channel.Slot(slot).isEnabled && !HDCAds.IsAdsRemoved;
 
         private HDCRectGroup EnabledGroup(HDCBannerSlot slot)

@@ -27,6 +27,13 @@ namespace HDC.Ads
 
         public bool IgnoreAds { get; set; }
 
+        // For the debug panel: the instance the channel loads, once it started.
+        internal static string DebugInstanceId => InstanceId;
+
+        internal static string DebugAdUnitId => Channel.adUnitId;
+
+        internal bool IsStarted => source != null;
+
         public bool IsInitialized => source != null;
 
         private static HDCAdsConfig.AppResumeChannel Channel => HDCAds.Config.appResumeChannel ?? new HDCAdsConfig.AppResumeChannel();

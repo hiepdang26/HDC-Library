@@ -8,9 +8,9 @@ namespace HDC.Ads.Internal
 {
     /// <summary>
     /// Simulates the native SDK in the Editor so game flows run without a device. Ads load after half a
-    /// second. A show sends Shown, Impression and Paid; interstitials and fullscreen ads close a second
-    /// later, popups after three seconds, and banners stay until hidden. As on devices, a banner shown
-    /// before its ad loads appears once it has.
+    /// second; an ad unit id containing "fail" fails instead, with no fill. A show sends Shown, Impression and
+    /// Paid; interstitials and fullscreen ads close a second later, popups after three seconds, and banners
+    /// stay until hidden. As on devices, a banner shown before its ad loads appears once it has.
     /// </summary>
     internal sealed class HDCEditorBridge : IHDCNativeBridge
     {
@@ -18,6 +18,10 @@ namespace HDC.Ads.Internal
         private const float ShowSeconds = 1f;
         private const float PopupShowSeconds = 3f;
         private const string SimulatedSource = "Editor simulation";
+        private const string FailingUnitMarker = "fail";
+
+        // The no fill code of the Google Mobile Ads SDK on Android.
+        private const int NoFillCode = 3;
 
         private readonly Dictionary<string, SimulatedAd> ads = new Dictionary<string, SimulatedAd>();
         private Action<string> handler;
@@ -106,6 +110,15 @@ namespace HDC.Ads.Internal
             {
                 if (!IsCurrent(key, ad))
                     return;
+                if (ad.AdUnitId.IndexOf(FailingUnitMarker, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    HDCAdEvent failed = Event(ad, HDCAdEventType.LoadFailed);
+                    failed.code = NoFillCode;
+                    failed.message = "No fill (Editor simulation: the ad unit id contains \"fail\")";
+                    Send(failed);
+                    return;
+                }
+
                 ad.Ready = true;
                 Send(Event(ad, HDCAdEventType.Loaded));
                 if (ad.ShowWhenLoaded)

@@ -41,6 +41,7 @@ namespace HDC.Ads.Internal
             // A new view shows itself; keep it hidden until the game asks for it.
             view.Hide();
             Attach(view);
+            HDCAdsTracker.Requested(format, Id, AdUnitId);
             view.LoadAd(new AdRequest());
         }
 
@@ -70,6 +71,7 @@ namespace HDC.Ads.Internal
         {
             destroyed = true;
             retry.Reset();
+            HDCAdsTracker.Destroyed(format, Id);
             IsShowing = false;
             IsLoaded = false;
             view?.Destroy();
@@ -192,8 +194,16 @@ namespace HDC.Ads.Internal
 
             HDCAdsSdk.Emit(HDCGma.Event(Id, format, HDCAdEventType.LoadFailed, AdUnitId, null).WithError(error, "Load failed"));
             // After the first ad, the view keeps its ad and refreshes on its own schedule.
-            if (!IsLoaded)
-                retry.Schedule(() => view?.LoadAd(new AdRequest()));
+            if (IsLoaded)
+                return;
+            retry.Schedule(() =>
+            {
+                if (view == null)
+                    return;
+                HDCAdsTracker.Requested(format, Id, AdUnitId);
+                view.LoadAd(new AdRequest());
+            });
+            HDCAdsTracker.RetryScheduled(format, Id, retry.Delay, retry.Attempt);
         }
 
         private void OnEvent(BannerView banner, string type)

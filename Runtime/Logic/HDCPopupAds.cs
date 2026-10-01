@@ -113,6 +113,22 @@ namespace HDC.Ads
                 .Done();
         }
 
+        /// <summary>A popup group's instance once the channel made it, for the debug panel.</summary>
+        internal bool TryGetPopup(string groupName, out string id, out bool requested, out bool placed)
+        {
+            id = null;
+            requested = placed = false;
+            if (string.IsNullOrEmpty(groupName) || !popups.TryGetValue(groupName, out Popup popup))
+                return false;
+            id = popup.Id;
+            requested = popup.Requested;
+            placed = popup.Placed;
+            return true;
+        }
+
+        /// <summary>The instance id a popup group's ads load with.</summary>
+        internal static string PopupId(string groupName) => "pu_" + groupName;
+
         internal void OnSdkInitialized()
         {
             if (IsDisabled)
@@ -171,7 +187,7 @@ namespace HDC.Ads
             HDCAdCoreConfig.PopupGroup config = HDCAds.CoreConfig.PopupGroupNamed(groupName);
             if (config == null || string.IsNullOrEmpty(config.androidUnit?.id))
                 return null;
-            popup = new Popup("pu_" + groupName, config);
+            popup = new Popup(PopupId(groupName), config);
             popups[groupName] = popup;
             return popup;
         }

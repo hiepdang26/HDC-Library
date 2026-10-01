@@ -52,6 +52,7 @@ namespace HDC.Ads.Internal
 
             if (Preload)
             {
+                HDCAdsTracker.Requested(format, Id, AdUnitId);
                 StartPreload();
                 return;
             }
@@ -62,6 +63,7 @@ namespace HDC.Ads.Internal
             retry.Cancel();
             loading = true;
             DestroyLoadedAd();
+            HDCAdsTracker.Requested(format, Id, AdUnitId);
             try
             {
                 RequestAd();
@@ -107,6 +109,7 @@ namespace HDC.Ads.Internal
         {
             IsDestroyed = true;
             retry.Reset();
+            HDCAdsTracker.Destroyed(format, Id);
             DestroyLoadedAd();
             if (Preload)
                 DestroyPreloadedAds();
@@ -138,8 +141,10 @@ namespace HDC.Ads.Internal
         {
             loading = false;
             Emit(HDCGma.Event(Id, format, HDCAdEventType.LoadFailed, AdUnitId, null).WithError(error, fallbackMessage));
-            if (!Preload && !LoadOnce && !IsDestroyed)
-                retry.Schedule(Load);
+            if (Preload || LoadOnce || IsDestroyed)
+                return;
+            retry.Schedule(Load);
+            HDCAdsTracker.RetryScheduled(format, Id, retry.Delay, retry.Attempt);
         }
 
         protected void OnPreloaded(ResponseInfo response) =>

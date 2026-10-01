@@ -8,8 +8,8 @@ namespace HDC.Ads.DebugUI
     /// <summary>A modal list for picking one option, such as a group or a position from the ads configs.</summary>
     public sealed class HDCOptionPicker : MonoBehaviour
     {
-        private static readonly Color OptionColor = new Color(0.31f, 0.31f, 0.31f, 1f);
-        private static readonly Color SelectedOptionColor = new Color(0.86f, 0.53f, 0.08f, 1f);
+        private static readonly Color OptionColor = new Color(0.2f, 0.255f, 0.333f, 1f);
+        private static readonly Color SelectedOptionColor = new Color(0.31f, 0.275f, 0.898f, 1f);
 
         [SerializeField] private GameObject modalRoot;
         [SerializeField] private Text titleText;

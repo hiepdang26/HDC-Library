@@ -121,6 +121,12 @@ namespace HDC.Ads
 
         internal static void NotifyFullscreenOpening() => FullscreenOpening?.Invoke();
 
+        // The groups made so far, for the debug panel, which must not make any.
+        internal static HDCFullscreenGroup ExistingForceAdGroup(string groupName) =>
+            !string.IsNullOrEmpty(groupName) && forceAdGroups.TryGetValue(groupName, out HDCFullscreenGroup group) ? group : null;
+
+        internal static HDCFullscreenGroup ExistingRewardedGroup => rewardedGroup;
+
         internal static HDCFullscreenGroup ForceAdGroup(string groupName)
         {
             if (string.IsNullOrEmpty(groupName))

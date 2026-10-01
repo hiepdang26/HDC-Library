@@ -78,6 +78,9 @@ namespace HDC.Ads
                 .Lines(group != null ? group.Describe() : "(not started)")
                 .Done();
 
+        /// <summary>The MREC group once the channel made it, for the debug panel.</summary>
+        internal HDCRectGroup ExistingGroup => group;
+
         internal void OnSdkInitialized()
         {
             if (IsEnabled && Channel.autoInit)

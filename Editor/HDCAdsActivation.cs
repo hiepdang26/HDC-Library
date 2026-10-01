@@ -12,12 +12,12 @@ namespace HDC.Ads.Editor
     /// <summary>
     /// Turns HDC ads on or off for builds (HDC > Ads). While off (the default), nothing from HDCLib reaches a build:
     /// the runtime assembly needs the HDC_ADS define, the iOS postprocess adds the HDCAds framework only
-    /// with it, and the native dependencies file is absent. Turn it on only when no other copy of the ads
-    /// framework built from the same Kotlin Multiplatform project is in the project: two copies cannot be
-    /// linked into one app. When the Firebase Remote Config SDK is in the project, enabling also adds
-    /// HDC_FIREBASE, which builds HDCRemoteConfig.
+    /// with it, and the native dependencies file is absent. When the Firebase Remote Config SDK is in the
+    /// project, enabling also adds HDC_FIREBASE, which builds HDCRemoteConfig. While on, the dependencies file
+    /// follows its template, so a library update that changes the native versions takes effect by itself.
     /// HDCLib works from any folder: under Assets, or as a package in Packages, read-only ones included.
     /// </summary>
+    [InitializeOnLoad]
     internal static class HDCAdsActivation
     {
         internal const string Define = "HDC_ADS";
@@ -37,6 +37,8 @@ namespace HDC.Ads.Editor
             NamedBuildTarget.iOS,
             NamedBuildTarget.Standalone,
         };
+
+        static HDCAdsActivation() => EditorApplication.delayCall += RefreshDependencies;
 
         /// <summary>
         /// HDCLib's folder as a project path, such as "Assets/HDCLib" or "Packages/com.hdc.ads".
@@ -89,11 +91,23 @@ namespace HDC.Ads.Editor
         // repository path is filled in with where HDCLib is, which the dependency manager resolves in packages too.
         private static void WriteDependencies()
         {
-            string template = Path.GetFullPath(Root + "/Editor/Templates~/" + DependenciesName);
             string file = DependenciesFile;
             Directory.CreateDirectory(Path.GetDirectoryName(file) ?? PackageDependenciesFolder);
-            File.WriteAllText(file, File.ReadAllText(template).Replace(RootToken, Root));
+            File.WriteAllText(file, ExpectedDependencies());
             AssetDatabase.ImportAsset(file);
+        }
+
+        private static string ExpectedDependencies() =>
+            File.ReadAllText(Path.GetFullPath(Root + "/Editor/Templates~/" + DependenciesName)).Replace(RootToken, Root);
+
+        // Rewrites a dependencies file an older HDCLib wrote, such as one naming an earlier Android library version.
+        private static void RefreshDependencies()
+        {
+            if (!IsPartlyEnabled)
+                return;
+            string file = DependenciesFile;
+            if (!File.Exists(file) || File.ReadAllText(file) != ExpectedDependencies())
+                WriteDependencies();
         }
 
         private static void DeleteDependencies()

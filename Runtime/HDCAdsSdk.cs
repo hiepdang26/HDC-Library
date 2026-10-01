@@ -60,6 +60,7 @@ namespace HDC.Ads
                 interstitialLoads[id] = load = new InterstitialLoad();
             load.ArgsJson = argsJson;
             load.Retry.Cancel();
+            HDCAdsTracker.Requested(HDCAdFormat.Interstitial, id, Units(adUnitIds));
             return true;
         }
 
@@ -73,7 +74,11 @@ namespace HDC.Ads
                 return true;
 
             if (interstitialLoads.TryGetValue(id ?? string.Empty, out InterstitialLoad load) && !load.Retry.IsWaiting)
+            {
+                HDCAdsTracker.Requested(HDCAdFormat.Interstitial, id, null);
                 Call<BoolResult>("interstitial.load", load.ArgsJson);
+            }
+
             return false;
         }
 
@@ -88,6 +93,7 @@ namespace HDC.Ads
             }
 
             Call("interstitial.destroy", id);
+            HDCAdsTracker.Destroyed(HDCAdFormat.Interstitial, id);
         }
 
         // Fullscreen native
@@ -97,7 +103,8 @@ namespace HDC.Ads
         /// <paramref name="reloadAfterShow"/>, the next ad loads when a shown one closes.
         /// </summary>
         public static bool LoadFullscreen(string id, string[] adUnitIds, bool reloadAfterShow = true) =>
-            Call("fullscreen.load", id, new FullscreenLoadFields { reloadAfterShow = reloadAfterShow }, adUnitIds).ok;
+            Requested(HDCAdFormat.Fullscreen, id, adUnitIds,
+                Call("fullscreen.load", id, new FullscreenLoadFields { reloadAfterShow = reloadAfterShow }, adUnitIds).ok);
 
         /// <summary>
         /// Shows the loaded fullscreen native ad. False when none is ready; a
@@ -110,13 +117,17 @@ namespace HDC.Ads
 
         public static bool IsFullscreenReady(string id) => Call("fullscreen.isReady", id).value;
 
-        public static void DestroyFullscreen(string id) => Call("fullscreen.destroy", id);
+        public static void DestroyFullscreen(string id)
+        {
+            Call("fullscreen.destroy", id);
+            HDCAdsTracker.Destroyed(HDCAdFormat.Fullscreen, id);
+        }
 
         // Popup native
 
         /// <summary>Loads a native popup for <paramref name="id"/>, trying the ad units in turn.</summary>
         public static bool LoadPopup(string id, string[] adUnitIds, HDCPopupOptions options = null) =>
-            Call("popup.load", id, options ?? new HDCPopupOptions(), adUnitIds).ok;
+            Requested(HDCAdFormat.Popup, id, adUnitIds, Call("popup.load", id, options ?? new HDCPopupOptions(), adUnitIds).ok);
 
         /// <summary>Moves or resizes the popup; see <see cref="HDCPopupOptions"/> for the units.</summary>
         public static void UpdatePopupPlacement(string id, float x, float y, float width, float height) =>
@@ -136,7 +147,11 @@ namespace HDC.Ads
         /// <summary>Stops the popup's reloads and timers.</summary>
         public static void StopPopup(string id) => Call("popup.stop", id);
 
-        public static void DestroyPopup(string id) => Call("popup.destroy", id);
+        public static void DestroyPopup(string id)
+        {
+            Call("popup.destroy", id);
+            HDCAdsTracker.Destroyed(HDCAdFormat.Popup, id);
+        }
 
         public static bool IsPopupReady(string id) => Call("popup.isReady", id).value;
 
@@ -153,7 +168,7 @@ namespace HDC.Ads
 
         /// <summary>Loads the native banner for <paramref name="id"/>, trying the ad units in turn.</summary>
         public static bool LoadBanner(string id, string[] adUnitIds, HDCBannerOptions options = null) =>
-            Call("banner.load", id, options ?? new HDCBannerOptions(), adUnitIds).ok;
+            Requested(HDCAdFormat.Banner, id, adUnitIds, Call("banner.load", id, options ?? new HDCBannerOptions(), adUnitIds).ok);
 
         /// <summary>Shows the banner along the bottom of the screen once an ad is loaded.</summary>
         public static void ShowBanner(string id) => Call("banner.show", id);
@@ -166,7 +181,11 @@ namespace HDC.Ads
 
         public static void CollapseBanner(string id) => Call("banner.collapse", id);
 
-        public static void DestroyBanner(string id) => Call("banner.destroy", id);
+        public static void DestroyBanner(string id)
+        {
+            Call("banner.destroy", id);
+            HDCAdsTracker.Destroyed(HDCAdFormat.Banner, id);
+        }
 
         // Meta Audience Network test mode
 
@@ -196,12 +215,23 @@ namespace HDC.Ads
             rewardedAds.Clear();
             appOpenAds.Clear();
             bannerViews.Clear();
+            HDCAdsTracker.Reset();
             bridge = null;
             initializedCallbacks = null;
             AdEvent = null;
             IsInitialized = false;
             DebugLog = false;
         }
+
+        // Records a load request that the native side accepted, for the debug panel.
+        private static bool Requested(string format, string id, string[] adUnitIds, bool accepted)
+        {
+            if (accepted)
+                HDCAdsTracker.Requested(format, id, Units(adUnitIds));
+            return accepted;
+        }
+
+        private static string Units(string[] adUnitIds) => adUnitIds == null ? null : string.Join(", ", adUnitIds);
 
         private static BoolResult Call(string method, string id, object fields = null, string[] adUnitIds = null) =>
             Call<BoolResult>(method, HDCJson.Args(id, fields, adUnitIds));
@@ -260,6 +290,7 @@ namespace HDC.Ads
         {
             if (adEvent == null)
                 return;
+            HDCAdsTracker.Record(adEvent);
             if (DebugLog)
                 Debug.Log($"{LogTag} event {adEvent}");
             if (adEvent.format == HDCAdFormat.Interstitial)
@@ -299,9 +330,12 @@ namespace HDC.Ads
                 string id = adEvent.id;
                 load.Retry.Schedule(() =>
                 {
-                    if (interstitialLoads.TryGetValue(id, out InterstitialLoad current) && current == load)
-                        Call<BoolResult>("interstitial.load", load.ArgsJson);
+                    if (!interstitialLoads.TryGetValue(id, out InterstitialLoad current) || current != load)
+                        return;
+                    HDCAdsTracker.Requested(HDCAdFormat.Interstitial, id, null);
+                    Call<BoolResult>("interstitial.load", load.ArgsJson);
                 });
+                HDCAdsTracker.RetryScheduled(HDCAdFormat.Interstitial, id, load.Retry.Delay, load.Retry.Attempt);
             }
         }
 

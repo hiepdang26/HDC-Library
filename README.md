@@ -51,7 +51,7 @@ Mặc định HDCLib ở trạng thái **tắt**, và không có gì của HDCLi
 
 - `HDC > Ads > Enable`:
   - Thêm define `HDC_ADS` cho Android, iOS và Standalone. Nếu project có Firebase Remote Config thì thêm cả `HDC_FIREBASE`.
-  - Tạo file `HDCAdsDependencies.xml` cho External Dependency Manager, với đường dẫn repo Maven theo vị trí thật của HDCLib. File nằm ở `<HDCLib>/Editor/`, hoặc ở `Assets/HDCAds/Editor/` khi HDCLib là package.
+  - Tạo file `HDCAdsDependencies.xml` cho External Dependency Manager, với đường dẫn repo Maven theo vị trí thật của HDCLib. File nằm ở `<HDCLib>/Editor/`, hoặc ở `Assets/HDCAds/Editor/` khi HDCLib là package. Khi HDC đang bật, file này tự cập nhật theo template mỗi lần Unity nạp lại script, nên bản HDCLib mới đổi version thư viện Android thì project nhận ngay.
 - `HDC > Ads > Disable` hoàn tác các bước trên.
 - Plugin iOS (`HDCAds.xcframework`, `HDCAdsBridge.mm`) luôn để tắt trong importer. Khi build iOS có `HDC_ADS`, post-process copy framework vào `Frameworks/HDCAds/` và file bridge vào `Libraries/HDCAds/` của project Xcode, rồi thêm cả hai vào target UnityFramework.
   - Cách này chạy giống nhau trên mọi bản Unity, kể cả khi HDCLib là package chỉ đọc.
@@ -147,7 +147,7 @@ HDCAdsSdk.ShowBannerView("bn_bottom");
 - Trên iOS, sự kiện tới ngay cả khi quảng cáo fullscreen đang pause Unity. Trên Android, sự kiện phát ra trong lúc quảng cáo fullscreen che game sẽ tới khi Unity chạy lại.
 - Hỗ trợ tắt domain reload (Enter Play Mode Options, mặc định của project Unity 6.6 mới). Mọi state tĩnh của HDCLib (ad, callback, subscriber, kênh) được reset mỗi lần vào Play Mode.
 - Trong Editor, SDK được giả lập:
-  - Load mất 0,5 giây.
+  - Load mất 0,5 giây. Ad unit có chữ `fail` trong ID thì load lỗi với mã 3 (no fill).
   - Show bắn `Shown`, `Impression`, `Paid`.
   - Interstitial và fullscreen đóng sau 1 giây, popup sau 3 giây. Banner giữ đến khi ẩn.
   - Rewarded, app open và banner view dùng quảng cáo mẫu có sẵn của plugin GMA trong Editor.
@@ -206,20 +206,28 @@ Hành vi các kênh:
 
 ## Bảng debug
 
-Prefab `Debug/HDCAdsDebugPanel.prefab` là bảng thử quảng cáo nằm đè lên game (Canvas overlay, sort order 1000). Nó dựng lại phần Ad Systems trong bảng debug của hệ thống cũ.
+Prefab `Debug/HDCAdsDebugPanel.prefab` là bảng thử quảng cáo nằm đè lên game. Logic bám theo phần Ad Systems trong bảng debug của hệ thống cũ, giao diện làm mới, và thêm trạng thái của từng ad unit.
 
-- Thêm vào scene: `HDC > Debug panel > Add to open scene`, hoặc kéo prefab vào scene. Scene cần có EventSystem. Nếu thiếu, bảng tự tạo một EventSystem khi project dùng Input Manager cũ.
-- Mở và đóng: nút `ADS` ở góc trên bên trái, phím F10, hoặc chạm 3 lần vào góc trên bên trái. `startOpen` mở bảng ngay khi vào scene. `keepAcrossScenes` giữ bảng khi đổi scene.
-- Các kênh: AL (app launch), AR (app resume), RW (rewarded), FA (force ad), BN (banner), MREC, CL (collapsible, HDC chưa có), PU (popup).
-- `Group` và `Position` lấy từ config mà HDCAds đang chạy: ads_config và ad core config, tức giá trị Remote Config trên máy thật. Banner chọn slot, MREC chọn vị trí trên màn hình.
-- Các nút gọi thẳng API của HDCAds:
+- Thêm vào scene: `HDC > Debug panel > Add to open scene`, hoặc kéo prefab vào scene.
+- Bảng ẩn khi vào scene. Mở bằng cách chạm nhanh 3 lần vào góc trên bên trái (14% chiều rộng và chiều cao, trong 0,9 giây), hoặc nhấn F10; đóng bằng nút `Close`.
+  - Chạy được với Input Manager cũ lẫn Input System mới. Scene thiếu EventSystem thì bảng tự tạo, với input module hợp loại input của project.
+  - Bảng nằm trong safe area, và tự đổi tỉ lệ khi màn hình nằm ngang.
+  - Các tùy chọn trên prefab: góc mở (`activationCorner`), số lần chạm, `startOpen`, `keepAcrossScenes`.
+- Tab kênh: AL (app launch), AR (app resume), RW (rewarded), FA (force ad), BN (banner), MREC, CL (collapsible, HDC chưa có), PU (popup). Chấm màu trên tab là trạng thái chung của kênh: xanh lá có ad sẵn sàng, xanh dương đang hiện, cam đang load, đỏ đang lỗi, xám chưa chạy.
+- Thẻ Selection: chọn `Group` và `Position` từ config mà HDCAds đang chạy (ads_config và ad core config, tức giá trị Remote Config trên máy thật). Banner chọn slot, MREC chọn vị trí trên màn hình. Với FA, nút `BreakAd Debug` mở trạng thái break ad, tự cập nhật mỗi giây.
+- Thẻ Actions gọi thẳng API của HDCAds:
   - `Init` và `Show`. Với banner và MREC, nút `Show` thành `Activate`.
   - `Hide` cho banner, MREC và popup.
   - `Start BreakAd` và `Stop BreakAd` cho FA.
-  - `UpdatePos` và `GetSize` cho MREC, `UpdatePos` cho popup.
-- Popup hiện trong vùng `Popup area` ở cuối màn hình.
-- Dòng đầu cho biết ad core đang dùng và số group. Khung chi tiết hiện config và trạng thái của kênh đang chọn, cập nhật mỗi giây. `BreakAd Debug` hiện trạng thái break ad.
+  - `UpdatePos` và `GetSize` cho MREC, `UpdatePos` cho popup. Popup hiện trong vùng `Popup area` ở cuối màn hình.
+- Thẻ Ad units: mọi group của kênh, mỗi ad unit một thẻ theo thứ tự group thử chúng.
+  - Nhãn trạng thái: `LOADING`, `READY`/`LOADED`, `SHOWING`, `LOAD FAILED` (kèm thời gian retry), `SHOW FAILED`, `CLOSED`, `BACKUP · NOT STARTED`, `NOT INITIALIZED`.
+  - Lỗi load hoặc show gần nhất: mã lỗi của SDK cùng tên (ví dụ `3 · NO_FILL`), giải thích bằng tiếng Việt, gợi ý cần kiểm tra gì, và thông điệp gốc. Mã lấy theo Google Mobile Ads Android hoặc iOS; `-1` là lỗi của HDC hoặc native, không có mã của SDK.
+  - Số liệu: request, loaded, load failed, shows, show failed, impressions, clicks, thời gian load gần nhất, doanh thu, nguồn quảng cáo và adapter.
+  - `Copy Report` chép toàn bộ trạng thái của kênh vào clipboard để gửi cho người khác.
+- Thẻ Recent events: 15 sự kiện gần nhất của các ad unit trong kênh. Thẻ System: API của từng kênh, rồi config, trạng thái và các điều kiện chặn của kênh đang chọn.
 - Mở thẳng scene mà không qua scene có HDCAdsSetup thì HDCAds chưa khởi tạo. Khi đó nút `Init SDK` gọi `HDCAdsSetup.InitializeAds()`.
+- Trong Editor, ad unit có chữ `fail` trong ID sẽ load lỗi với mã 3 (no fill), để thử cách bảng hiện lỗi.
 - Đây là công cụ debug: gỡ khỏi scene trước khi build bản phát hành.
 - Giao diện prefab được dựng bằng code trong `Debug/Editor/HDCAdsDebugPanelBuilder.cs`. Muốn sửa giao diện thì sửa ở đó rồi chạy `HDC.Ads.DebugUI.Editor.HDCAdsDebugPanelBuilder.Build` để dựng lại prefab.
 
@@ -308,5 +316,5 @@ Các giới hạn sau đến từ GMA, Meta và AndroidX, không phải từ HDC
   - Cài được như package (UPM).
   - Hỗ trợ tắt domain reload.
 - Menu `HDC` riêng trên thanh menu: bật/tắt Ads, sửa config mặc định trong cửa sổ có kiểm tra JSON.
-- Bảng debug `HDCAdsDebugPanel`: chọn kênh, group và vị trí theo config, rồi gọi init/show/hide.
+- Bảng debug `HDCAdsDebugPanel`: chọn kênh, group và vị trí theo config, rồi gọi init/show/hide. Từng ad unit hiện trạng thái, mã lỗi kèm giải thích, số liệu và sự kiện gần nhất. Native banner và popup giờ cũng báo mã lỗi thật của SDK (thư viện Android 0.3.1 và framework iOS mới).
 - Prefab `HDCAdsSetup` cho scene đầu: lấy config, khởi tạo ads, chạy app launch rồi mở scene tiếp theo.

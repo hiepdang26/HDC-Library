@@ -34,6 +34,17 @@ namespace HDC.Ads
 
         internal bool IsEmpty => sources.Count == 0;
         internal bool IsLoaded => LoadedSource() != null;
+        internal IReadOnlyList<HDCRectSource> Sources => sources;
+
+        /// <summary>Units started so far, in order: a unit starts once the ones before it failed.</summary>
+        internal int StartedCount => started;
+
+        internal bool IsShowing => showing;
+
+        /// <summary>The unit on screen while the slot shows.</summary>
+        internal HDCRectSource Visible => visible;
+
+        internal bool UsesBackup => useBackup;
 
         internal void Initialize()
         {
@@ -132,6 +143,7 @@ namespace HDC.Ads
 
         internal string Id { get; }
         internal string Format => format;
+        internal abstract string AdUnitId { get; }
         internal bool IsLoaded { get; private set; }
         internal Action<HDCRectSource> Failed { get; set; }
         internal Action<HDCRectSource> LoadedAd { get; set; }
@@ -171,6 +183,8 @@ namespace HDC.Ads
             this.placement = placement;
         }
 
+        internal override string AdUnitId => adUnitId;
+
         internal override void Load() => HDCAdsSdk.LoadBannerView(Id, adUnitId, placement);
 
         internal override void Show() => HDCAdsSdk.ShowBannerView(Id);
@@ -196,6 +210,8 @@ namespace HDC.Ads
             adUnitIds = ids.ToArray();
             options = new HDCBannerOptions { layoutNames = unit.layouts ?? new string[0], timeReload = unit.reloadTime };
         }
+
+        internal override string AdUnitId => string.Join(", ", adUnitIds);
 
         internal override void Load() => HDCAdsSdk.LoadBanner(Id, adUnitIds, options);
 

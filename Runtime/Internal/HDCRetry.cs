@@ -15,6 +15,12 @@ namespace HDC.Ads.Internal
 
         internal bool IsWaiting { get; private set; }
 
+        /// <summary>Failed loads in a row, which set the next delay.</summary>
+        internal int Attempt => attempt;
+
+        /// <summary>Seconds the scheduled retry waits.</summary>
+        internal float Delay => 1 << attempt;
+
         /// <summary>Runs <paramref name="retry"/> after the next delay, replacing a pending retry.</summary>
         internal void Schedule(Action retry)
         {

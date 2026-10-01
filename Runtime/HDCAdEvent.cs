@@ -31,8 +31,8 @@ namespace HDC.Ads
         /// <summary>Layout a fullscreen native ad was shown with.</summary>
         public string layout;
 
-        /// <summary>Error code of a failed load or show.</summary>
-        public int code;
+        /// <summary>Error code of a failed load or show: the ad SDK's code, or -1 for an error without one.</summary>
+        public int code = -1;
 
         /// <summary>Error message of a failed load or show.</summary>
         public string message;

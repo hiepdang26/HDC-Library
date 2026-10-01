@@ -30,6 +30,15 @@ namespace HDC.Ads
 
         internal string Name { get; }
         internal bool IsEmpty => sources.Count == 0;
+        internal IReadOnlyList<HDCFullscreenSource> Sources => sources;
+
+        /// <summary>Units started so far, in order: a unit starts once the ones before it failed.</summary>
+        internal int StartedCount => started;
+
+        /// <summary>Shows left before the group stops; below zero for no limit.</summary>
+        internal int ShowsLeft => remainingShows;
+
+        internal bool UsesBackup => useBackup;
         internal bool IsStopped => remainingShows == 0;
         internal bool IsReady => !IsStopped && ReadySource() != null;
         internal bool IsShowing => sources.Exists(source => source.IsShowing);
@@ -145,6 +154,7 @@ namespace HDC.Ads
 
         internal string Id { get; }
         internal string Format { get; }
+        internal abstract string AdUnitId { get; }
         internal Action<HDCFullscreenSource> Failed { get; set; }
         internal abstract bool IsReady { get; }
         internal bool IsShowing => showing;
@@ -272,6 +282,8 @@ namespace HDC.Ads
             this.ad = ad;
         }
 
+        internal override string AdUnitId => ad.AdUnitId;
+
         internal override bool IsReady => ad.IsReady;
 
         internal override void Load() => ad.Load();
@@ -296,6 +308,8 @@ namespace HDC.Ads
             this.reloadAfterShow = reloadAfterShow;
             this.layouts = layouts;
         }
+
+        internal override string AdUnitId => adUnitId;
 
         // Tracked from events: asking the native side every frame would cost a thread hop on Android.
         internal override bool IsReady => loaded;
@@ -329,6 +343,8 @@ namespace HDC.Ads
             this.bufferSize = Math.Max(1, bufferSize);
             this.autoReload = autoReload;
         }
+
+        internal override string AdUnitId => adUnitId;
 
         internal override bool IsReady => HDCAdsSdk.IsInterstitialReady(Id);
 

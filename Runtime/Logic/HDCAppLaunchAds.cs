@@ -194,6 +194,9 @@ namespace HDC.Ads
             HDCAdsLog.Run(BeforeShow);
         }
 
+        /// <summary>The launch ad's group once the channel made it, for the debug panel.</summary>
+        internal HDCFullscreenGroup ExistingGroup => group;
+
         private HDCFullscreenGroup Group()
         {
             if (group != null)
