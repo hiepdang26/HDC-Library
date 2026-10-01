@@ -236,11 +236,16 @@ namespace HDC.Ads
         private static BoolResult Call(string method, string id, object fields = null, string[] adUnitIds = null) =>
             Call<BoolResult>(method, HDCJson.Args(id, fields, adUnitIds));
 
+        // State reads, which games and the debug panel poll, stay out of the debug log.
+        private static bool IsQuery(string method) =>
+            method.EndsWith(".state", StringComparison.Ordinal) || method.EndsWith(".isReady", StringComparison.Ordinal)
+            || method.EndsWith(".isDisplayable", StringComparison.Ordinal) || method == "meta.isTestMode" || method == "meta.deviceHash";
+
         private static TResult Call<TResult>(string method, string argsJson)
             where TResult : Result, new()
         {
             EnsureBridge();
-            if (DebugLog)
+            if (DebugLog && !IsQuery(method))
                 Debug.Log($"{LogTag} call {method} {argsJson}");
 
             TResult result;

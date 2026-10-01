@@ -32,6 +32,8 @@ namespace HDC.Ads.DebugUI
         [SerializeField] private Button adjustButton;
 
         private bool testDeviceRequested;
+        private bool metaTestMode;
+        private string metaDeviceHash;
         private bool probing;
         private bool probedOnce;
         private float lastProbe = float.MinValue;
@@ -86,11 +88,13 @@ namespace HDC.Ads.DebugUI
             metaOnButton.onClick.AddListener(() =>
             {
                 HDCAdsSdk.EnableMetaTestMode();
+                ReadMeta();
                 Refresh();
             });
             metaOffButton.onClick.AddListener(() =>
             {
                 HDCAdsSdk.DisableMetaTestMode();
+                ReadMeta();
                 Refresh();
             });
             probeButton.onClick.AddListener(() => Probe(true));
@@ -103,6 +107,8 @@ namespace HDC.Ads.DebugUI
 
         protected override void OnEnable()
         {
+            // The native side is asked once per visit and after the buttons, not on every redraw.
+            ReadMeta();
             base.OnEnable();
             // The first visit looks up the public network and asks Adjust; later visits refresh with the buttons.
             if (!probedOnce)
@@ -146,11 +152,10 @@ namespace HDC.Ads.DebugUI
             libraryList.Row("Ads Removed", HDCAds.IsAdsRemoved ? "Yes: only rewarded ads show" : "No", HDCAds.IsAdsRemoved ? HDCDebugStyle.WarnColor : HDCDebugStyle.TextColor);
             libraryList.Row("Debug Log", HDCAdsSdk.DebugLog ? "On" : "Off", HDCAdsSdk.DebugLog ? HDCDebugStyle.GoodColor : HDCDebugStyle.MutedColor);
             libraryList.Row("Google Test Ads", testDeviceRequested ? "This device is a test device (ads loaded from now on)" : "Off", testDeviceRequested ? HDCDebugStyle.GoodColor : HDCDebugStyle.MutedColor);
-            bool metaTest = Try(HDCAdsSdk.IsMetaTestMode);
+            bool metaTest = metaTestMode;
             libraryList.Row("Meta Test Mode", metaTest ? "On" : "Off", metaTest ? HDCDebugStyle.GoodColor : HDCDebugStyle.MutedColor);
-            string hash = Try(HDCAdsSdk.GetMetaTestDeviceHash);
-            if (!string.IsNullOrEmpty(hash))
-                libraryList.Row("Meta Test Device Hash", hash);
+            if (!string.IsNullOrEmpty(metaDeviceHash))
+                libraryList.Row("Meta Test Device Hash", metaDeviceHash);
             libraryList.End();
 
             HDCDebugStyle.SetLabel(debugLogButton, HDCAdsSdk.DebugLog ? "Debug Log: On" : "Debug Log: Off");
@@ -212,11 +217,18 @@ namespace HDC.Ads.DebugUI
         private void RedrawAdjust()
         {
             adjustList.Begin();
-            adjustList.Row("State", HDCAdjustProbe.State, HDCAdjustProbe.State == "OK" ? HDCDebugStyle.GoodColor : HDCDebugStyle.MutedColor);
+            string state = HDCAdjustProbe.State;
+            adjustList.Row("State", state, state == "OK" ? HDCDebugStyle.GoodColor : state.StartsWith("Không có phản hồi") ? HDCDebugStyle.WarnColor : HDCDebugStyle.MutedColor);
             foreach (KeyValuePair<string, string> pair in HDCAdjustProbe.Ordered())
                 adjustList.Row(pair.Key, pair.Value);
             adjustList.End();
             adjustButton.interactable = HDCAdjustProbe.Found || HDCAdjustProbe.State == "Not checked";
+        }
+
+        private void ReadMeta()
+        {
+            metaTestMode = Try(HDCAdsSdk.IsMetaTestMode);
+            metaDeviceHash = Try(HDCAdsSdk.GetMetaTestDeviceHash);
         }
 
         // Public network, looked up at most once a minute unless asked.

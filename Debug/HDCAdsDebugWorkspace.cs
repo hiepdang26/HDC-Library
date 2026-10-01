@@ -223,7 +223,7 @@ namespace HDC.Ads.DebugUI
                 HDCDebugStyle.Highlight(tab.button, tab.key == channel);
                 if (tab.dot == null)
                     continue;
-                HDCUnitTone tone = HDCAdsDebugModel.Tone(tab.key == channel ? groups : HDCAdsDebugModel.Groups(tab.key, "", ""));
+                HDCUnitTone tone = HDCAdsDebugModel.Tone(tab.key == channel ? groups : HDCAdsDebugModel.Groups(tab.key, "", "", false));
                 tab.dot.color = HDCDebugStyle.BadgeColor(tone);
             }
         }

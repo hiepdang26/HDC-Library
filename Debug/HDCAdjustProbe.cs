@@ -20,11 +20,20 @@ namespace HDC.Ads.DebugUI
         };
 
         private static readonly Dictionary<string, string> values = new Dictionary<string, string>();
+        // The SDK holds the questions until the game initializes it, so no answer for a while means it is not.
+        private const float AnswerSeconds = 3f;
+
         private static Type adjust;
         private static bool searched;
+        private static string state = "Not checked";
+        private static bool answered;
+        private static float askedAt;
 
         /// <summary>What the last <see cref="Ask"/> found, or why it found nothing.</summary>
-        internal static string State { get; private set; } = "Not checked";
+        internal static string State =>
+            state == "OK" && !answered && Time.realtimeSinceStartup - askedAt > AnswerSeconds
+                ? "Không có phản hồi: game chưa khởi tạo Adjust (Adjust.InitSdk)"
+                : state;
 
         internal static bool Found => adjust != null;
 
@@ -41,17 +50,19 @@ namespace HDC.Ads.DebugUI
 
             if (adjust == null)
             {
-                State = "Adjust SDK không có trong build";
+                state = "Adjust SDK không có trong build";
                 return;
             }
 
             if (Application.isEditor)
             {
-                State = "Adjust chỉ chạy trên máy Android và iOS";
+                state = "Adjust chỉ chạy trên máy Android và iOS";
                 return;
             }
 
-            State = "OK";
+            state = "OK";
+            answered = false;
+            askedAt = Time.realtimeSinceStartup;
             Text("SDK Version", "GetSdkVersion", "getSdkVersion");
             Flag("Enabled", "IsEnabled", "isEnabled");
             Text("Adjust ID (adid)", "GetAdid", "getAdid");
@@ -163,7 +174,11 @@ namespace HDC.Ads.DebugUI
             }
         }
 
-        private static void Set(string label, string value) => values[label] = string.IsNullOrEmpty(value) ? "-" : value;
+        private static void Set(string label, string value)
+        {
+            answered = true;
+            values[label] = string.IsNullOrEmpty(value) ? "-" : value;
+        }
 
         /// <summary>The answers in a fixed order: the SDK first, then the attribution fields.</summary>
         internal static IEnumerable<KeyValuePair<string, string>> Ordered()

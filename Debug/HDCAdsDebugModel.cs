@@ -108,7 +108,11 @@ namespace HDC.Ads.DebugUI
     {
         internal static readonly string[] BannerSlots = Enum.GetNames(typeof(HDCBannerSlot));
 
-        internal static List<HDCDebugGroup> Groups(string channel, string selectedGroup, string selectedPosition)
+        /// <summary>
+        /// The channel's groups. With <paramref name="askNative"/> the selected popup group also reads its state from
+        /// the native side; without, popups go by their events only, which is enough for the tab colors.
+        /// </summary>
+        internal static List<HDCDebugGroup> Groups(string channel, string selectedGroup, string selectedPosition, bool askNative = true)
         {
             var groups = new List<HDCDebugGroup>();
             if (!HDCAds.IsInitialized)
@@ -152,7 +156,7 @@ namespace HDC.Ads.DebugUI
                     foreach (HDCAdCoreConfig.PopupGroup config in HDCAds.CoreConfig.popupGroups ?? new HDCAdCoreConfig.PopupGroup[0])
                     {
                         if (config != null && !string.IsNullOrEmpty(config.groupName))
-                            groups.Add(PopupGroup(config, config.groupName == selectedGroup));
+                            groups.Add(PopupGroup(config, config.groupName == selectedGroup, askNative && config.groupName == selectedGroup));
                     }
 
                     break;
@@ -258,13 +262,13 @@ namespace HDC.Ads.DebugUI
             return group;
         }
 
-        private static HDCDebugGroup PopupGroup(HDCAdCoreConfig.PopupGroup config, bool selected)
+        private static HDCDebugGroup PopupGroup(HDCAdCoreConfig.PopupGroup config, bool selected, bool askNative)
         {
             bool created = HDCAds.Popup.TryGetPopup(config.groupName, out string id, out bool requested, out bool placed);
             id = id ?? HDCPopupAds.PopupId(config.groupName);
             HDCAdRecord record = HDCAdsTracker.Find(HDCAdFormat.Popup, id);
             var group = new HDCDebugGroup { Name = config.groupName, Selected = selected };
-            string nativeState = requested ? HDCAdsSdk.GetPopupState(id) : null;
+            string nativeState = requested && askNative ? HDCAdsSdk.GetPopupState(id) : null;
             group.Details
                 .Line("Positions", Join(config.positionNames))
                 .Needed("Placed (Move)", placed)
