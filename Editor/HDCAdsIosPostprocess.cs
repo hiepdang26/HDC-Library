@@ -118,6 +118,25 @@ namespace HDC.Ads.Editor
             string fixedText = MarkAsXcframework(text);
             if (fixedText != text)
                 File.WriteAllText(projectPath, fixedText);
+
+            AllowHighFrameRates(buildPath);
+        }
+
+        // The native ad views are Compose Multiplatform views. Compose aborts the app when it first shows one and
+        // Info.plist lacks CADisableMinimumFrameDurationOnPhone, which Unity writes as false while Player Settings >
+        // Enable ProMotion is off.
+        private static void AllowHighFrameRates(string buildPath)
+        {
+            string plistPath = Path.Combine(buildPath, "Info.plist");
+            if (!File.Exists(plistPath))
+                return;
+
+            var plist = new PlistDocument();
+            plist.ReadFromFile(plistPath);
+            if (plist.root["CADisableMinimumFrameDurationOnPhone"] is PlistElementBoolean allowed && allowed.value)
+                return;
+            plist.root.SetBoolean("CADisableMinimumFrameDurationOnPhone", true);
+            plist.WriteToFile(plistPath);
         }
 
         private static void ReplaceAllLoad(PBXProject project, string targetGuid, string projectText)

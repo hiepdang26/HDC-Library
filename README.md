@@ -320,6 +320,7 @@ Các giới hạn sau đến từ GMA, Meta và AndroidX, không phải từ HDC
 ### iOS
 
 - Post-process tự thêm `HDCAds.xcframework` và `HDCAdsBridge.mm` vào project Xcode, nên không phụ thuộc cách từng bản Unity xử lý plugin `.xcframework`.
+- Post-process đặt `CADisableMinimumFrameDurationOnPhone = true` trong Info.plist. Quảng cáo native (full-screen, popup, banner) vẽ bằng Compose Multiplatform, và Compose dừng app ngay lần đầu hiện quảng cáo nếu key này thiếu hoặc là `false`. Unity ghi `false` khi Player Settings > iOS > Enable ProMotion đang tắt.
 - Build cho simulator:
   - Unity link UnityFramework bằng `-all_load`, để engine (ở simulator là thư viện động) tìm được IL2CPP theo tên. Nhưng `-all_load` nạp mọi phần của HDCAds, và các thư viện Skia bên trong lặp object nên link lỗi trùng symbol (HarfBuzz).
   - Post-process thay cờ đó bằng `-force_load` cho riêng `libil2cpp.a`, `libGameAssembly.a` và `baselib.a`.
