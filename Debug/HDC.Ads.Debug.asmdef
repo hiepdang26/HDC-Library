@@ -1,0 +1,21 @@
+{
+    "name": "HDC.Ads.Debug",
+    "rootNamespace": "HDC.Ads.DebugUI",
+    "references": [
+        "HDC.Ads",
+        "HDC.Ads.Settings",
+        "HDC.Ads.Firebase",
+        "UnityEngine.UI"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "HDC_ADS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

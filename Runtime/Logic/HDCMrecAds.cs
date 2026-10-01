@@ -63,6 +63,21 @@ namespace HDC.Ads
                 Group().Initialize();
         }
 
+        /// <summary>Configs, size and ad units, for the debug panel.</summary>
+        internal string Describe() =>
+            HDCAdsDebugText.Title("MREC")
+                .Section("Configs")
+                .Line("isEnabled", Channel.isEnabled)
+                .Line("autoInit", Channel.autoInit)
+                .Section("Runtime")
+                .Line("can show", CanShow)
+                .Line("size in pixels", SizeInPixels)
+                .Section("Gates")
+                .Line("enabled", IsEnabled)
+                .Section("Group")
+                .Lines(group != null ? group.Describe() : "(not started)")
+                .Done();
+
         internal void OnSdkInitialized()
         {
             if (IsEnabled && Channel.autoInit)

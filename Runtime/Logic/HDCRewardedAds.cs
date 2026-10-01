@@ -59,6 +59,20 @@ namespace HDC.Ads
                 HDCAds.RewardedGroup().Initialize();
         }
 
+        /// <summary>Configs, state and ad units, for the debug panel.</summary>
+        internal string Describe() =>
+            HDCAdsDebugText.Title("Rewarded (RW)")
+                .Section("Configs")
+                .Line("isEnabled", IsEnabled)
+                .Line("autoInit", AutoInit)
+                .Section("Runtime")
+                .Line("IgnoreAds", IgnoreAds)
+                .Line("can show", CanShow)
+                .Line("impressions", ImpressionCount)
+                .Section("Group")
+                .Lines(HDCAds.RewardedGroup().Describe())
+                .Done();
+
         internal void OnSdkInitialized()
         {
             if (IsEnabled && AutoInit)

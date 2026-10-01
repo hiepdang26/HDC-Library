@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
 namespace HDC.Ads
 {
@@ -69,6 +70,25 @@ namespace HDC.Ads
             return null;
         }
 
+        /// <summary>The slot's units and their state, for the debug panel.</summary>
+        internal string Describe()
+        {
+            var text = new StringBuilder()
+                .Line("loaded", IsLoaded)
+                .Line("showing", showing)
+                .Line("on screen", visible?.Id ?? "-")
+                .Line("backup", useBackup)
+                .Line("units started", started + "/" + sources.Count);
+            for (int i = 0; i < sources.Count; i++)
+            {
+                HDCRectSource source = sources[i];
+                string state = i >= started ? "not started" : source.IsLoaded ? "loaded" : "loading";
+                text.Append("  ").Append(i + 1).Append(". ").Append(source.Format).Append(' ').Append(source.Id).Append(": ").AppendLine(state);
+            }
+
+            return text.Done();
+        }
+
         private void Display(HDCRectSource source)
         {
             if (visible == source)
@@ -111,6 +131,7 @@ namespace HDC.Ads
         }
 
         internal string Id { get; }
+        internal string Format => format;
         internal bool IsLoaded { get; private set; }
         internal Action<HDCRectSource> Failed { get; set; }
         internal Action<HDCRectSource> LoadedAd { get; set; }

@@ -91,6 +91,28 @@ namespace HDC.Ads
                 PopupNamed(groupName)?.Load();
         }
 
+        /// <summary>A popup group's configs and state, for the debug panel.</summary>
+        internal string Describe(string groupName)
+        {
+            var text = HDCAdsDebugText.Title("Popup (PU)")
+                .Section("Configs")
+                .Line("isEnabled", Channel.isEnabled)
+                .Line("group", groupName)
+                .Line("auto-init groups", string.Join(", ", AutoInitGroups()))
+                .Section("Gates")
+                .Line("disabled", IsDisabled)
+                .Section("Group");
+            if (string.IsNullOrEmpty(groupName) || !popups.TryGetValue(groupName, out Popup popup))
+                return text.Lines("(not started)").Done();
+
+            return text
+                .Line("id", popup.Id)
+                .Line("requested", popup.Requested)
+                .Line("placed", popup.Placed)
+                .Line("state", HDCAdsSdk.GetPopupState(popup.Id))
+                .Done();
+        }
+
         internal void OnSdkInitialized()
         {
             if (IsDisabled)

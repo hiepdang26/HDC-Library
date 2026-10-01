@@ -46,6 +46,25 @@ namespace HDC.Ads
                 EnabledGroup(slot)?.Initialize();
         }
 
+        /// <summary>A slot's configs and ad units, for the debug panel.</summary>
+        internal string Describe(HDCBannerSlot slot)
+        {
+            HDCAdsConfig.BannerSlot config = Channel.Slot(slot);
+            return HDCAdsDebugText.Title("Banner (BN) " + slot)
+                .Section("Configs")
+                .Line("channel isEnabled", Channel.isEnabled)
+                .Line("slot isEnabled", config.isEnabled)
+                .Line("autoInit", config.autoInit)
+                .Line("autoShowOnLoad", config.autoShowOnLoad)
+                .Section("Runtime")
+                .Line("can show", CanShow(slot))
+                .Section("Gates")
+                .Line("enabled", IsEnabled(slot))
+                .Section("Group")
+                .Lines(groups.TryGetValue(slot, out HDCRectGroup group) ? group.Describe() : "(not started)")
+                .Done();
+        }
+
         internal void OnSdkInitialized()
         {
             foreach (HDCBannerSlot slot in new[]

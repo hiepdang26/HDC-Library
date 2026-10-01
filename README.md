@@ -30,6 +30,7 @@ Runtime/                       Assembly HDC.Ads, chỉ compile khi có define HD
 Plugins/iOS/                   HDCAds.xcframework, HDCAdsBridge.mm (post-process Xcode tự thêm vào project)
 Plugins/Android/Repository~/   Maven repo chứa thư viện Android hdc-ads-android (Unity bỏ qua thư mục có đuôi "~")
 Editor/                        Menu HDC (bật/tắt, sửa config), post-process Xcode, mẫu Dependencies.xml
+Debug/                         Bảng debug HDCAdsDebugPanel.prefab (assembly HDC.Ads.Debug, cần define HDC_ADS)
 Demo/                          HDCAdsDemo: các nút bấm để thử từng định dạng
 package.json                   Để cài HDCLib như một package (UPM)
 ```
@@ -60,6 +61,8 @@ Chỉ bật khi trong project không còn bản framework nào khác build từ 
 ## Config mặc định
 
 Config mặc định là giá trị dùng tới khi Remote Config có giá trị riêng. Nó nằm trong asset `Assets/HDCAds/Resources/HDCAdsSettings.asset` (`HDC > Settings asset`).
+
+Trong Editor, `HDCRemoteConfig` dùng thẳng config mặc định: không fetch Firebase, không đọc giá trị máy lưu. Sửa config xong bấm Play là thấy ngay. Muốn fetch Remote Config thật trong Editor thì đặt `HDCRemoteConfig.FetchInEditor = true` trước khi gọi.
 
 - `HDC > Edit configs > Ads configs`, `Ad core Android configs`, `Ad core iOS configs` mở cửa sổ sửa JSON:
   - Có 4 trang: ads_config và ad core config, mỗi loại cho Android và iOS. Trang iOS để trống thì dùng bản Android.
@@ -152,7 +155,8 @@ Config giữ nguyên key và schema JSON của hệ thống cũ, nên dùng lạ
 - `admobUnit` chạy qua plugin Google Mobile Ads. `androidUnit` chạy qua thư viện native trên cả Android và iOS:
   - Native fullscreen dùng layout ngẫu nhiên trong layout group, không lặp cho tới khi dùng hết.
   - Nếu bật `switchToInterstitialAndroid` thì dùng interstitial.
-- `HDCRemoteConfig` lấy giá trị theo thứ tự: Remote Config, giá trị máy lưu từ lần trước, rồi config mặc định. Nó luôn fetch mới, timeout mặc định 10 giây.
+- Trên máy thật, `HDCRemoteConfig` lấy giá trị theo thứ tự: Remote Config, giá trị máy lưu từ lần trước, rồi config mặc định. Nó luôn fetch mới, timeout mặc định 10 giây. Trong Editor nó dùng config mặc định, trừ khi bật `HDCRemoteConfig.FetchInEditor`.
+- Giá trị Remote Config là `{}` vẫn được coi là có giá trị. Một ad core config `{}` nghĩa là không có ad unit nào.
 
 Hành vi các kênh:
 
@@ -172,6 +176,25 @@ Hành vi các kênh:
   - Lần xuống nền kế tiếp bị bỏ qua nếu vừa có fullscreen mở, vừa bấm banner, hoặc game đã gọi `AppResume.Block()`.
 - Rewarded vẫn hiện khi đã gỡ quảng cáo. Các kênh còn lại đều bị chặn.
 - Chưa hỗ trợ: collapsible banner, tracking doanh thu lên Firebase/Adjust, config theo quốc gia.
+
+## Bảng debug
+
+Prefab `Debug/HDCAdsDebugPanel.prefab` là bảng thử quảng cáo nằm đè lên game (Canvas overlay, sort order 1000). Nó dựng lại phần Ad Systems trong bảng debug của hệ thống cũ.
+
+- Thêm vào scene: `HDC > Debug panel > Add to open scene`, hoặc kéo prefab vào scene. Scene cần có EventSystem. Nếu thiếu, bảng tự tạo một EventSystem khi project dùng Input Manager cũ.
+- Mở và đóng: nút `ADS` ở góc trên bên trái, phím F10, hoặc chạm 3 lần vào góc trên bên trái. `startOpen` mở bảng ngay khi vào scene. `keepAcrossScenes` giữ bảng khi đổi scene.
+- Các kênh: AL (app launch), AR (app resume), RW (rewarded), FA (force ad), BN (banner), MREC, CL (collapsible, HDC chưa có), PU (popup).
+- `Group` và `Position` lấy từ config mà HDCAds đang chạy: ads_config và ad core config, tức giá trị Remote Config trên máy thật. Banner chọn slot, MREC chọn vị trí trên màn hình.
+- Các nút gọi thẳng API của HDCAds:
+  - `Init` và `Show`. Với banner và MREC, nút `Show` thành `Activate`.
+  - `Hide` cho banner, MREC và popup.
+  - `Start BreakAd` và `Stop BreakAd` cho FA.
+  - `UpdatePos` và `GetSize` cho MREC, `UpdatePos` cho popup.
+- Popup hiện trong vùng `Popup area` ở cuối màn hình.
+- Dòng đầu cho biết ad core đang dùng và số group. Khung chi tiết hiện config và trạng thái của kênh đang chọn, cập nhật mỗi giây. `BreakAd Debug` hiện trạng thái break ad.
+- Mở thẳng scene mà không qua splash thì HDCAds chưa khởi tạo. Khi đó nút `Init SDK` khởi tạo bằng config mặc định (qua `HDCRemoteConfig` nếu có `HDC_FIREBASE`).
+- Đây là công cụ debug: gỡ khỏi scene trước khi build bản phát hành.
+- Giao diện prefab được dựng bằng code trong `Debug/Editor/HDCAdsDebugPanelBuilder.cs`. Muốn sửa giao diện thì sửa ở đó rồi chạy `HDC.Ads.DebugUI.Editor.HDCAdsDebugPanelBuilder.Build` để dựng lại prefab.
 
 ## Cập nhật thư viện native
 
@@ -258,3 +281,4 @@ Các giới hạn sau đến từ GMA, Meta và AndroidX, không phải từ HDC
   - Cài được như package (UPM).
   - Hỗ trợ tắt domain reload.
 - Menu `HDC` riêng trên thanh menu: bật/tắt Ads, sửa config mặc định trong cửa sổ có kiểm tra JSON.
+- Bảng debug `HDCAdsDebugPanel`: chọn kênh, group và vị trí theo config, rồi gọi init/show/hide.

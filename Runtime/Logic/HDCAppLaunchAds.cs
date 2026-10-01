@@ -74,6 +74,28 @@ namespace HDC.Ads
                 Start();
         }
 
+        /// <summary>Configs, clock and ad units, for the debug panel.</summary>
+        internal string Describe() =>
+            HDCAdsDebugText.Title("App launch (AL)")
+                .Section("Configs")
+                .Line("isEnabled", Channel.isEnabled)
+                .Line("autoInit", Channel.autoInit)
+                .Line("minimum wait seconds", MinimumWait)
+                .Line("timeout seconds", Timeout)
+                .Line("launch ad type", HDCAds.CoreConfig.comebackChannel?.launchAdType == 0 ? "force ad group" : "app open")
+                .Section("Runtime")
+                .Line("clock started", clockStarted)
+                .Line("elapsed seconds", Elapsed)
+                .Line("showing", showing)
+                .Line("completed", IsCompleted)
+                .Line("before show raised", IsBeforeShowRaised)
+                .Line("IgnoreAds", IgnoreAds)
+                .Section("Gates")
+                .Line("disabled", IsDisabled)
+                .Section("Group")
+                .Lines(Group()?.Describe())
+                .Done();
+
         internal void OnSdkInitialized()
         {
             if (Channel.autoInit || startRequested)

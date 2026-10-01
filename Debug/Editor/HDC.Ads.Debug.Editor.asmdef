@@ -1,0 +1,21 @@
+{
+    "name": "HDC.Ads.Debug.Editor",
+    "rootNamespace": "HDC.Ads.DebugUI.Editor",
+    "references": [
+        "HDC.Ads.Debug",
+        "UnityEngine.UI"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "HDC_ADS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

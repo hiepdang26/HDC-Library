@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using HDC.Ads.Internal;
 using UnityEngine;
 
@@ -93,6 +94,26 @@ namespace HDC.Ads
             }
 
             return null;
+        }
+
+        /// <summary>The group's units and their state, for the debug panel.</summary>
+        internal string Describe()
+        {
+            var text = new StringBuilder()
+                .Line("group", Name)
+                .Line("ready", IsReady)
+                .Line("showing", IsShowing)
+                .Line("shows left", remainingShows < 0 ? "unlimited" : remainingShows.ToString())
+                .Line("backup", useBackup)
+                .Line("units started", started + "/" + sources.Count);
+            for (int i = 0; i < sources.Count; i++)
+            {
+                HDCFullscreenSource source = sources[i];
+                string state = i >= started ? "not started" : source.IsShowing ? "showing" : source.IsReady ? "ready" : "loading";
+                text.Append("  ").Append(i + 1).Append(". ").Append(source.Format).Append(' ').Append(source.Id).Append(": ").AppendLine(state);
+            }
+
+            return text.Done();
         }
 
         private void OnSourceFailed(HDCFullscreenSource source)

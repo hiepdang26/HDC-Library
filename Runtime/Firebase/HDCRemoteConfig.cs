@@ -12,11 +12,18 @@ namespace HDC.Ads
     /// Reads the ads configs from Firebase Remote Config: <see cref="AdsConfigKey"/>, then the ad core config
     /// under the key its <see cref="HDCAdsConfig.selectedAdCoreName"/> names. A value Remote Config does not
     /// have comes from the one saved on the device by the last run, then from the defaults. Every value used
-    /// is saved on the device for the next run.
+    /// is saved on the device for the next run. In the Editor the defaults are used as they are, unless
+    /// <see cref="FetchInEditor"/> is on.
     /// </summary>
     public static class HDCRemoteConfig
     {
         public const string AdsConfigKey = "ads_config";
+
+        /// <summary>
+        /// Off by default: in the Editor the default configs apply as they are, without Firebase or the values
+        /// saved by earlier runs, so edits to the defaults show at once. Turn it on to fetch in the Editor too.
+        /// </summary>
+        public static bool FetchInEditor { get; set; }
 
         /// <summary>
         /// Fetches the configs and hands them to <paramref name="onLoaded"/> as (ads config, ad core config).
@@ -30,7 +37,14 @@ namespace HDC.Ads
             float timeoutSeconds = 10f)
         {
             HDCMainThread.EnsureCreated();
-            var fetch = new Request(defaultAdsConfig, defaultCoreConfigs, onLoaded);
+            bool defaultsOnly = Application.isEditor && !FetchInEditor;
+            var fetch = new Request(defaultAdsConfig, defaultCoreConfigs, onLoaded, defaultsOnly);
+            if (defaultsOnly)
+            {
+                HDCMainThread.Post(() => fetch.Finish("defaults in the Editor"));
+                return;
+            }
+
             HDCMainThread.PostDelayed(timeoutSeconds, () => fetch.Finish("timeout"));
             fetch.Start();
         }
@@ -50,14 +64,16 @@ namespace HDC.Ads
             private readonly string defaultAdsConfig;
             private readonly IDictionary<string, string> defaultCoreConfigs;
             private readonly Action<string, string> onLoaded;
+            private readonly bool defaultsOnly;
             private FirebaseRemoteConfig remoteConfig;
             private bool finished;
 
-            internal Request(string defaultAdsConfig, IDictionary<string, string> defaultCoreConfigs, Action<string, string> onLoaded)
+            internal Request(string defaultAdsConfig, IDictionary<string, string> defaultCoreConfigs, Action<string, string> onLoaded, bool defaultsOnly)
             {
                 this.defaultAdsConfig = defaultAdsConfig ?? "";
                 this.defaultCoreConfigs = defaultCoreConfigs ?? new Dictionary<string, string>();
                 this.onLoaded = onLoaded;
+                this.defaultsOnly = defaultsOnly;
             }
 
             internal void Start()
@@ -101,9 +117,12 @@ namespace HDC.Ads
                 string core = string.IsNullOrEmpty(coreKey)
                     ? ""
                     : Read(coreKey, defaultCoreConfigs.TryGetValue(coreKey, out string fallback) ? fallback : "");
-                Save(AdsConfigKey, ads);
-                if (!string.IsNullOrEmpty(coreKey))
-                    Save(coreKey, core);
+                if (!defaultsOnly)
+                {
+                    Save(AdsConfigKey, ads);
+                    if (!string.IsNullOrEmpty(coreKey))
+                        Save(coreKey, core);
+                }
 
                 if (HDCAdsSdk.DebugLog)
                     Debug.Log($"[HDCAds] remote config ready ({reason}): core config '{coreKey}'");
@@ -119,6 +138,9 @@ namespace HDC.Ads
 
             private string Read(string key, string fallback)
             {
+                if (defaultsOnly)
+                    return fallback;
+
                 string value = "";
                 try
                 {
