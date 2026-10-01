@@ -10,7 +10,7 @@ using UnityEngine;
 namespace HDC.Ads.Editor
 {
     /// <summary>
-    /// Turns HDC ads on or off for builds. While off (the default), nothing from HDCLib reaches a build:
+    /// Turns HDC ads on or off for builds (HDC > Ads). While off (the default), nothing from HDCLib reaches a build:
     /// the runtime assembly needs the HDC_ADS define, the iOS postprocess adds the HDCAds framework only
     /// with it, and the native dependencies file is absent. Turn it on only when no other copy of the ads
     /// framework built from the same Kotlin Multiplatform project is in the project: two copies cannot be
@@ -63,19 +63,12 @@ namespace HDC.Ads.Editor
         internal static bool IsEnabledFor(NamedBuildTarget target) =>
             SplitDefines(PlayerSettings.GetScriptingDefineSymbols(target)).Contains(Define);
 
-        [MenuItem("Tools/HDC Ads/Enable")]
-        private static void Enable() => SetEnabled(true);
+        internal static bool IsFullyEnabled => IsEnabledFor(NamedBuildTarget.iOS) && IsEnabledFor(NamedBuildTarget.Android);
 
-        [MenuItem("Tools/HDC Ads/Enable", true)]
-        private static bool CanEnable() => !IsEnabledFor(NamedBuildTarget.iOS) || !IsEnabledFor(NamedBuildTarget.Android);
+        internal static bool IsPartlyEnabled => IsEnabledFor(NamedBuildTarget.iOS) || IsEnabledFor(NamedBuildTarget.Android);
 
-        [MenuItem("Tools/HDC Ads/Disable")]
-        private static void Disable() => SetEnabled(false);
-
-        [MenuItem("Tools/HDC Ads/Disable", true)]
-        private static bool CanDisable() => IsEnabledFor(NamedBuildTarget.iOS) || IsEnabledFor(NamedBuildTarget.Android);
-
-        private static void SetEnabled(bool enabled)
+        /// <summary>HDC > Ads > Enable and Disable.</summary>
+        internal static void SetEnabled(bool enabled)
         {
             if (enabled)
                 WriteDependencies();

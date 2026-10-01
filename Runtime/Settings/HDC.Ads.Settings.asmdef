@@ -1,12 +1,8 @@
 {
-    "name": "HDC.Ads.Editor",
-    "rootNamespace": "HDC.Ads.Editor",
-    "references": [
-        "HDC.Ads.Settings"
-    ],
-    "includePlatforms": [
-        "Editor"
-    ],
+    "name": "HDC.Ads.Settings",
+    "rootNamespace": "HDC.Ads",
+    "references": [],
+    "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,

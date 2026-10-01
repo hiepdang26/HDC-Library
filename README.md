@@ -20,6 +20,7 @@ Có hai tầng API:
 Runtime/                       Assembly HDC.Ads, chỉ compile khi có define HDC_ADS
   Logic/                       Tầng kênh HDCAds: config, group fallback, các kênh
   Firebase/                    HDCRemoteConfig (assembly HDC.Ads.Firebase, cần define HDC_FIREBASE)
+  Settings/                    HDCAdsSettings: config mặc định (assembly HDC.Ads.Settings, luôn được biên dịch)
   HDCAdsSdk.cs                 API các định dạng KMP: interstitial, fullscreen, popup, banner, Meta test
   HDCAdsSdk.Gma.cs             API các định dạng qua plugin GMA: rewarded, app open, banner view, test device
   HDCAdOptions.cs              Tuỳ chọn fullscreen, popup, banner (tên field giống JSON config), vị trí banner view
@@ -28,7 +29,7 @@ Runtime/                       Assembly HDC.Ads, chỉ compile khi có define HD
   Internal/Gma/                Rewarded, app open, banner view qua plugin GMA
 Plugins/iOS/                   HDCAds.xcframework, HDCAdsBridge.mm (post-process Xcode tự thêm vào project)
 Plugins/Android/Repository~/   Maven repo chứa thư viện Android hdc-ads-android (Unity bỏ qua thư mục có đuôi "~")
-Editor/                        Bật/tắt HDC Ads, post-process Xcode, mẫu Dependencies.xml
+Editor/                        Menu HDC (bật/tắt, sửa config), post-process Xcode, mẫu Dependencies.xml
 Demo/                          HDCAdsDemo: các nút bấm để thử từng định dạng
 package.json                   Để cài HDCLib như một package (UPM)
 ```
@@ -46,15 +47,31 @@ HDCLib chạy được ở bất kỳ thư mục nào. Script Editor tự tìm v
 
 Mặc định HDCLib ở trạng thái **tắt**, và không có gì của HDCLib vào bản build.
 
-- `Tools > HDC Ads > Enable`:
+- `HDC > Ads > Enable`:
   - Thêm define `HDC_ADS` cho Android, iOS và Standalone. Nếu project có Firebase Remote Config thì thêm cả `HDC_FIREBASE`.
   - Tạo file `HDCAdsDependencies.xml` cho External Dependency Manager, với đường dẫn repo Maven theo vị trí thật của HDCLib. File nằm ở `<HDCLib>/Editor/`, hoặc ở `Assets/HDCAds/Editor/` khi HDCLib là package.
-- `Tools > HDC Ads > Disable` hoàn tác các bước trên.
+- `HDC > Ads > Disable` hoàn tác các bước trên.
 - Plugin iOS (`HDCAds.xcframework`, `HDCAdsBridge.mm`) luôn để tắt trong importer. Khi build iOS có `HDC_ADS`, post-process copy framework vào `Frameworks/HDCAds/` và file bridge vào `Libraries/HDCAds/` của project Xcode, rồi thêm cả hai vào target UnityFramework.
   - Cách này chạy giống nhau trên mọi bản Unity, kể cả khi HDCLib là package chỉ đọc.
   - Nếu build không có `HDC_ADS` đè lên (Append) một bản export cũ, post-process gỡ hai file đó ra.
 
 Chỉ bật khi trong project không còn bản framework nào khác build từ cùng dự án KMP. Hai static framework Kotlin/Native (đều chứa Compose và Skia) không link chung được vào một app iOS.
+
+## Config mặc định
+
+Config mặc định là giá trị dùng tới khi Remote Config có giá trị riêng. Nó nằm trong asset `Assets/HDCAds/Resources/HDCAdsSettings.asset` (`HDC > Settings asset`).
+
+- `HDC > Edit configs > Ads configs`, `Ad core Android configs`, `Ad core iOS configs` mở cửa sổ sửa JSON:
+  - Có 4 trang: ads_config và ad core config, mỗi loại cho Android và iOS. Trang iOS để trống thì dùng bản Android.
+  - `Format` căn lề JSON, `Revert` bỏ thay đổi, `Save` chỉ lưu khi JSON hợp lệ. Trang có dấu `*` là chưa lưu.
+- Dùng trong code:
+
+```csharp
+HDCAdsSettings defaults = HDCAdsSettings.Load();
+HDCRemoteConfig.FetchAndInitialize(defaults.AdsConfig, defaults.CoreConfigsByKey(), () => Debug.Log("ads ready"));
+```
+
+`CoreConfigsByKey()` đặt core config mặc định dưới mọi key mà ads_config có thể chọn: `adcore_main_android`, `adcore_main_ios` và key ghi trong `selectedAdCoreName`.
 
 ## Sử dụng
 
@@ -107,11 +124,9 @@ HDCAdsSdk.ShowBannerView("bn_bottom");
 ```csharp
 using HDC.Ads;
 
-// Config mặc định dùng khi Remote Config và máy chưa có giá trị (ví dụ TextAsset trong project).
-HDCRemoteConfig.FetchAndInitialize(
-    defaultAdsConfig.text,
-    new Dictionary<string, string> { { "adcore_main_ios", defaultCoreConfig.text } },
-    () => Debug.Log("ads ready"));
+// Config mặc định (HDC > Edit configs) dùng khi Remote Config và máy chưa có giá trị.
+HDCAdsSettings defaults = HDCAdsSettings.Load();
+HDCRemoteConfig.FetchAndInitialize(defaults.AdsConfig, defaults.CoreConfigsByKey(), () => Debug.Log("ads ready"));
 
 HDCAds.AppLaunch.Completed += () => LoadMainScene();
 
@@ -242,3 +257,4 @@ Các giới hạn sau đến từ GMA, Meta và AndroidX, không phải từ HDC
   - iOS: post-process tự thêm framework và bridge vào project Xcode.
   - Cài được như package (UPM).
   - Hỗ trợ tắt domain reload.
+- Menu `HDC` riêng trên thanh menu: bật/tắt Ads, sửa config mặc định trong cửa sổ có kiểm tra JSON.
