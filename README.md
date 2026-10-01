@@ -30,6 +30,7 @@ Runtime/                       Assembly HDC.Ads, chỉ compile khi có define HD
 Plugins/iOS/                   HDCAds.xcframework, HDCAdsBridge.mm (post-process Xcode tự thêm vào project)
 Plugins/Android/Repository~/   Maven repo chứa thư viện Android hdc-ads-android (Unity bỏ qua thư mục có đuôi "~")
 Editor/                        Menu HDC (bật/tắt, sửa config), post-process Xcode, mẫu Dependencies.xml
+Setup/                         HDCAdsSetup.prefab: khởi động ads ở scene đầu (assembly HDC.Ads.Setup, luôn được biên dịch)
 Debug/                         Bảng debug HDCAdsDebugPanel.prefab (assembly HDC.Ads.Debug, cần define HDC_ADS)
 Demo/                          HDCAdsDemo: các nút bấm để thử từng định dạng
 package.json                   Để cài HDCLib như một package (UPM)
@@ -58,6 +59,29 @@ Mặc định HDCLib ở trạng thái **tắt**, và không có gì của HDCLi
 
 Chỉ bật khi trong project không còn bản framework nào khác build từ cùng dự án KMP. Hai static framework Kotlin/Native (đều chứa Compose và Skia) không link chung được vào một app iOS.
 
+## Scene đầu tiên: prefab HDCAdsSetup
+
+Kéo prefab `Setup/HDCAdsSetup.prefab` vào scene đầu tiên của game, hoặc dùng `HDC > Setup > Add to open scene`. Không cần viết code khởi động. Prefab làm lần lượt:
+
+1. Load `nextScene` ở nền.
+2. Lấy config. Trên máy thật, config đến từ Remote Config (cần `HDC_FIREBASE`), chỗ nào thiếu thì dùng config mặc định. Trong Editor, prefab dùng config mặc định.
+3. Khởi tạo HDCAds, rồi bật các kênh:
+   - App launch luôn được bật, vì splash chờ nó.
+   - Các kênh khác chỉ được bật khi `startAllChannels` đang bật.
+4. Chờ app launch xong, tối đa `maxWaitSeconds`, rồi mở `nextScene`.
+
+Các trường của prefab:
+
+- `nextScene`: scene mở sau splash, phải có trong Build Settings. Để trống thì ở lại scene hiện tại.
+- `maxWaitSeconds` (mặc định 30): quá thời gian này thì vẫn mở scene tiếp, dù ads chưa xong.
+- `startAllChannels` (mặc định bật): bật cả các kênh có `autoInit` tắt trong config, để scene sau có sẵn ad.
+- `debugLog`: log mọi lệnh và sự kiện ads.
+- `onAdsReady`, `onFinished`: sự kiện khi HDCAds khởi tạo xong, và ngay trước khi mở scene tiếp.
+
+Assembly của prefab luôn được biên dịch. Khi HDC tắt, prefab chỉ mở scene tiếp theo, nên scene đầu không bị kẹt. Nếu HDCAds đã khởi tạo rồi (ví dụ quay lại scene đầu), prefab bỏ qua bước khởi tạo.
+
+Scene chạy riêng mà không có prefab, như scene test, thì gọi `HDCAdsSetup.InitializeAds()`.
+
 ## Config mặc định
 
 Config mặc định là giá trị dùng tới khi Remote Config có giá trị riêng. Nó nằm trong asset `Assets/HDCAds/Resources/HDCAdsSettings.asset` (`HDC > Settings asset`).
@@ -67,7 +91,7 @@ Trong Editor, `HDCRemoteConfig` dùng thẳng config mặc định: không fetch
 - `HDC > Edit configs > Ads configs`, `Ad core Android configs`, `Ad core iOS configs` mở cửa sổ sửa JSON:
   - Có 4 trang: ads_config và ad core config, mỗi loại cho Android và iOS. Trang iOS để trống thì dùng bản Android.
   - `Format` căn lề JSON, `Revert` bỏ thay đổi, `Save` chỉ lưu khi JSON hợp lệ. Trang có dấu `*` là chưa lưu.
-- Dùng trong code:
+- Prefab HDCAdsSetup tự dùng các config này. Nếu tự khởi tạo bằng code:
 
 ```csharp
 HDCAdsSettings defaults = HDCAdsSettings.Load();
@@ -127,11 +151,8 @@ HDCAdsSdk.ShowBannerView("bn_bottom");
 ```csharp
 using HDC.Ads;
 
-// Config mặc định (HDC > Edit configs) dùng khi Remote Config và máy chưa có giá trị.
-HDCAdsSettings defaults = HDCAdsSettings.Load();
-HDCRemoteConfig.FetchAndInitialize(defaults.AdsConfig, defaults.CoreConfigsByKey(), () => Debug.Log("ads ready"));
-
-HDCAds.AppLaunch.Completed += () => LoadMainScene();
+// Prefab HDCAdsSetup ở scene đầu đã khởi tạo HDCAds và mở scene tiếp sau app launch.
+// Nếu tự làm bằng code: gọi HDCAdsSetup.InitializeAds(), HDCAds.AppLaunch.Initialize(), rồi chờ HDCAds.AppLaunch.Completed.
 
 HDCAds.ForceAd.Show("native_gameplay", onDone: ResumeGame);
 HDCAds.Rewarded.Show("shop", onRewarded: GiveCoins);
@@ -192,7 +213,7 @@ Prefab `Debug/HDCAdsDebugPanel.prefab` là bảng thử quảng cáo nằm đè 
   - `UpdatePos` và `GetSize` cho MREC, `UpdatePos` cho popup.
 - Popup hiện trong vùng `Popup area` ở cuối màn hình.
 - Dòng đầu cho biết ad core đang dùng và số group. Khung chi tiết hiện config và trạng thái của kênh đang chọn, cập nhật mỗi giây. `BreakAd Debug` hiện trạng thái break ad.
-- Mở thẳng scene mà không qua splash thì HDCAds chưa khởi tạo. Khi đó nút `Init SDK` khởi tạo bằng config mặc định (qua `HDCRemoteConfig` nếu có `HDC_FIREBASE`).
+- Mở thẳng scene mà không qua scene có HDCAdsSetup thì HDCAds chưa khởi tạo. Khi đó nút `Init SDK` gọi `HDCAdsSetup.InitializeAds()`.
 - Đây là công cụ debug: gỡ khỏi scene trước khi build bản phát hành.
 - Giao diện prefab được dựng bằng code trong `Debug/Editor/HDCAdsDebugPanelBuilder.cs`. Muốn sửa giao diện thì sửa ở đó rồi chạy `HDC.Ads.DebugUI.Editor.HDCAdsDebugPanelBuilder.Build` để dựng lại prefab.
 
@@ -282,3 +303,4 @@ Các giới hạn sau đến từ GMA, Meta và AndroidX, không phải từ HDC
   - Hỗ trợ tắt domain reload.
 - Menu `HDC` riêng trên thanh menu: bật/tắt Ads, sửa config mặc định trong cửa sổ có kiểm tra JSON.
 - Bảng debug `HDCAdsDebugPanel`: chọn kênh, group và vị trí theo config, rồi gọi init/show/hide.
+- Prefab `HDCAdsSetup` cho scene đầu: lấy config, khởi tạo ads, chạy app launch rồi mở scene tiếp theo.

@@ -1,11 +1,19 @@
 using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
 
 namespace HDC.Ads.Editor
 {
-    /// <summary>The HDC menu of the Unity menu bar: turning HDC ads on and off, and editing the default configs.</summary>
+    /// <summary>
+    /// The HDC menu of the Unity menu bar: turning HDC ads on and off, editing the default configs and adding the
+    /// setup prefab to a scene.
+    /// </summary>
     internal static class HDCAdsMenu
     {
         private const string Root = "HDC/";
+
+        // Setup/HDCAdsSetup.prefab, found by its GUID wherever HDCLib is installed.
+        private const string SetupPrefabGuid = "10e1a444d69fc4f72a856e51d2def004";
 
         [MenuItem(Root + "Ads/Enable", false, 1)]
         private static void Enable() => HDCAdsActivation.SetEnabled(true);
@@ -34,6 +42,22 @@ namespace HDC.Ads.Editor
             HDCAdsSettings settings = HDCAdsSettingsAsset.LoadOrCreate();
             Selection.activeObject = settings;
             EditorGUIUtility.PingObject(settings);
+        }
+
+        [MenuItem(Root + "Setup/Add to open scene", false, 50)]
+        private static void AddSetup()
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(AssetDatabase.GUIDToAssetPath(SetupPrefabGuid));
+            if (prefab == null)
+            {
+                Debug.LogError("[HDCAds] The HDCAdsSetup prefab is missing from HDCLib.");
+                return;
+            }
+
+            var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+            Undo.RegisterCreatedObjectUndo(instance, "Add HDC ads setup");
+            Selection.activeGameObject = instance;
+            EditorSceneManager.MarkSceneDirty(instance.scene);
         }
     }
 }

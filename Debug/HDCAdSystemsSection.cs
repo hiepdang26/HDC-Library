@@ -216,7 +216,7 @@ namespace HDC.Ads.DebugUI
         private string Summary()
         {
             if (!HDCAds.IsInitialized)
-                return "HDCAds is not initialized yet. Start the game from the splash scene, or press Init SDK.";
+                return "HDCAds is not initialized yet. Start the game from the scene with HDCAdsSetup, or press Init SDK.";
 
             HDCAdCoreConfig core = HDCAds.CoreConfig;
             string coreName = string.IsNullOrEmpty(HDCAds.Config.selectedAdCoreName) ? "(none)" : HDCAds.Config.selectedAdCoreName;
@@ -336,10 +336,11 @@ namespace HDC.Ads.DebugUI
 
         private void OnRefreshClicked()
         {
+            // For testing a scene on its own: the setup of the first scene normally initializes the ads.
             if (!HDCAds.IsInitialized)
             {
-                InitializeSdk();
-                Record(UsesRemoteConfig ? "Init SDK: HDCRemoteConfig.FetchAndInitialize(defaults)" : "Init SDK: HDCAds.Initialize(defaults)");
+                HDCAdsSetup.InitializeAds();
+                Record("Init SDK: HDCAdsSetup.InitializeAds()");
             }
 
             Refresh();
@@ -483,29 +484,6 @@ namespace HDC.Ads.DebugUI
                 return;
             HDCAds.Popup.Move(position, popupArea);
             Record($"Popup.Move(\"{position}\", popup area)");
-        }
-
-        private static bool UsesRemoteConfig
-        {
-            get
-            {
-#if HDC_FIREBASE
-                return true;
-#else
-                return false;
-#endif
-            }
-        }
-
-        // For testing a scene on its own: the splash scene normally initializes the ads.
-        private static void InitializeSdk()
-        {
-            HDCAdsSettings defaults = HDCAdsSettings.Load();
-#if HDC_FIREBASE
-            HDCRemoteConfig.FetchAndInitialize(defaults.AdsConfig, defaults.CoreConfigsByKey());
-#else
-            HDCAds.Initialize(defaults.AdsConfig, defaults.CoreConfig);
-#endif
         }
 
         // Helpers
