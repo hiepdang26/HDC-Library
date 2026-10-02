@@ -32,6 +32,7 @@ Runtime/                       Assembly HDC.Ads, chỉ compile khi có define HD
   Infrastructure/              (HDC.Ads.Infrastructure) HDCAdsSdk, main thread, retry, ID test của Google
     Native/                    Mạng native (HDCNativeNetwork) và ad của nó; cầu nối iOS (DllImport), Android (JNI), Editor (giả lập)
     Gma/                       Mạng AdMob qua plugin GMA (HDCAdMobNetwork): interstitial, rewarded, app open, banner view, MREC
+    Mediation/                 Partner mediation có cài đặt riêng (IMediationPartner), hiện có Meta Audience Network
   Composition/                 (HDC.Ads.Composition) HDCAdsRuntime: lắp Infrastructure vào các port, tạo context và 7 kênh
   Firebase/                    HDCRemoteConfig (assembly HDC.Ads.Firebase, cần define HDC_FIREBASE)
   Settings/                    HDCAdsSettings: config mặc định (assembly HDC.Ads.Settings, luôn được biên dịch)
@@ -253,7 +254,11 @@ Prefab `Debug/HDCAdsDebugPanel.prefab` là bảng debug nằm đè lên game. Ch
 ### Trang Device
 
 - Build: version, bundle ID, bản Unity, platform, development hay release, scripting backend.
-- HDC Ads: thư viện native, Remote Config có bật không (`HDC_FIREBASE`), trạng thái khởi tạo, ads removed, `Google Test Device` và `Google Test Ad Units`. Nút `Debug Log`, `Make Test Device` (máy này thành test device: request vẫn dùng ad unit thật, Google trả quảng cáo test, áp dụng cho các lần load sau), `Meta Test Mode On/Off` kèm device hash. Muốn thay hẳn ad unit bằng unit test của Google thì bật `HDCAdsSetup > Google Test Ad Units` (xem phần HDCAdsSetup).
+- HDC Ads: thư viện native, Remote Config có bật không (`HDC_FIREBASE`), trạng thái khởi tạo, ads removed, `Google Test Device` và `Google Test Ad Units`. Nút `Debug Log`, `Make Test Device` (máy này thành test device: request vẫn dùng ad unit thật, Google trả quảng cáo test, áp dụng cho các lần load sau). Muốn thay hẳn ad unit bằng unit test của Google thì bật `HDCAdsSetup > Google Test Ad Units` (xem phần HDCAdsSetup).
+- Mediation:
+  - Số adapter mediation Google Mobile Ads đã khởi tạo xong, lấy từ kết quả `MobileAds.Initialize`.
+  - Từng partner có cài đặt riêng (hiện là Meta Audience Network): adapter sẵn sàng chưa, độ trễ hoặc lý do lỗi, test mode và device hash. Nút `Meta Test Mode On/Off`.
+  - Các adapter khác trong build: tên và trạng thái.
 - Device: model, hệ điều hành, CPU, RAM, GPU, màn hình, safe area, pin.
 - Network: kết nối, và IP công khai, quốc gia, nhà mạng (tra từ ipwho.is khi mở trang lần đầu hoặc bấm `Check Public IP`), để biết điều kiện quốc gia của Remote Config nhận máy là ở đâu.
 - Adjust: phiên bản SDK, adid và attribution, nếu game có Adjust SDK (HDC Ads không dùng Adjust nên đọc qua reflection).

@@ -2,7 +2,11 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
+using HDC.Ads.Composition;
+using HDC.Ads.Diagnostics;
 using HDC.Ads.Infrastructure;
+using HDC.Ads.Ports;
 using UnityEngine;
 #if HDC_WEB_REQUEST
 using UnityEngine.Networking;
@@ -12,8 +16,9 @@ using UnityEngine.UI;
 namespace HDC.Ads.DebugUI
 {
     /// <summary>
-    /// The device page: the build, the ads library's switches (debug log, test ads), the device, the network
-    /// with the public IP and country Remote Config conditions see, and Adjust when the game has it.
+    /// The device page: the build, the ads library's switches (debug log, test ads), how the mediation adapters
+    /// started and the partners' test modes, the device, the network with the public IP and country Remote Config
+    /// conditions see, and Adjust when the game has it.
     /// </summary>
     public sealed class HDCDevicePage : HDCDebugPage
     {
@@ -24,6 +29,7 @@ namespace HDC.Ads.DebugUI
         [SerializeField] private HDCKeyValueList libraryList;
         [SerializeField] private Button debugLogButton;
         [SerializeField] private Button testDeviceButton;
+        [SerializeField] private HDCKeyValueList mediationList;
         [SerializeField] private Button metaOnButton;
         [SerializeField] private Button metaOffButton;
         [SerializeField] private HDCKeyValueList deviceList;
@@ -32,8 +38,9 @@ namespace HDC.Ads.DebugUI
         [SerializeField] private HDCKeyValueList adjustList;
         [SerializeField] private Button adjustButton;
 
-        private bool metaTestMode;
-        private string metaDeviceHash;
+        // The partners' test modes, read from the native side once per visit and after the buttons.
+        private readonly Dictionary<IMediationPartner, (bool On, string DeviceId)> partnerTestModes =
+            new Dictionary<IMediationPartner, (bool, string)>();
         private bool probing;
         private bool probedOnce;
         private float lastProbe = float.MinValue;
@@ -86,14 +93,14 @@ namespace HDC.Ads.DebugUI
             });
             metaOnButton.onClick.AddListener(() =>
             {
-                HDCAdsSdk.EnableMetaTestMode();
-                ReadMeta();
+                HDCAds.Testing.EnableMetaTestMode();
+                ReadPartners();
                 Refresh();
             });
             metaOffButton.onClick.AddListener(() =>
             {
-                HDCAdsSdk.DisableMetaTestMode();
-                ReadMeta();
+                HDCAds.Testing.DisableMetaTestMode();
+                ReadPartners();
                 Refresh();
             });
             probeButton.onClick.AddListener(() => Probe(true));
@@ -107,7 +114,7 @@ namespace HDC.Ads.DebugUI
         protected override void OnEnable()
         {
             // The native side is asked once per visit and after the buttons, not on every redraw.
-            ReadMeta();
+            ReadPartners();
             base.OnEnable();
             // The first visit looks up the public network and asks Adjust; later visits refresh with the buttons.
             if (!probedOnce)
@@ -122,6 +129,7 @@ namespace HDC.Ads.DebugUI
         {
             RedrawBuild();
             RedrawLibrary();
+            RedrawMediation();
             RedrawDevice();
             RedrawNetwork();
             RedrawAdjust();
@@ -156,17 +164,71 @@ namespace HDC.Ads.DebugUI
             libraryList.Row("Google Test Ad Units", HDCAdsSdk.UseTestAdUnits
                     ? "On: every position loads Google's sample ad unit"
                     : "Off: turn on HDCAdsSetup > Google Test Ad Units, before ads load", HDCAdsSdk.UseTestAdUnits ? HDCDebugStyle.GoodColor : HDCDebugStyle.MutedColor);
-            bool metaTest = metaTestMode;
-            libraryList.Row("Meta Test Mode", metaTest ? "On" : "Off", metaTest ? HDCDebugStyle.GoodColor : HDCDebugStyle.MutedColor);
-            if (!string.IsNullOrEmpty(metaDeviceHash))
-                libraryList.Row("Meta Test Device Hash", metaDeviceHash);
             libraryList.End();
 
             HDCDebugStyle.SetLabel(debugLogButton, HDCAdsSdk.DebugLog ? "Debug Log: On" : "Debug Log: Off");
             HDCDebugStyle.Highlight(debugLogButton, HDCAdsSdk.DebugLog);
             HDCDebugStyle.Highlight(testDeviceButton, HDCAdsSdk.IsTestDevice);
+        }
+
+        private void RedrawMediation()
+        {
+            IReadOnlyList<IMediationPartner> partners = HDCAdsRuntime.Current.Partners;
+            IReadOnlyList<HDCAdapterStatus> adapters = HDCMediationReport.Adapters;
+            mediationList.Begin();
+            if (HDCMediationReport.Received)
+            {
+                int ready = adapters.Count(adapter => adapter.Ready);
+                mediationList.Row("Adapters Started", $"{ready} of {adapters.Count} ready",
+                    ready == adapters.Count ? HDCDebugStyle.GoodColor : HDCDebugStyle.WarnColor);
+            }
+            else
+            {
+                mediationList.Row("Adapters Started", "Waiting for Google Mobile Ads to start", HDCDebugStyle.MutedColor);
+            }
+
+            foreach (IMediationPartner partner in partners)
+            {
+                mediationList.Header(partner.Name);
+                HDCAdapterStatus status = HDCMediationReport.Find(partner.AdapterClass);
+                if (status != null)
+                    AdapterRow("Adapter", status);
+                else
+                    mediationList.Row("Adapter", HDCMediationReport.Received ? "Not in this build" : "-", HDCDebugStyle.MutedColor);
+                if (partner.HasTestMode && partnerTestModes.TryGetValue(partner, out (bool On, string DeviceId) test))
+                {
+                    mediationList.Row("Test Mode", test.On ? "On" : "Off", test.On ? HDCDebugStyle.GoodColor : HDCDebugStyle.MutedColor);
+                    if (!string.IsNullOrEmpty(test.DeviceId))
+                        mediationList.Row("Test Device ID", test.DeviceId);
+                }
+            }
+
+            List<HDCAdapterStatus> others = adapters.Where(adapter => partners.All(partner => partner.AdapterClass != adapter.AdapterClass)).ToList();
+            if (others.Count > 0)
+            {
+                mediationList.Header("Other Adapters");
+                foreach (HDCAdapterStatus adapter in others)
+                    AdapterRow(ShortName(adapter.AdapterClass), adapter);
+            }
+
+            mediationList.End();
+
+            bool metaTest = partnerTestModes.Any(pair => pair.Key.HasTestMode && pair.Value.On);
             HDCDebugStyle.Highlight(metaOnButton, metaTest);
             HDCDebugStyle.Highlight(metaOffButton, !metaTest);
+        }
+
+        private void AdapterRow(string label, HDCAdapterStatus status) =>
+            mediationList.Row(label, status.Ready
+                    ? $"Ready · {status.LatencyMillis} ms"
+                    : "Not ready" + (string.IsNullOrEmpty(status.Description) ? "" : " · " + status.Description),
+                status.Ready ? HDCDebugStyle.GoodColor : HDCDebugStyle.BadColor);
+
+        // The class name without its package, for the adapters with no partner here.
+        private static string ShortName(string adapterClass)
+        {
+            int dot = adapterClass.LastIndexOf('.');
+            return dot >= 0 && dot < adapterClass.Length - 1 ? adapterClass.Substring(dot + 1) : adapterClass;
         }
 
         private void RedrawDevice()
@@ -229,10 +291,14 @@ namespace HDC.Ads.DebugUI
             adjustButton.interactable = HDCAdjustProbe.Found || HDCAdjustProbe.State == "Not checked";
         }
 
-        private void ReadMeta()
+        private void ReadPartners()
         {
-            metaTestMode = Try(HDCAdsSdk.IsMetaTestMode);
-            metaDeviceHash = Try(HDCAdsSdk.GetMetaTestDeviceHash);
+            partnerTestModes.Clear();
+            foreach (IMediationPartner partner in HDCAdsRuntime.Current.Partners)
+            {
+                if (partner.HasTestMode)
+                    partnerTestModes[partner] = (Try(() => partner.IsTestMode), Try(() => partner.TestDeviceId));
+            }
         }
 
         // Public network, looked up at most once a minute unless asked.

@@ -380,7 +380,7 @@ namespace HDC.Ads.DebugUI.Editor
             return events;
         }
 
-        // Device page: build, the ads library's switches, device, network and Adjust.
+        // Device page: build, the ads library's switches, mediation, device, network and Adjust.
         private static HDCDevicePage DevicePage(Transform parent)
         {
             GameObject page = Page(parent, "Device Page");
@@ -397,8 +397,13 @@ namespace HDC.Ads.DebugUI.Editor
             GameObject libraryButtons = Grid(libraryCard.transform, "Library Buttons", 2, 462f, ChipHeight);
             Button debugLog = ButtonWithLabel(libraryButtons.transform, "Debug Log Button", "Debug Log: Off", ButtonColor, 24);
             Button testDevice = ButtonWithLabel(libraryButtons.transform, "Test Device Button", "Make Test Device", ButtonColor, 24);
-            Button metaOn = ButtonWithLabel(libraryButtons.transform, "Meta Test On Button", "Meta Test Mode On", ButtonColor, 24);
-            Button metaOff = ButtonWithLabel(libraryButtons.transform, "Meta Test Off Button", "Meta Test Mode Off", ButtonColor, 24);
+
+            GameObject mediationCard = Card(content, "Mediation Card");
+            HeaderRow(mediationCard.transform, "Mediation", out _);
+            HDCKeyValueList mediationList = KeyValueList(mediationCard.transform, "Mediation List");
+            GameObject mediationButtons = Grid(mediationCard.transform, "Mediation Buttons", 2, 462f, ChipHeight);
+            Button metaOn = ButtonWithLabel(mediationButtons.transform, "Meta Test On Button", "Meta Test Mode On", ButtonColor, 24);
+            Button metaOff = ButtonWithLabel(mediationButtons.transform, "Meta Test Off Button", "Meta Test Mode Off", ButtonColor, 24);
 
             GameObject deviceCard = Card(content, "Device Card");
             HeaderRow(deviceCard.transform, "Device", out _);
@@ -416,6 +421,7 @@ namespace HDC.Ads.DebugUI.Editor
             Assign(device, "libraryList", libraryList);
             Assign(device, "debugLogButton", debugLog);
             Assign(device, "testDeviceButton", testDevice);
+            Assign(device, "mediationList", mediationList);
             Assign(device, "metaOnButton", metaOn);
             Assign(device, "metaOffButton", metaOff);
             Assign(device, "deviceList", deviceList);

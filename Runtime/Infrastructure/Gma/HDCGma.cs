@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Text;
 using GoogleMobileAds.Api;
+using HDC.Ads.Diagnostics;
 using HDC.Ads.Domain;
 using UnityEngine;
 
@@ -21,7 +22,20 @@ namespace HDC.Ads.Infrastructure
 
             // Pauses Unity while a full-screen ad covers it on iOS, like the native formats do.
             MobileAds.SetiOSAppPauseOnBackground(true);
-            MobileAds.Initialize(_ => { });
+            MobileAds.Initialize(status => HDCMainThread.Post(() => HDCMediationReport.AdaptersStarted(Adapters(status))));
+        }
+
+        // How each mediation adapter started; the Editor's plugin reports none.
+        private static IEnumerable<HDCAdapterStatus> Adapters(InitializationStatus status)
+        {
+            Dictionary<string, AdapterStatus> map = status?.getAdapterStatusMap();
+            if (map == null)
+                yield break;
+            foreach (KeyValuePair<string, AdapterStatus> pair in map)
+            {
+                if (pair.Value != null)
+                    yield return new HDCAdapterStatus(pair.Key, pair.Value.InitializationState == AdapterState.Ready, pair.Value.Description, pair.Value.Latency);
+            }
         }
 
         /// <summary>Lets the next Play Mode session initialize the plugin again; see HDCAdsRuntime.</summary>

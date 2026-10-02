@@ -2,9 +2,16 @@ using HDC.Ads.Ports;
 
 namespace HDC.Ads.Infrastructure
 {
-    /// <summary>The test switches of <see cref="HDCAdsSdk"/>.</summary>
+    /// <summary>The test switches of <see cref="HDCAdsSdk"/>, with Meta's test mode through its partner.</summary>
     internal sealed class HDCAdsTestingPort : IAdsTesting
     {
+        private readonly HDCMetaPartner meta;
+
+        internal HDCAdsTestingPort(HDCMetaPartner meta)
+        {
+            this.meta = meta;
+        }
+
         public bool DebugLog
         {
             get => HDCAdsSdk.DebugLog;
@@ -21,13 +28,16 @@ namespace HDC.Ads.Infrastructure
             set => HDCAdsSdk.UseTestAdUnits = value;
         }
 
-        public bool EnableMetaTestMode(string[] extraDeviceHashes, int testAdType) =>
-            HDCAdsSdk.EnableMetaTestMode(extraDeviceHashes, testAdType);
+        public bool EnableMetaTestMode(string[] extraDeviceHashes, int testAdType)
+        {
+            meta.TestAdType = testAdType;
+            return meta.EnableTestMode(extraDeviceHashes);
+        }
 
-        public void DisableMetaTestMode() => HDCAdsSdk.DisableMetaTestMode();
+        public void DisableMetaTestMode() => meta.DisableTestMode();
 
-        public bool IsMetaTestMode => HDCAdsSdk.IsMetaTestMode();
+        public bool IsMetaTestMode => meta.IsTestMode;
 
-        public string MetaTestDeviceHash => HDCAdsSdk.GetMetaTestDeviceHash();
+        public string MetaTestDeviceHash => meta.TestDeviceId;
     }
 }

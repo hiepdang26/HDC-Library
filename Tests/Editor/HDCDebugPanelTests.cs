@@ -167,6 +167,9 @@ namespace HDC.Ads.Tests
             Transform deviceContent = window.Find("Pages/Device Page/Body/Viewport/Content");
             StringAssert.Contains("Unity Version", AllText(deviceContent.Find("Build Card")));
             StringAssert.Contains("Editor simulation", AllText(deviceContent.Find("Library Card")));
+            string mediation = AllText(deviceContent.Find("Mediation Card"));
+            StringAssert.Contains("META AUDIENCE NETWORK", mediation);
+            StringAssert.Contains("Meta Test Mode On", mediation);
             StringAssert.Contains("Adjust", AllText(deviceContent.Find("Adjust Card")));
             Capture(panelObject, "hdc-debug-device.png");
 
