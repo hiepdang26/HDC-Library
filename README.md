@@ -17,17 +17,18 @@ Mọi thứ bên dưới (SDK, cầu nối native, config, sự kiện thô củ
 ## Cấu trúc
 
 ```
-Runtime/                       Assembly HDC.Ads, chỉ compile khi có define HDC_ADS
-  Api/                         API cho game: HDCAds, interface của 7 kênh, HDCAdRevenue, các enum
-  Logic/                       Các kênh (internal): config, group fallback, gắn doanh thu với kênh và vị trí
+Runtime/                       Assembly HDC.Ads, chỉ compile khi có define HDC_ADS. Mỗi thư mục là một tầng:
+  Api/                         (HDC.Ads) API cho game: HDCAds, interface của 7 kênh, HDCAdRevenue, các enum
+  Logic/                       (HDC.Ads.Logic) Kênh và group: khi nào load, show, dùng ad unit dự phòng
+    Channels/                  7 kênh, mỗi kênh một class
+    Groups/                    Group fallback full-screen và banner, cùng các nguồn ad của chúng
+  Domain/                      (HDC.Ads.Domain) Config, tuỳ chọn hiển thị, sự kiện của SDK
+  Diagnostics/                 (HDC.Ads.Diagnostics) Trạng thái từng ad, nguồn config, cho bảng debug
+  Infrastructure/              (HDC.Ads.Infrastructure) HDCAdsSdk, main thread, retry, ID test của Google
+    Native/                    Cầu nối iOS (DllImport), Android (JNI), Editor (giả lập)
+    Gma/                       Rewarded, app open, banner view qua plugin GMA
   Firebase/                    HDCRemoteConfig (assembly HDC.Ads.Firebase, cần define HDC_FIREBASE)
   Settings/                    HDCAdsSettings: config mặc định (assembly HDC.Ads.Settings, luôn được biên dịch)
-  HDCAdsSdk.cs                 (internal) Các định dạng KMP: interstitial, fullscreen, popup, banner, Meta test
-  HDCAdsSdk.Gma.cs             (internal) Các định dạng qua plugin GMA: rewarded, app open, banner view, test device
-  HDCAdOptions.cs              (internal) Tuỳ chọn fullscreen, popup, banner (tên field giống JSON config)
-  HDCAdEvent.cs                (internal) Sự kiện của SDK
-  Internal/                    Cầu nối iOS (DllImport), Android (JNI), Editor (giả lập), main thread, retry
-  Internal/Gma/                Rewarded, app open, banner view qua plugin GMA
 Plugins/iOS/                   HDCAds.xcframework, HDCAdsBridge.mm (post-process Xcode tự thêm vào project)
 Plugins/Android/Repository~/   Maven repo chứa thư viện Android hdc-ads-android (Unity bỏ qua thư mục có đuôi "~")
 Editor/                        Menu HDC (bật/tắt, sửa config), post-process Xcode, mẫu Dependencies.xml
@@ -290,7 +291,8 @@ Các nhóm test:
   - Type hay member public mà file chưa có làm test fail, mục trong file mà code không còn cũng vậy.
   - Khi cố ý đổi API, cập nhật file trong cùng commit: chạy test một lần với `HDC_ACCEPT_API=1`, hoặc sửa tay.
 - Luật tầng (`HDCLayerRulesTests`):
-  - Code trong `Runtime/Logic` không được gọi thẳng Google Mobile Ads, Firebase, `PlayerPrefs`, JNI hay `DllImport`.
+  - Chỉ Infrastructure được gọi thẳng Google Mobile Ads, Firebase, `PlayerPrefs`, JNI hay `DllImport`.
+  - Không tầng nào phụ thuộc ngược lên: Domain không dùng Logic, Diagnostics hay Infrastructure; Diagnostics và Infrastructure không dùng Logic; Api và Logic không dùng Infrastructure.
   - Những chỗ có từ trước nằm trong danh sách `KnownDebt` của test. Danh sách này chỉ được giảm: sửa xong chỗ nào thì xoá mục đó.
 
 `Tools~/compile-matrix.sh` biên dịch mọi assembly bằng Roslyn của đúng bản Unity của project, không cần mở Unity:

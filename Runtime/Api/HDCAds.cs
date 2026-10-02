@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
-using HDC.Ads.Internal;
+using HDC.Ads.Diagnostics;
+using HDC.Ads.Domain;
+using HDC.Ads.Infrastructure;
+using HDC.Ads.Logic;
 using UnityEngine;
 
 namespace HDC.Ads

@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using HDC.Ads.Diagnostics;
+using HDC.Ads.Domain;
+using HDC.Ads.Infrastructure;
 using UnityEngine;
 using UnityEngine.UI;
 

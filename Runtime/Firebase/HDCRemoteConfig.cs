@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using Firebase;
 using Firebase.Extensions;
 using Firebase.RemoteConfig;
-using HDC.Ads.Internal;
+using HDC.Ads.Diagnostics;
+using HDC.Ads.Domain;
+using HDC.Ads.Infrastructure;
 using UnityEngine;
 
 namespace HDC.Ads

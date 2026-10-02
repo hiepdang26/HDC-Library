@@ -3,6 +3,9 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
+#if HDC_ADS
+using HDC.Ads.Domain;
+#endif
 
 namespace HDC.Ads
 {

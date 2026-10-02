@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using HDC.Ads.Diagnostics;
 using UnityEngine;
 using UnityEngine.UI;
 

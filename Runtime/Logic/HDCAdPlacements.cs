@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace HDC.Ads
+namespace HDC.Ads.Logic
 {
     /// <summary>
     /// The channel and position each ad instance last showed for, so a paid event can tell where its money came

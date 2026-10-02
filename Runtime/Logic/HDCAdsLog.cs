@@ -1,7 +1,8 @@
 using System;
+using HDC.Ads.Infrastructure;
 using UnityEngine;
 
-namespace HDC.Ads
+namespace HDC.Ads.Logic
 {
     /// <summary>Small helpers shared by the channels: debug logging, safe PlayerPrefs and safe callbacks.</summary>
     internal static class HDCAdsLog

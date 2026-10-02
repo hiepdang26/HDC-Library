@@ -9,27 +9,40 @@ using NUnit.Framework;
 namespace HDC.Ads.Tests
 {
     /// <summary>
-    /// A folder is a layer. The API (what game code calls) and the logic under it (the channels, their configs and
-    /// their state) decide when ads load and show; they reach ad networks, Firebase, storage and native code only
-    /// through the classes under them, so they never name them. Roadmap phase 2 splits Logic into Application and
-    /// Domain: the rule then covers those folders, and the known debt below must be gone.
+    /// A folder under Runtime is a layer, with the namespace of its name:
+    /// <list type="bullet">
+    /// <item>Api (HDC.Ads): what game code calls.</item>
+    /// <item>Logic: the channels and their groups, which decide when ads load and show.</item>
+    /// <item>Domain: the configs, options and events everything else passes around.</item>
+    /// <item>Diagnostics: what the debug panel reads.</item>
+    /// <item>Infrastructure: the SDK, the native bridges and the Google Mobile Ads plugin.</item>
+    /// </list>
+    /// Only Infrastructure names ad networks, Firebase, storage and native code, and nothing depends on a layer
+    /// above it. Each line of <see cref="Layers"/> says what a layer may not name.
     /// </summary>
     public class HDCLayerRulesTests
     {
-        private static readonly string[] LayerFolders = { "Runtime/Api", "Runtime/Logic" };
-
-        private static readonly (string Name, Regex Pattern)[] Forbidden =
+        private static readonly Rule[] Sdks =
         {
-            ("Google Mobile Ads", new Regex(@"\bGoogleMobileAds\b")),
-            ("Firebase", new Regex(@"(?<![\w.])Firebase\s*\.|\busing\s+(static\s+)?Firebase\s*;")),
-            ("PlayerPrefs", new Regex(@"\bPlayerPrefs\b")),
-            ("JNI", new Regex(@"\bAndroidJava(Object|Class|Proxy|Runnable)\b|\bAndroidJNI(Helper)?\b")),
-            ("DllImport", new Regex(@"\bDllImport\b")),
+            new Rule("Google Mobile Ads", @"\bGoogleMobileAds\b"),
+            new Rule("Firebase", @"(?<![\w.])Firebase\s*\.|\busing\s+(static\s+)?Firebase\s*;"),
+            new Rule("PlayerPrefs", @"\bPlayerPrefs\b"),
+            new Rule("JNI", @"\bAndroidJava(Object|Class|Proxy|Runnable)\b|\bAndroidJNI(Helper)?\b"),
+            new Rule("DllImport", @"\bDllImport\b"),
+        };
+
+        private static readonly (string Folder, Rule[] Forbidden)[] Layers =
+        {
+            ("Runtime/Api", Sdks.Append(Uses("Infrastructure")).ToArray()),
+            ("Runtime/Logic", Sdks.Append(Uses("Infrastructure")).ToArray()),
+            ("Runtime/Domain", Sdks.Concat(new[] { Uses("Logic"), Uses("Diagnostics"), Uses("Infrastructure") }).ToArray()),
+            ("Runtime/Diagnostics", Sdks.Append(Uses("Logic")).ToArray()),
+            ("Runtime/Infrastructure", new[] { Uses("Logic") }),
         };
 
         /// <summary>
-        /// Uses that predate the rule, as "file: rule". The test fails once one is fixed, so the list only shrinks:
-        /// take the entry out in the same commit.
+        /// Uses that predate the rules, as "file: rule". The test fails once one is fixed, so the list only
+        /// shrinks: take the entry out in the same commit.
         /// </summary>
         private static readonly string[] KnownDebt =
         {
@@ -37,14 +50,30 @@ namespace HDC.Ads.Tests
             "Runtime/Api/HDCAds.cs: PlayerPrefs",
             "Runtime/Logic/HDCAdsLog.cs: PlayerPrefs",
             // MobileAds.Utils.GetDeviceScale, which turns a popup's pixels into dp: phase 3 asks the adapter.
-            "Runtime/Logic/HDCPopupAds.cs: Google Mobile Ads",
+            "Runtime/Logic/Channels/HDCPopupAds.cs: Google Mobile Ads",
+            // The facade and the channels call the SDK, the main thread and the plugin's ads directly: phase 3 puts
+            // them behind ports that Infrastructure implements.
+            "Runtime/Api/HDCAds.cs: uses Infrastructure",
+            "Runtime/Logic/Channels/HDCAppLaunchAds.cs: uses Infrastructure",
+            "Runtime/Logic/Channels/HDCAppResumeAds.cs: uses Infrastructure",
+            "Runtime/Logic/Channels/HDCForceAds.cs: uses Infrastructure",
+            "Runtime/Logic/Channels/HDCMrecAds.cs: uses Infrastructure",
+            "Runtime/Logic/Channels/HDCPopupAds.cs: uses Infrastructure",
+            "Runtime/Logic/Groups/HDCFullscreenSource.cs: uses Infrastructure",
+            "Runtime/Logic/Groups/HDCNativeBannerSource.cs: uses Infrastructure",
+            "Runtime/Logic/Groups/HDCNativeFullscreenSource.cs: uses Infrastructure",
+            "Runtime/Logic/Groups/HDCNativeInterstitialSource.cs: uses Infrastructure",
+            "Runtime/Logic/Groups/HDCPluginFullscreenSource.cs: uses Infrastructure",
+            "Runtime/Logic/Groups/HDCPluginRectSource.cs: uses Infrastructure",
+            "Runtime/Logic/Groups/HDCRectSource.cs: uses Infrastructure",
+            "Runtime/Logic/HDCAdsLog.cs: uses Infrastructure",
         };
 
         [Test]
-        public void ApiAndLogicNameNoAdSdkFirebaseStorageOrNativeCode()
+        public void LayersNameOnlyWhatTheyMay()
         {
             var found = new Dictionary<string, string>(StringComparer.Ordinal);
-            foreach (string folder in LayerFolders)
+            foreach ((string folder, Rule[] forbidden) in Layers)
             {
                 string path = Path.GetFullPath(HDCTestPaths.Root + "/" + folder);
                 Assert.IsTrue(Directory.Exists(path), "no folder " + folder);
@@ -54,11 +83,11 @@ namespace HDC.Ads.Tests
                     string[] lines = HDCCSharpText.CodeOnly(File.ReadAllText(file)).Split('\n');
                     for (int line = 0; line < lines.Length; line++)
                     {
-                        foreach ((string name, Regex pattern) in Forbidden)
+                        foreach (Rule rule in forbidden)
                         {
-                            string key = relative + ": " + name;
-                            if (!found.ContainsKey(key) && pattern.IsMatch(lines[line]))
-                                found[key] = $"{relative}:{line + 1} uses {name}";
+                            string key = relative + ": " + rule.Name;
+                            if (!found.ContainsKey(key) && rule.Pattern.IsMatch(lines[line]))
+                                found[key] = $"{relative}:{line + 1} {rule.Name}";
                         }
                     }
                 }
@@ -72,7 +101,7 @@ namespace HDC.Ads.Tests
             var message = new StringBuilder();
             if (added.Count > 0)
             {
-                message.AppendLine("The API and logic layers must reach these through the classes under them (Internal, Firebase):");
+                message.AppendLine("These break a layer rule (see HDCLayerRulesTests.Layers):");
                 foreach (string use in added)
                     message.Append("  ").AppendLine(use);
             }
@@ -98,6 +127,21 @@ namespace HDC.Ads.Tests
             Assert.IsFalse(lines[2].Contains("PlayerPrefs"));
             StringAssert.Contains("var b =", lines[2]);
             StringAssert.StartsWith("PlayerPrefs.Save();", lines[3]);
+        }
+
+        // A layer's namespace, in a using directive or a full name.
+        private static Rule Uses(string layer) => new Rule("uses " + layer, $@"\bHDC\.Ads\.{layer}\b");
+
+        private sealed class Rule
+        {
+            internal Rule(string name, string pattern)
+            {
+                Name = name;
+                Pattern = new Regex(pattern);
+            }
+
+            internal string Name { get; }
+            internal Regex Pattern { get; }
         }
     }
 }

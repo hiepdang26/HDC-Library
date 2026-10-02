@@ -1,5 +1,8 @@
 using System.Globalization;
 using System.Text;
+using HDC.Ads.Diagnostics;
+using HDC.Ads.Domain;
+using HDC.Ads.Logic;
 
 namespace HDC.Ads.DebugUI
 {

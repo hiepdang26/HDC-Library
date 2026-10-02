@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using HDC.Ads.DebugUI;
+using HDC.Ads.Diagnostics;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;

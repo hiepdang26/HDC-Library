@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
+using HDC.Ads.Infrastructure;
 using UnityEngine;
 #if HDC_WEB_REQUEST
 using UnityEngine.Networking;
