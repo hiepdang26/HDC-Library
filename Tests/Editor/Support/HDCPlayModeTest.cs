@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using HDC.Ads.DebugUI;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
@@ -10,6 +11,7 @@ namespace HDC.Ads.Tests
     {
         private bool savedOptionsEnabled;
         private EnterPlayModeOptions savedOptions;
+        private bool savedTestAdUnits;
 
         [SetUp]
         public void SkipReloads()
@@ -18,6 +20,8 @@ namespace HDC.Ads.Tests
             savedOptions = EditorSettings.enterPlayModeOptions;
             EditorSettings.enterPlayModeOptionsEnabled = true;
             EditorSettings.enterPlayModeOptions = EnterPlayModeOptions.DisableDomainReload | EnterPlayModeOptions.DisableSceneReload;
+            savedTestAdUnits = HDCTestAdUnitsSwitch.IsSaved;
+            HDCTestAdUnitsSwitch.IsSaved = false;
         }
 
         [TearDown]
@@ -25,6 +29,7 @@ namespace HDC.Ads.Tests
         {
             EditorSettings.enterPlayModeOptionsEnabled = savedOptionsEnabled;
             EditorSettings.enterPlayModeOptions = savedOptions;
+            HDCTestAdUnitsSwitch.IsSaved = savedTestAdUnits;
         }
 
         protected static IEnumerator WaitFor(Func<bool> condition, float seconds)

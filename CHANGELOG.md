@@ -42,6 +42,9 @@ Những thứ sau đã đổi so với 0.5.0:
   - Events: các sự kiện quảng cáo.
   - Device: có thẻ Mediation, cho biết trạng thái từng adapter và Meta test mode.
 - Ad unit test của Google cho mọi định dạng (`UseTestAdUnits`).
+- Trang Device của bảng debug có thêm:
+  - Nút `Test Ad Units: On/Off`, bật tắt ad unit test của Google. Lựa chọn được lưu trên máy và áp dụng từ lúc mở app.
+  - Nút `Restart App`, hiện ra sau khi đổi lựa chọn trên. Nó mở lại app trên Android và vào lại Play Mode trong Editor. Trên iOS nút thành `Quit App`, vì iOS không cho app tự mở lại.
 - Bộ test Edit Mode và Play Mode, kèm:
   - test hợp đồng API và test luật tầng;
   - script `Tools~/compile-matrix.sh` và `Tools~/run-tests.sh`.

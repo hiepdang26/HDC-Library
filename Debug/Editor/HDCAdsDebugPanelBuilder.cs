@@ -367,6 +367,9 @@ namespace HDC.Ads.DebugUI.Editor
             GameObject libraryButtons = Grid(libraryCard.transform, "Library Buttons", 2, 462f, ChipHeight);
             Button debugLog = ButtonWithLabel(libraryButtons.transform, "Debug Log Button", "Debug Log: Off", ButtonColor, 24);
             Button testDevice = ButtonWithLabel(libraryButtons.transform, "Test Device Button", "Make Test Device", ButtonColor, 24);
+            Button testAdUnits = ButtonWithLabel(libraryButtons.transform, "Test Ad Units Button", "Test Ad Units: Off", ButtonColor, 24);
+            Button restart = ButtonWithLabel(libraryButtons.transform, "Restart App Button", "Restart App", DangerColor, 24);
+            restart.gameObject.SetActive(false);
 
             GameObject mediationCard = Card(content, "Mediation Card");
             HeaderRow(mediationCard.transform, "Mediation", out _);
@@ -391,6 +394,8 @@ namespace HDC.Ads.DebugUI.Editor
             Assign(device, "libraryList", libraryList);
             Assign(device, "debugLogButton", debugLog);
             Assign(device, "testDeviceButton", testDevice);
+            Assign(device, "testAdUnitsButton", testAdUnits);
+            Assign(device, "restartButton", restart);
             Assign(device, "mediationList", mediationList);
             Assign(device, "metaOnButton", metaOn);
             Assign(device, "metaOffButton", metaOff);

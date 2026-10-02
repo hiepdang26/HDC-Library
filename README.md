@@ -99,7 +99,7 @@ Các trường của prefab:
 - `startAllChannels` (mặc định bật): bật cả các kênh có `autoInit` tắt trong config, để scene sau có sẵn ad.
 - `debugLog`: log mọi lệnh và sự kiện ads.
 - `googleTestAds` (mặc định tắt): biến máy đang chạy thành test device của Google trước khi load ad. Request vẫn dùng ad unit thật trong config, Google trả về quảng cáo test (tiêu đề có chữ `Test mode`) cho chính các unit đó. Đây là cách Google khuyên dùng khi test unit thật; bấm quảng cáo thật khi test có thể làm hỏng tài khoản AdMob. Nút `Make Test Device` ở trang Device của bảng debug làm việc tương tự lúc đang chạy.
-- `googleTestAdUnits` (mặc định tắt): thay mọi ad unit trong config bằng ad unit mẫu của Google (`ca-app-pub-3940256099942544/...`, theo định dạng và nền tảng), nên mọi vị trí đều ra quảng cáo test kể cả khi unit thật không có quảng cáo (ví dụ bản build ký bằng bundle ID khác). Áp dụng từ lần load đầu tiên; quảng cáo đã load trước đó giữ unit cũ.
+- `googleTestAdUnits` (mặc định tắt): thay mọi ad unit trong config bằng ad unit mẫu của Google (`ca-app-pub-3940256099942544/...`, theo định dạng và nền tảng), nên mọi vị trí đều ra quảng cáo test kể cả khi unit thật không có quảng cáo (ví dụ bản build ký bằng bundle ID khác). Áp dụng từ lần load đầu tiên; quảng cáo đã load trước đó giữ unit cũ. Nút `Test Ad Units` ở trang Device của bảng debug bật tắt việc này lúc đang chạy, và nhớ lựa chọn cho các lần mở app sau.
 - Cả hai tuỳ chọn trên chỉ dành cho bản test: khi bật, log có cảnh báo; nhớ tắt trước khi phát hành.
 - `onAdsReady`, `onFinished`: sự kiện khi HDCAds khởi tạo xong, và ngay trước khi mở scene tiếp.
 
@@ -259,7 +259,12 @@ Prefab `Debug/HDCAdsDebugPanel.prefab` là bảng debug nằm đè lên game. Ch
 ### Trang Device
 
 - Build: version, bundle ID, bản Unity, platform, development hay release, scripting backend.
-- HDC Ads: thư viện native, Remote Config có bật không (`HDC_FIREBASE`), trạng thái khởi tạo, ads removed, `Google Test Device` và `Google Test Ad Units`. Nút `Debug Log`, `Make Test Device` (máy này thành test device: request vẫn dùng ad unit thật, Google trả quảng cáo test, áp dụng cho các lần load sau). Muốn thay hẳn ad unit bằng unit test của Google thì bật `HDCAdsSetup > Google Test Ad Units` (xem phần HDCAdsSetup).
+- HDC Ads: thư viện native, Remote Config có bật không (`HDC_FIREBASE`), trạng thái khởi tạo, ads removed, `Google Test Device` và `Google Test Ad Units`. Các nút:
+  - `Debug Log`.
+  - `Make Test Device`: máy này thành test device. Request vẫn dùng ad unit thật, Google trả quảng cáo test, áp dụng cho các lần load sau.
+  - `Test Ad Units: On/Off`: bật tắt việc thay mọi ad unit bằng ad unit mẫu của Google (`HDCAds.Testing.UseTestAdUnits`). Lựa chọn được lưu trên máy (PlayerPrefs `HDCAds.Debug.TestAdUnits`) và áp dụng từ lúc app mở, trước scene đầu tiên, cho tới khi tắt.
+  - `Restart App` hiện ra sau khi đổi `Test Ad Units`, vì quảng cáo đã load vẫn giữ ad unit cũ. Trên Android nút mở lại app từ đầu; trong Editor nút thoát rồi vào lại Play Mode. iOS không cho app tự mở lại, nên nút thành `Quit App`: app thoát, rồi mở lại bằng tay.
+  - Khi `HDCAdsSetup > Google Test Ad Units` đang bật, prefab bật lại test ad unit mỗi lần mở app, nên nút trên bảng chỉ tắt được cho lần chạy hiện tại.
 - Mediation:
   - Số adapter mediation Google Mobile Ads đã khởi tạo xong, lấy từ kết quả `MobileAds.Initialize`.
   - Từng partner có cài đặt riêng (hiện là Meta Audience Network): adapter sẵn sàng chưa, độ trễ hoặc lý do lỗi, test mode và device hash. Nút `Meta Test Mode On/Off`.

@@ -174,7 +174,22 @@ namespace HDC.Ads.Tests
             StringAssert.Contains("META AUDIENCE NETWORK", mediation);
             StringAssert.Contains("Meta Test Mode On", mediation);
             StringAssert.Contains("Adjust", AllText(deviceContent.Find("Adjust Card")));
+            Transform testAdUnits = deviceContent.Find("Library Card/Library Buttons/Test Ad Units Button");
+            Assert.AreEqual("Test Ad Units: Off", ButtonText(testAdUnits));
+            Transform restart = deviceContent.Find("Library Card/Library Buttons/Restart App Button");
+            Assert.IsFalse(restart.gameObject.activeSelf, "only once the choice changed");
+            Click(testAdUnits);
+            yield return null;
+            Assert.IsTrue(HDCAds.Testing.UseTestAdUnits);
+            Assert.IsTrue(HDCTestAdUnitsSwitch.IsSaved, "kept for the next launches");
+            Assert.AreEqual("Test Ad Units: On", ButtonText(testAdUnits));
+            StringAssert.Contains("Bấm Restart App", AllText(deviceContent.Find("Library Card")));
+            Assert.IsTrue(restart.gameObject.activeSelf);
+            Assert.AreEqual("Restart App", ButtonText(restart));
             Capture(panelObject, "hdc-debug-device.png");
+            Click(testAdUnits);
+            Assert.IsFalse(HDCAds.Testing.UseTestAdUnits);
+            Assert.IsFalse(HDCTestAdUnitsSwitch.IsSaved);
 
             Click(window.Find("Header/Close Button"));
             Assert.IsFalse(panel.IsOpen);

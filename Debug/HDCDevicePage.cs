@@ -24,6 +24,8 @@ namespace HDC.Ads.DebugUI
         [SerializeField] private HDCKeyValueList libraryList;
         [SerializeField] private Button debugLogButton;
         [SerializeField] private Button testDeviceButton;
+        [SerializeField] private Button testAdUnitsButton;
+        [SerializeField] private Button restartButton;
         [SerializeField] private HDCKeyValueList mediationList;
         [SerializeField] private Button metaOnButton;
         [SerializeField] private Button metaOffButton;
@@ -85,6 +87,12 @@ namespace HDC.Ads.DebugUI
                 HDCAdsSdk.EnableTestDevice();
                 Refresh();
             });
+            testAdUnitsButton.onClick.AddListener(() =>
+            {
+                HDCTestAdUnitsSwitch.Toggle();
+                Refresh();
+            });
+            restartButton.onClick.AddListener(HDCAppRestart.Restart);
             metaOnButton.onClick.AddListener(() =>
             {
                 HDCAds.Testing.EnableMetaTestMode();
@@ -153,14 +161,32 @@ namespace HDC.Ads.DebugUI
             libraryList.Row("Google Test Device", HDCAdsSdk.IsTestDevice
                     ? "On: requests keep the real ad units, and Google answers with test ads"
                     : "Off", HDCAdsSdk.IsTestDevice ? HDCDebugStyle.GoodColor : HDCDebugStyle.MutedColor);
-            libraryList.Row("Google Test Ad Units", HDCAdsSdk.UseTestAdUnits
-                    ? "On: every position loads Google's sample ad unit"
-                    : "Off: turn on HDCAdsSetup > Google Test Ad Units, before ads load", HDCAdsSdk.UseTestAdUnits ? HDCDebugStyle.GoodColor : HDCDebugStyle.MutedColor);
+            libraryList.Row("Google Test Ad Units", TestAdUnitsState, HDCAdsSdk.UseTestAdUnits ? HDCDebugStyle.GoodColor : HDCDebugStyle.MutedColor);
+            if (HDCTestAdUnitsSwitch.ChangedThisSession)
+                libraryList.Note(HDCDebugStyle.Colored(HDCDebugStyle.WarnHex, HDCAppRestart.Relaunches
+                    ? "Quảng cáo đã load vẫn giữ ad unit cũ. Bấm Restart App để mở lại app với lựa chọn mới ngay từ đầu."
+                    : "Quảng cáo đã load vẫn giữ ad unit cũ. iOS không cho app tự mở lại: bấm Quit App rồi mở lại app."));
             libraryList.End();
 
             HDCDebugStyle.SetLabel(debugLogButton, HDCAdsSdk.DebugLog ? "Debug Log: On" : "Debug Log: Off");
             HDCDebugStyle.Highlight(debugLogButton, HDCAdsSdk.DebugLog);
             HDCDebugStyle.Highlight(testDeviceButton, HDCAdsSdk.IsTestDevice);
+            HDCDebugStyle.SetLabel(testAdUnitsButton, HDCAdsSdk.UseTestAdUnits ? "Test Ad Units: On" : "Test Ad Units: Off");
+            HDCDebugStyle.Highlight(testAdUnitsButton, HDCAdsSdk.UseTestAdUnits);
+            HDCDebugStyle.SetVisible(restartButton, HDCTestAdUnitsSwitch.ChangedThisSession);
+            HDCDebugStyle.SetLabel(restartButton, HDCAppRestart.Relaunches ? "Restart App" : "Quit App");
+        }
+
+        private static string TestAdUnitsState
+        {
+            get
+            {
+                if (!HDCAdsSdk.UseTestAdUnits)
+                    return "Off: turn on with the Test Ad Units button, or HDCAdsSetup > Google Test Ad Units";
+                return HDCTestAdUnitsSwitch.IsSaved
+                    ? "On: every position loads Google's sample ad unit, on every launch until turned off"
+                    : "On: every position loads Google's sample ad unit, turned on by HDCAdsSetup or code";
+            }
         }
 
         private void RedrawMediation()
