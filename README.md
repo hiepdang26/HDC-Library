@@ -291,6 +291,9 @@ Test Edit Mode nằm trong `Tests/Editor` (assembly `HDC.Ads.Tests`). Assembly n
 
 Các nhóm test:
 
+- Logic các kênh (`HDCLogicTests`): chạy trên port giả (`Tests/Editor/Fakes`), không cần Play Mode, mỗi test vài mili giây.
+  - Có: mạng giả load và show, capping (launch, giảm theo lượt, mức tối thiểu), backup khi mạng đầu lỗi, timeout của app launch, gỡ quảng cáo, thứ tự ưu tiên, doanh thu.
+  - Thêm mạng hay kênh mới thì viết test kiểu này trước: `HDCFakeAds` dựng runtime với đồng hồ, lưu trữ, SDK và mạng giả do test điều khiển.
 - Bảng debug, tracker, ID test của Google, post-process iOS: chạy Play Mode với phần giả lập của Editor. Trong giả lập, ad unit có chữ `fail` trong ID load lỗi no fill.
 - Hợp đồng API (`HDCPublicApiTests`):
   - So mọi type và member public của các assembly runtime với `Tests/Editor/PublicApi.txt`.
