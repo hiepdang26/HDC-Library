@@ -1,38 +1,49 @@
 using System;
 using HDC.Ads.Domain;
-using HDC.Ads.Infrastructure;
+using HDC.Ads.Ports;
+using UnityEngine;
 
 namespace HDC.Ads.Logic
 {
-    /// <summary>One ad unit of a banner or MREC slot, tracked through the SDK's events for its instance id.</summary>
-    internal abstract class HDCRectSource
+    /// <summary>One ad unit of a banner or MREC slot: it follows whether its view loaded.</summary>
+    internal sealed class HDCRectSource
     {
-        private readonly string format;
+        private readonly IViewAd view;
 
-        protected HDCRectSource(string id, string format)
+        internal HDCRectSource(IViewAd view, IAdNetwork network)
         {
-            Id = id;
-            this.format = format;
-            HDCAdsSdk.AdEvent += OnAdEvent;
+            this.view = view;
+            Network = network;
+            view.Event += OnAdEvent;
         }
 
-        internal string Id { get; }
-        internal string Format => format;
-        internal abstract string AdUnitId { get; }
+        /// <summary>The network the view comes from.</summary>
+        internal IAdNetwork Network { get; }
+
+        internal string Id => view.Id;
+        internal string Format => view.Format;
+        internal string AdUnitId => view.AdUnitId;
         internal bool IsLoaded { get; private set; }
         internal Action<HDCRectSource> Failed { get; set; }
         internal Action<HDCRectSource> LoadedAd { get; set; }
 
-        internal abstract void Load();
-        internal abstract void Show();
-        internal abstract void Hide();
-        internal virtual bool Expand(bool enableClick) => false;
+        /// <summary>The view's size in screen pixels, zero until it exists.</summary>
+        internal Vector2 SizeInPixels => view.SizeInPixels;
+
+        internal void Load() => view.Load();
+
+        internal void Show() => view.Show();
+
+        internal void Hide() => view.Hide();
+
+        internal bool Expand(bool enableClick) => view.Expand(enableClick);
+
+        internal void Move(HDCAdPosition position) => view.Move(position);
+
+        internal void Move(Vector2 screenPoint) => view.Move(screenPoint);
 
         private void OnAdEvent(HDCAdEvent adEvent)
         {
-            if (adEvent.id != Id || adEvent.format != format)
-                return;
-
             if (adEvent.type == HDCAdEventType.Loaded)
             {
                 IsLoaded = true;

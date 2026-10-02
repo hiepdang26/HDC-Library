@@ -1,13 +1,14 @@
 using System;
 using HDC.Ads.Domain;
-using HDC.Ads.Infrastructure;
+using HDC.Ads.Ports;
 using UnityEngine;
 
 namespace HDC.Ads.Logic
 {
-    /// <summary>One ad unit of a full-screen group. Its state comes from the SDK's events for its instance id.</summary>
-    internal abstract class HDCFullscreenSource
+    /// <summary>One ad unit of a full-screen group: it follows its ad's events through each show.</summary>
+    internal sealed class HDCFullscreenSource
     {
+        private readonly IFullscreenAd ad;
         private Action onDisplayed;
         private Action<bool> onClosed;
         private bool showing;
@@ -16,24 +17,27 @@ namespace HDC.Ads.Logic
         private bool rewardEarned;
         private bool destroyed;
 
-        protected HDCFullscreenSource(string id, string format)
+        internal HDCFullscreenSource(IFullscreenAd ad, IAdNetwork network)
         {
-            Id = id;
-            Format = format;
-            HDCAdsSdk.AdEvent += OnAdEvent;
+            this.ad = ad;
+            Network = network;
+            ad.Event += OnAdEvent;
         }
 
-        internal string Id { get; }
-        internal string Format { get; }
-        internal abstract string AdUnitId { get; }
+        /// <summary>The network the ad comes from.</summary>
+        internal IAdNetwork Network { get; }
+
+        internal string Id => ad.Id;
+        internal string Format => ad.Format;
+        internal string AdUnitId => ad.AdUnitId;
         internal Action<HDCFullscreenSource> Failed { get; set; }
-        internal abstract bool IsReady { get; }
+        internal bool IsReady => ad.IsReady;
         internal bool IsShowing => showing;
 
-        /// <summary>Native full-screen ads served as rewarded ads reward the player when they close.</summary>
+        /// <summary>Ads that report no reward, such as native full-screen ads, reward the player when they close.</summary>
         internal bool RewardsOnClose { get; set; }
 
-        internal abstract void Load();
+        internal void Load() => ad.Load();
 
         internal bool Show(Action displayed, Action<bool> closed)
         {
@@ -49,7 +53,7 @@ namespace HDC.Ads.Logic
             bool started;
             try
             {
-                started = StartShow();
+                started = ad.Show();
             }
             catch (Exception exception)
             {
@@ -79,22 +83,14 @@ namespace HDC.Ads.Logic
             if (destroyed)
                 return;
             destroyed = true;
-            HDCAdsSdk.AdEvent -= OnAdEvent;
-            DestroyAd();
+            ad.Event -= OnAdEvent;
+            ad.Destroy();
             if (showing)
                 Finish(false);
         }
 
-        protected abstract bool StartShow();
-        protected abstract void DestroyAd();
-        protected virtual void OnOwnEvent(HDCAdEvent adEvent) { }
-
         private void OnAdEvent(HDCAdEvent adEvent)
         {
-            if (adEvent.id != Id || adEvent.format != Format)
-                return;
-
-            OnOwnEvent(adEvent);
             switch (adEvent.type)
             {
                 case HDCAdEventType.LoadFailed:

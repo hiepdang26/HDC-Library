@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using HDC.Ads.Diagnostics;
 using HDC.Ads.Domain;
 using HDC.Ads.Ports;
@@ -12,18 +14,19 @@ namespace HDC.Ads.Logic
     /// </summary>
     internal sealed class HDCAdsContext
     {
-        private const string RemovedAdsKey = "REMOVEADS";
-
         private bool initializeCalled;
         private bool? adsRemoved;
 
-        internal HDCAdsContext(IClock clock, IKeyValueStore store, IMainThread mainThread, IAdsLog log, IAdsSdk sdk)
+        internal HDCAdsContext(IClock clock, IKeyValueStore store, IMainThread mainThread, IAdsLog log, IAdsSdk sdk,
+            IReadOnlyList<IAdNetwork> networks, IUnitOrderPolicy order)
         {
             Clock = clock;
             Store = store;
             MainThread = mainThread;
             Log = log;
             Sdk = sdk;
+            Networks = networks;
+            Order = order;
             Groups = new HDCAdGroups(this);
         }
 
@@ -32,6 +35,12 @@ namespace HDC.Ads.Logic
         internal IMainThread MainThread { get; }
         internal IAdsLog Log { get; }
         internal IAdsSdk Sdk { get; }
+
+        /// <summary>The ad networks, in the order a slot without a priority tries them.</summary>
+        internal IReadOnlyList<IAdNetwork> Networks { get; }
+
+        /// <summary>The order a slot's networks load in.</summary>
+        internal IUnitOrderPolicy Order { get; }
 
         internal HDCAdsConfig Config { get; private set; } = new HDCAdsConfig();
         internal HDCAdCoreConfig CoreConfig { get; private set; } = new HDCAdCoreConfig();
@@ -67,7 +76,7 @@ namespace HDC.Ads.Logic
             get
             {
                 // The store cannot be read from constructors and field initializers: read it next time then.
-                if (adsRemoved == null && Store.TryGetInt(RemovedAdsKey, out int removed))
+                if (adsRemoved == null && Store.TryGetInt(HDCAdNames.AdsRemovedKey, out int removed))
                     adsRemoved = removed == 1;
                 return adsRemoved ?? false;
             }
@@ -104,13 +113,17 @@ namespace HDC.Ads.Logic
         internal void SetAdsRemoved(bool removed)
         {
             adsRemoved = removed;
-            Store.SetInt(RemovedAdsKey, removed ? 1 : 0);
+            Store.SetInt(HDCAdNames.AdsRemovedKey, removed ? 1 : 0);
             Store.Save();
             if (removed)
                 AdsRemoved?.Invoke();
         }
 
         internal void NotifyFullscreenOpening() => FullscreenOpening?.Invoke();
+
+        /// <summary>The network whose units sit under a key; null when none is registered for it.</summary>
+        internal IAdNetwork Network(string unitKey) =>
+            unitKey == null ? null : Networks.FirstOrDefault(network => network.UnitKey == unitKey);
 
         /// <summary>A count kept across sessions; 0 when there is none yet or the store cannot be read.</summary>
         internal int Count(string key) => Store.TryGetInt(key, out int value) ? value : 0;
@@ -150,8 +163,8 @@ namespace HDC.Ads.Logic
             if (handlers == null)
                 return;
 
-            (HDCAdChannel channel, string position) = Placements.Find(adEvent.id);
-            var revenue = new HDCAdRevenue(channel, position, adEvent.format, HDCAdRevenue.AdMob, adEvent.adSource,
+            (HDCAdChannel channel, string position, string network) = Placements.Find(adEvent.id);
+            var revenue = new HDCAdRevenue(channel, position, adEvent.format, network ?? HDCAdRevenue.AdMob, adEvent.adSource,
                 adEvent.adUnitId, adEvent.Revenue, adEvent.currency, adEvent.precision);
             // One handler's exception must not keep the revenue from the others.
             foreach (Action<HDCAdRevenue> handler in handlers.GetInvocationList())

@@ -1,13 +1,12 @@
 using System;
 using HDC.Ads.Diagnostics;
+using HDC.Ads.Domain;
 
 namespace HDC.Ads.Logic
 {
     /// <summary>The rewarded channel behind <see cref="IRewardedAds"/>.</summary>
     internal sealed class HDCRewardedAds : IRewardedAds
     {
-        private const string ImpressionsKey = "rw_count";
-
         private readonly HDCAdsContext context;
         internal HDCRewardedAds(HDCAdsContext context)
         {
@@ -19,7 +18,7 @@ namespace HDC.Ads.Logic
 
         public bool CanShow => IsEnabled && context.Groups.RewardedGroup().IsReady;
 
-        public int ImpressionCount => context.Count(ImpressionsKey);
+        public int ImpressionCount => context.Count(HDCAdNames.RewardedCountKey);
 
         private bool IsEnabled => context.Config.rewardedChannel?.isEnabled ?? false;
 
@@ -48,7 +47,7 @@ namespace HDC.Ads.Logic
                 HDCAdChannel.Rewarded,
                 position,
                 null,
-                () => context.Store.SetInt(ImpressionsKey, ImpressionCount + 1),
+                () => context.Store.SetInt(HDCAdNames.RewardedCountKey, ImpressionCount + 1),
                 rewarded =>
                 {
                     if (rewarded)

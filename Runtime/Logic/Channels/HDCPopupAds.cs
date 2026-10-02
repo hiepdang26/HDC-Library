@@ -1,9 +1,8 @@
 using System;
 using System.Collections.Generic;
-using GoogleMobileAds.Api;
 using HDC.Ads.Diagnostics;
 using HDC.Ads.Domain;
-using HDC.Ads.Infrastructure;
+using HDC.Ads.Ports;
 using UnityEngine;
 
 namespace HDC.Ads.Logic
@@ -35,29 +34,24 @@ namespace HDC.Ads.Logic
             Popup popup = PopupAt(position);
             if (popup == null)
                 return false;
-            if (!popup.Placed)
+            if (!popup.Ad.IsPlaced)
             {
                 context.Log.Info($"popup {position} blocked: call Move first");
                 return false;
             }
 
-            popup.Load();
-            context.Placements.Record(popup.Id, HDCAdChannel.Popup, position);
-            return HDCAdsSdk.ShowPopup(popup.Id);
+            popup.Ad.Load();
+            context.Placements.Record(popup.Ad.Id, HDCAdChannel.Popup, position, popup.Network.RevenueNetwork);
+            return popup.Ad.Show();
         }
 
-        public void Hide(string position)
-        {
-            Popup popup = PopupAt(position);
-            if (popup != null && popup.Requested)
-                HDCAdsSdk.HidePopup(popup.Id);
-        }
+        public void Hide(string position) => PopupAt(position)?.Ad.Hide();
 
         /// <summary>Places the popup of <paramref name="position"/> over a rectangle in Unity screen pixels.</summary>
         public void Move(string position, Rect screenRect)
         {
             Popup popup = Allowed(position, out _) ? PopupAt(position) : null;
-            popup?.Place(screenRect);
+            popup?.Ad.Place(screenRect);
         }
 
         /// <summary>Places the popup of <paramref name="position"/> over a UI element.</summary>
@@ -75,23 +69,19 @@ namespace HDC.Ads.Logic
         public bool CanShow(string position)
         {
             Popup popup = Allowed(position, out _) ? PopupAt(position) : null;
-            return popup != null && popup.Placed && popup.Requested && HDCAdsSdk.IsPopupDisplayable(popup.Id);
+            return popup != null && popup.Ad.IsPlaced && popup.Ad.IsDisplayable;
         }
 
-        public bool IsGroupReady(string groupName)
-        {
-            Popup popup = PopupNamed(groupName);
-            return popup != null && popup.Requested && HDCAdsSdk.IsPopupReady(popup.Id);
-        }
+        public bool IsGroupReady(string groupName) => PopupNamed(groupName)?.Ad.IsReady ?? false;
 
         /// <summary>Drops a group's popup and loads a new one. False while it shows.</summary>
-        public bool Reinitialize(string groupName) => !IsDisabled && (PopupNamed(groupName)?.Reload() ?? false);
+        public bool Reinitialize(string groupName) => !IsDisabled && (PopupNamed(groupName)?.Ad.Reload() ?? false);
 
         /// <summary>Starts loading a group whose positions do not load it on their own (autoInit off).</summary>
         public void Initialize(string groupName)
         {
             if (!IsDisabled && !AutoInitGroups().Contains(groupName))
-                PopupNamed(groupName)?.Load();
+                PopupNamed(groupName)?.Ad.Load();
         }
 
         /// <summary>The configs, a group's state and a position's gate, for the debug panel.</summary>
@@ -119,10 +109,10 @@ namespace HDC.Ads.Logic
                 return info.Add("State", "Not started", HDCDebugTone.Muted);
 
             return info
-                .Line("Instance ID", popup.Id)
-                .Line("Requested", popup.Requested)
-                .Needed("Placed (Move)", popup.Placed)
-                .Line("Native State", popup.Requested ? HDCAdsSdk.GetPopupState(popup.Id) : "-");
+                .Line("Instance ID", popup.Ad.Id)
+                .Line("Requested", popup.Ad.IsRequested)
+                .Needed("Placed (Move)", popup.Ad.IsPlaced)
+                .Line("Native State", popup.Ad.State ?? "-");
         }
 
         /// <summary>A popup group's instance once the channel made it, for the debug panel.</summary>
@@ -132,30 +122,24 @@ namespace HDC.Ads.Logic
             requested = placed = false;
             if (string.IsNullOrEmpty(groupName) || !popups.TryGetValue(groupName, out Popup popup))
                 return false;
-            id = popup.Id;
-            requested = popup.Requested;
-            placed = popup.Placed;
+            id = popup.Ad.Id;
+            requested = popup.Ad.IsRequested;
+            placed = popup.Ad.IsPlaced;
             return true;
         }
-
-        /// <summary>The instance id a popup group's ads load with.</summary>
-        internal static string PopupId(string groupName) => "pu_" + groupName;
 
         internal void OnSdkInitialized()
         {
             if (IsDisabled)
                 return;
             foreach (string groupName in AutoInitGroups())
-                PopupNamed(groupName)?.Load();
+                PopupNamed(groupName)?.Ad.Load();
         }
 
         internal void HideAll()
         {
             foreach (Popup popup in popups.Values)
-            {
-                if (popup.Requested)
-                    HDCAdsSdk.HidePopup(popup.Id);
-            }
+                popup.Ad.Hide();
         }
 
         private bool Allowed(string position, out string reason)
@@ -196,71 +180,25 @@ namespace HDC.Ads.Logic
             if (popups.TryGetValue(groupName, out Popup popup))
                 return popup;
 
-            HDCAdCoreConfig.PopupGroup config = context.CoreConfig.PopupGroupNamed(groupName);
-            if (config == null || string.IsNullOrEmpty(config.androidUnit?.id))
+            HDCAdPlan plan = context.Groups.PopupPlan(groupName);
+            if (plan == null)
                 return null;
-            popup = new Popup(PopupId(groupName), config);
+            popup = new Popup(plan.Network.CreatePopup(plan), plan.Network);
             popups[groupName] = popup;
             return popup;
         }
 
+        // A group's popup, with the network it came from for its revenue.
         private sealed class Popup
         {
-            private readonly HDCAdCoreConfig.PopupGroup config;
-            private readonly HDCPopupOptions options;
-
-            internal Popup(string id, HDCAdCoreConfig.PopupGroup config)
+            internal Popup(IPopupAd ad, IAdNetwork network)
             {
-                Id = id;
-                this.config = config;
-                options = new HDCPopupOptions
-                {
-                    timeShow = config.androidUnit.timeShow,
-                    timeReload = config.disablePostInitReload ? 0 : config.androidUnit.reloadTime,
-                };
-                if (!string.IsNullOrEmpty(config.androidUnit.layout))
-                    options.layout = config.androidUnit.layout;
+                Ad = ad;
+                Network = network;
             }
 
-            internal string Id { get; }
-            internal bool Requested { get; private set; }
-            internal bool Placed { get; private set; }
-
-            internal void Load()
-            {
-                if (Requested)
-                    return;
-                Requested = HDCAdsSdk.LoadPopup(Id, new[] { config.androidUnit.id }, options);
-            }
-
-            internal bool Reload()
-            {
-                if (Requested && HDCAdsSdk.GetPopupState(Id) == "Showing")
-                    return false;
-                if (Requested)
-                    HDCAdsSdk.DestroyPopup(Id);
-                Requested = false;
-                Load();
-                return Requested;
-            }
-
-            // The native side takes the popup's center relative to the screen (y from the bottom) and its size in dp.
-            internal void Place(Rect screenRect)
-            {
-                if (Screen.width <= 0 || Screen.height <= 0 || screenRect.width <= 0f || screenRect.height <= 0f)
-                    return;
-
-                float scale = MobileAds.Utils.GetDeviceScale();
-                if (scale <= 0f)
-                    scale = 1f;
-                options.x = Mathf.Clamp01(screenRect.center.x / Screen.width);
-                options.y = Mathf.Clamp01(screenRect.center.y / Screen.height);
-                options.width = screenRect.width / scale;
-                options.height = screenRect.height / scale;
-                Placed = true;
-                if (Requested)
-                    HDCAdsSdk.UpdatePopupPlacement(Id, options.x, options.y, options.width, options.height);
-            }
+            internal IPopupAd Ad { get; }
+            internal IAdNetwork Network { get; }
         }
     }
 }

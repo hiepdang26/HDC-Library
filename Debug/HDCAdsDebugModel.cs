@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using HDC.Ads.Composition;
 using HDC.Ads.Diagnostics;
 using HDC.Ads.Domain;
 using HDC.Ads.Infrastructure;
 using HDC.Ads.Logic;
+using HDC.Ads.Ports;
 using UnityEngine;
 
 namespace HDC.Ads.DebugUI
@@ -134,7 +136,7 @@ namespace HDC.Ads.DebugUI
                     break;
                 case "RW":
                     HDCAdCoreConfig.FullscreenUnit rewarded = HDCAds.CoreConfig.rewardedUnit ?? new HDCAdCoreConfig.FullscreenUnit();
-                    groups.Add(FullscreenGroup("rewarded", HDCAds.ExistingRewardedGroup, true, RewardedUnits(), details => details
+                    groups.Add(FullscreenGroup("rewarded", Context.Groups.ExistingRewardedGroup, true, Planned(Context.Groups.RewardedPlans()), details => details
                         .Line("Priority", Priority(rewarded.mediationPriority))
                         .Line("Backup", rewarded.useBackup)));
                     groups[groups.Count - 1].Kind = "Channel";
@@ -150,10 +152,8 @@ namespace HDC.Ads.DebugUI
                         groups.Add(BannerGroup((HDCBannerSlot)Enum.Parse(typeof(HDCBannerSlot), slotName), slotName == selectedPosition));
                     break;
                 case "MREC":
-                    groups.Add(RectGroup("mrec", HDCAds.Channels.Mrec.ExistingGroup, true, new[]
-                    {
-                        Planned(HDCAdFormat.Mrec, "mrec_plugin", HDCAds.CoreConfig.mrecUnit?.admobUnit?.id),
-                    }, details => details.Line("Priority", Priority(HDCAds.CoreConfig.mrecUnit?.mediationPriority ?? 0))));
+                    groups.Add(RectGroup("mrec", HDCAds.Channels.Mrec.ExistingGroup, true, Planned(Context.Groups.MrecPlans()),
+                        details => details.Line("Priority", Priority(HDCAds.CoreConfig.mrecUnit?.mediationPriority ?? 0))));
                     groups[groups.Count - 1].Kind = "Channel";
                     break;
                 case "PU":
@@ -197,7 +197,7 @@ namespace HDC.Ads.DebugUI
         }
 
         private static HDCDebugGroup ForceAdGroup(HDCAdCoreConfig.ForceAdGroup config, bool selected) =>
-            FullscreenGroup(config.groupName, HDCAds.ExistingForceAdGroup(config.groupName), selected, ForceAdUnits(config), details => details
+            FullscreenGroup(config.groupName, Context.Groups.ExistingForceAdGroup(config.groupName), selected, Planned(Context.Groups.ForceAdPlans(config.groupName)), details => details
                 .Line("Positions", Join(config.positionNames))
                 .Line("Priority", Priority(config.mediationPriority))
                 .Line("Backup", config.useBackup)
@@ -210,8 +210,8 @@ namespace HDC.Ads.DebugUI
             bool forceAd = comeback.launchAdType == 0;
             HDCAdCoreConfig.ForceAdGroup config = forceAd ? HDCAds.CoreConfig.ForceAdGroupNamed(comeback.launchForceAdGroupName) : null;
             IEnumerable<HDCDebugUnit> planned = forceAd
-                ? config != null ? ForceAdUnits(config) : new HDCDebugUnit[0]
-                : new[] { Planned(HDCAdFormat.AppOpen, "ao_plugin", HDCAds.CoreConfig.appOpenUnit?.admobUnit?.id) };
+                ? config != null ? Planned(Context.Groups.ForceAdPlans(config.groupName)) : new HDCDebugUnit[0]
+                : Planned(Context.Groups.AppOpenPlans());
             HDCDebugGroup group = FullscreenGroup(forceAd ? comeback.launchForceAdGroupName : "app_open", HDCAds.Channels.AppLaunch.ExistingGroup, true, planned,
                 details => details.Add("Launch Ad", forceAd ? "Force ad group " + comeback.launchForceAdGroupName + (config == null ? " (missing in the ad core config)" : string.Empty) : "App open",
                     forceAd && config == null ? HDCDebugTone.Bad : HDCDebugTone.Normal));
@@ -225,7 +225,7 @@ namespace HDC.Ads.DebugUI
             group.Details
                 .Line("Ad", "Native full-screen ad of appResumeChannel")
                 .Line("Layout Group", HDCAds.Config.appResumeChannel?.layoutGroup);
-            string id = HDCAppResumeAds.DebugInstanceId;
+            string id = Context.Groups.ResumePlan()?.InstanceId ?? HDCAdNames.NativeAppResume;
             HDCAdRecord record = HDCAdsTracker.Find(HDCAdFormat.Fullscreen, id);
             group.Units.Add(new HDCDebugUnit
             {
@@ -244,19 +244,7 @@ namespace HDC.Ads.DebugUI
         {
             HDCAdCoreConfig.FullscreenUnit unit = HDCAds.CoreConfig.bannerUnit?.Slot(slot) ?? new HDCAdCoreConfig.FullscreenUnit();
             HDCAdsConfig.BannerSlot config = (HDCAds.Config.bannerChannel ?? new HDCAdsConfig.BannerChannel()).Slot(slot);
-            var planned = new List<HDCDebugUnit>();
-            IEnumerable<int> order = slot == HDCBannerSlot.FullBottom
-                ? HDCAds.Order(unit.mediationPriority, unit.useBackup)
-                : unit.mediationPriority == HDCAds.PluginUnit || unit.useBackup ? new[] { HDCAds.PluginUnit } : new int[0];
-            foreach (int priority in order)
-            {
-                if (priority == HDCAds.PluginUnit && !string.IsNullOrEmpty(unit.admobUnit?.id))
-                    planned.Add(Planned(HDCAdFormat.BannerView, "bn_plugin_" + slot, unit.admobUnit.id));
-                else if (priority == HDCAds.NativeUnit && slot == HDCBannerSlot.FullBottom)
-                    planned.Add(Planned(HDCAdFormat.Banner, "bn_native", Join(new[] { unit.androidUnit?.id }.Concat(unit.androidUnit?.ids ?? new string[0]))));
-            }
-
-            HDCDebugGroup group = RectGroup(slot.ToString(), HDCAds.Channels.Banner.ExistingGroup(slot), selected, planned, details => details
+            HDCDebugGroup group = RectGroup(slot.ToString(), HDCAds.Channels.Banner.ExistingGroup(slot), selected, Planned(Context.Groups.BannerPlans(slot)), details => details
                 .Needed("Enabled", HDCAds.Channels.Banner.IsSlotEnabled(slot))
                 .Line("Auto Init", config.autoInit)
                 .Line("Auto Show On Load", config.autoShowOnLoad)
@@ -269,7 +257,7 @@ namespace HDC.Ads.DebugUI
         private static HDCDebugGroup PopupGroup(HDCAdCoreConfig.PopupGroup config, bool selected, bool askNative)
         {
             bool created = HDCAds.Channels.Popup.TryGetPopup(config.groupName, out string id, out bool requested, out bool placed);
-            id = id ?? HDCPopupAds.PopupId(config.groupName);
+            id = id ?? Context.Groups.PopupPlan(config.groupName)?.InstanceId ?? HDCAdNames.NativePopup(config.groupName);
             HDCAdRecord record = HDCAdsTracker.Find(HDCAdFormat.Popup, id);
             var group = new HDCDebugGroup { Name = config.groupName, Selected = selected };
             string nativeState = requested && askNative ? HDCAdsSdk.GetPopupState(id) : null;
@@ -378,38 +366,9 @@ namespace HDC.Ads.DebugUI
                 group.Details.Add("Ad Units", "None in the ad core config", HDCDebugTone.Bad);
         }
 
-        private static IEnumerable<HDCDebugUnit> ForceAdUnits(HDCAdCoreConfig.ForceAdGroup config)
-        {
-            foreach (int priority in HDCAds.Order(config.mediationPriority, config.useBackup))
-            {
-                if (priority == HDCAds.PluginUnit && !string.IsNullOrEmpty(config.admobUnit?.id))
-                {
-                    yield return Planned(HDCAdFormat.Interstitial, "fa_plugin_" + config.groupName, config.admobUnit.id);
-                }
-                else if (priority == HDCAds.NativeUnit && !string.IsNullOrEmpty(config.androidUnit?.id))
-                {
-                    bool interstitial = config.androidUnit.androidInterstitials?.switchToInterstitialAndroid ?? false;
-                    yield return interstitial
-                        ? Planned(HDCAdFormat.Interstitial, "fa_interstitial_" + config.groupName, config.androidUnit.id)
-                        : Planned(HDCAdFormat.Fullscreen, "fa_" + config.groupName, config.androidUnit.id);
-                }
-            }
-        }
-
-        private static IEnumerable<HDCDebugUnit> RewardedUnits()
-        {
-            HDCAdCoreConfig.FullscreenUnit config = HDCAds.CoreConfig.rewardedUnit ?? new HDCAdCoreConfig.FullscreenUnit();
-            foreach (int priority in HDCAds.Order(config.mediationPriority, config.useBackup))
-            {
-                if (priority == HDCAds.PluginUnit && !string.IsNullOrEmpty(config.admobUnit?.id))
-                    yield return Planned(HDCAdFormat.Rewarded, "rw_plugin", config.admobUnit.id);
-                else if (priority == HDCAds.NativeUnit && !string.IsNullOrEmpty(config.androidUnit?.id))
-                    yield return Planned(HDCAdFormat.Fullscreen, "rw_native", config.androidUnit.id);
-            }
-        }
-
-        private static HDCDebugUnit Planned(string format, string id, string adUnitId) =>
-            new HDCDebugUnit { Format = format, Id = id, AdUnitId = adUnitId };
+        // The units a slot will load, as the networks plan them, before its group exists.
+        private static IEnumerable<HDCDebugUnit> Planned(IEnumerable<HDCAdPlan> plans) =>
+            plans.Select(plan => new HDCDebugUnit { Format = plan.Format, Id = plan.InstanceId, AdUnitId = plan.AdUnitId }).ToList();
 
         /// <summary>What serves a unit: the Google Mobile Ads plugin (AdMob) or the native library, and its format.</summary>
         internal static string UnitName(string format, string id)
@@ -431,8 +390,13 @@ namespace HDC.Ads.DebugUI
             }
         }
 
-        private static string Priority(int priority) =>
-            priority == HDCAds.PluginUnit ? "0 · AdMob first" : priority == HDCAds.NativeUnit ? "1 · Native first" : priority.ToString();
+        private static string Priority(int priority)
+        {
+            IAdNetwork network = Context.Network(Context.Order.KeyFor(priority));
+            return network != null ? $"{priority} · {network.Name} first" : priority.ToString();
+        }
+
+        private static HDCAdsContext Context => HDCAdsRuntime.Current.Context;
 
         private static string Join(IEnumerable<string> values)
         {

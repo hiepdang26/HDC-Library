@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using HDC.Ads.Diagnostics;
 using HDC.Ads.Infrastructure;
 using HDC.Ads.Logic;
@@ -13,9 +14,10 @@ namespace HDC.Ads.Composition
     /// </summary>
     internal sealed class HDCAdsRuntime
     {
-        internal HDCAdsRuntime(IClock clock, IKeyValueStore store, IMainThread mainThread, IAdsLog log, IAdsSdk sdk, IAdsTesting testing)
+        internal HDCAdsRuntime(IClock clock, IKeyValueStore store, IMainThread mainThread, IAdsLog log, IAdsSdk sdk, IAdsTesting testing,
+            IReadOnlyList<IAdNetwork> networks, IUnitOrderPolicy order)
         {
-            Context = new HDCAdsContext(clock, store, mainThread, log, sdk);
+            Context = new HDCAdsContext(clock, store, mainThread, log, sdk, networks, order);
             Channels = new HDCChannels(Context);
             Testing = testing;
         }
@@ -27,10 +29,14 @@ namespace HDC.Ads.Composition
         internal HDCChannels Channels { get; }
         internal IAdsTesting Testing { get; }
 
-        /// <summary>A runtime on Unity, the native library and the Google Mobile Ads plugin.</summary>
+        /// <summary>
+        /// A runtime on Unity, with two ad networks: the Google Mobile Ads plugin and the native library. A new
+        /// network is one more entry here, and its unit key in the order policy.
+        /// </summary>
         internal static HDCAdsRuntime CreateDefault() =>
             new HDCAdsRuntime(new HDCUnityClock(), new HDCPlayerPrefsStore(), new HDCUnityMainThread(), new HDCUnityAdsLog(),
-                new HDCAdsSdkPort(), new HDCAdsTestingPort());
+                new HDCAdsSdkPort(), new HDCAdsTestingPort(), new IAdNetwork[] { new HDCAdMobNetwork(), new HDCNativeNetwork() },
+                new HDCPriorityOrder());
 
         /// <summary>Runs <see cref="HDCAds"/> on another runtime, such as one with fake ports in a test.</summary>
         internal static void Use(HDCAdsRuntime runtime) => Current = runtime;

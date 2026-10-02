@@ -2,8 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using HDC.Ads.Composition;
 using HDC.Ads.Diagnostics;
 using HDC.Ads.Domain;
+using HDC.Ads.Logic;
+using HDC.Ads.Ports;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -607,8 +610,12 @@ namespace HDC.Ads.DebugUI
 
         // Helpers
 
-        private static string Priority(int priority) =>
-            priority == HDCAds.PluginUnit ? "AdMob first" : priority == HDCAds.NativeUnit ? "Native first" : priority.ToString(CultureInfo.InvariantCulture);
+        private static string Priority(int priority)
+        {
+            HDCAdsContext context = HDCAdsRuntime.Current.Context;
+            IAdNetwork network = context.Network(context.Order.KeyFor(priority));
+            return network != null ? network.Name + " first" : priority.ToString(CultureInfo.InvariantCulture);
+        }
 
         private static string Join(IEnumerable<string> values)
         {

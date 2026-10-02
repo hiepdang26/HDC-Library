@@ -1,35 +1,35 @@
 using HDC.Ads.Domain;
-using HDC.Ads.Infrastructure;
+using HDC.Ads.Ports;
 
-namespace HDC.Ads.Logic
+namespace HDC.Ads.Infrastructure
 {
     /// <summary>A native full-screen ad; each show picks a layout from the unit's layout group.</summary>
-    internal sealed class HDCNativeFullscreenSource : HDCFullscreenSource
+    internal sealed class HDCNativeFullscreenAd : HDCSdkAd, IFullscreenAd
     {
-        private readonly string adUnitId;
         private readonly bool reloadAfterShow;
         private readonly HDCLayoutPicker layouts;
         private bool loaded;
 
-        internal HDCNativeFullscreenSource(string id, string adUnitId, bool reloadAfterShow, HDCLayoutPicker layouts)
+        internal HDCNativeFullscreenAd(string id, string adUnitId, bool reloadAfterShow, HDCLayoutPicker layouts)
             : base(id, HDCAdFormat.Fullscreen)
         {
-            this.adUnitId = adUnitId;
+            AdUnitId = adUnitId;
             this.reloadAfterShow = reloadAfterShow;
             this.layouts = layouts;
         }
 
-        internal override string AdUnitId => adUnitId;
+        public string AdUnitId { get; }
 
         // Tracked from events: asking the native side every frame would cost a thread hop on Android.
-        internal override bool IsReady => loaded;
+        public bool IsReady => loaded;
 
-        internal override void Load() => HDCAdsSdk.LoadFullscreen(Id, new[] { adUnitId }, reloadAfterShow);
+        public void Load() => HDCAdsSdk.LoadFullscreen(Id, new[] { AdUnitId }, reloadAfterShow);
 
-        protected override bool StartShow() => HDCAdsSdk.ShowFullscreen(Id, layouts.Next());
+        public bool Show() => HDCAdsSdk.ShowFullscreen(Id, layouts.Next());
 
-        protected override void DestroyAd()
+        public void Destroy()
         {
+            StopEvents();
             loaded = false;
             HDCAdsSdk.DestroyFullscreen(Id);
         }

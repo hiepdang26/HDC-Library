@@ -23,12 +23,15 @@ Runtime/                       Assembly HDC.Ads, chỉ compile khi có define HD
     Channels/                  7 kênh, mỗi kênh một class
     Groups/                    Group fallback full-screen và banner, cùng các nguồn ad của chúng
     HDCAdsContext.cs           Thứ các kênh dùng chung: config, cờ gỡ quảng cáo, group, các port
-  Ports/                       (HDC.Ads.Ports) Interface Logic gọi, Infrastructure hiện thực: đồng hồ, lưu trữ, main thread, log, SDK
+    HDCAdGroups.cs             Kế hoạch của từng slot: mạng nào làm ad nào, theo thứ tự ưu tiên; tạo group từ đó
+    HDCPriorityOrder.cs        mediationPriority 0/1/2 và thứ tự backup, viết thành dữ liệu
+  Ports/                       (HDC.Ads.Ports) Interface Logic gọi, Infrastructure hiện thực:
+                               mạng quảng cáo (IAdNetwork), ad full-screen, view, popup, đồng hồ, lưu trữ, main thread, log, SDK
   Domain/                      (HDC.Ads.Domain) Config, tuỳ chọn hiển thị, sự kiện của SDK
   Diagnostics/                 (HDC.Ads.Diagnostics) Trạng thái từng ad, nguồn config, cho bảng debug
   Infrastructure/              (HDC.Ads.Infrastructure) HDCAdsSdk, main thread, retry, ID test của Google
-    Native/                    Cầu nối iOS (DllImport), Android (JNI), Editor (giả lập)
-    Gma/                       Rewarded, app open, banner view qua plugin GMA
+    Native/                    Mạng native (HDCNativeNetwork) và ad của nó; cầu nối iOS (DllImport), Android (JNI), Editor (giả lập)
+    Gma/                       Mạng AdMob qua plugin GMA (HDCAdMobNetwork): interstitial, rewarded, app open, banner view, MREC
   Composition/                 (HDC.Ads.Composition) HDCAdsRuntime: lắp Infrastructure vào các port, tạo context và 7 kênh
   Firebase/                    HDCRemoteConfig (assembly HDC.Ads.Firebase, cần define HDC_FIREBASE)
   Settings/                    HDCAdsSettings: config mặc định (assembly HDC.Ads.Settings, luôn được biên dịch)

@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using HDC.Ads.Diagnostics;
 using HDC.Ads.Domain;
-using HDC.Ads.Infrastructure;
 using UnityEngine;
 
 namespace HDC.Ads.Logic
@@ -9,8 +8,6 @@ namespace HDC.Ads.Logic
     /// <summary>The MREC channel behind <see cref="IMrecAds"/>.</summary>
     internal sealed class HDCMrecAds : IMrecAds
     {
-        private const string InstanceId = "mrec_plugin";
-
         private readonly HDCAdsContext context;
         private HDCRectGroup group;
 
@@ -26,7 +23,7 @@ namespace HDC.Ads.Logic
         public bool CanShow => IsEnabled && Group().IsLoaded;
 
         /// <summary>The view's size in screen pixels, zero until it exists.</summary>
-        public Vector2 SizeInPixels => HDCAdsSdk.GetBannerViewSizeInPixels(InstanceId);
+        public Vector2 SizeInPixels => group != null && group.Sources.Count > 0 ? group.Sources[0].SizeInPixels : Vector2.zero;
 
         /// <summary>Shows the MREC now, or as soon as it loads. False when the channel is off.</summary>
         public bool Show()
@@ -41,15 +38,19 @@ namespace HDC.Ads.Logic
 
         public void Move(HDCAdPosition position)
         {
-            if (IsEnabled && !Group().IsEmpty)
-                HDCAdsSdk.MoveBannerView(InstanceId, position);
+            if (!IsEnabled)
+                return;
+            foreach (HDCRectSource source in Group().Sources)
+                source.Move(position);
         }
 
         /// <summary>Centers the MREC on a point in Unity screen pixels.</summary>
         public void Move(Vector2 screenPoint)
         {
-            if (IsEnabled && !Group().IsEmpty)
-                HDCAdsSdk.MoveBannerView(InstanceId, screenPoint);
+            if (!IsEnabled)
+                return;
+            foreach (HDCRectSource source in Group().Sources)
+                source.Move(screenPoint);
         }
 
         /// <summary>Centers the MREC on a scene or UI object.</summary>
@@ -104,12 +105,9 @@ namespace HDC.Ads.Logic
             if (group != null)
                 return group;
 
-            // Priority 0 is the plugin; 1 is a network no longer served, used only as a backup order.
-            HDCAdCoreConfig.FullscreenUnit unit = context.CoreConfig.mrecUnit ?? new HDCAdCoreConfig.FullscreenUnit();
-            var sources = new List<HDCRectSource>();
-            if ((unit.mediationPriority == HDCAdGroups.PluginUnit || unit.useBackup) && !string.IsNullOrEmpty(unit.admobUnit?.id))
-                sources.Add(new HDCPluginRectSource(InstanceId, unit.admobUnit.id, HDCBannerViewPlacement.Mrec));
-            context.Placements.Record(InstanceId, HDCAdChannel.Mrec);
+            List<HDCRectSource> sources = HDCAdGroups.ViewSources(context.Groups.MrecPlans());
+            foreach (HDCRectSource source in sources)
+                context.Placements.Record(source.Id, HDCAdChannel.Mrec, "", source.Network.RevenueNetwork);
             group = new HDCRectGroup(sources, false);
             return group;
         }

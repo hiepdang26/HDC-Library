@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using HDC.Ads.Composition;
 using HDC.Ads.Domain;
 using HDC.Ads.Logic;
@@ -111,14 +110,6 @@ namespace HDC.Ads
         internal static HDCChannels Channels => Runtime.Channels;
         internal static HDCAdsConfig Config => Context.Config;
         internal static HDCAdCoreConfig CoreConfig => Context.CoreConfig;
-        internal const int PluginUnit = HDCAdGroups.PluginUnit;
-        internal const int NativeUnit = HDCAdGroups.NativeUnit;
-
-        internal static IEnumerable<int> Order(int priority, bool useBackup) => HDCAdGroups.Order(priority, useBackup);
-
-        internal static HDCFullscreenGroup ExistingForceAdGroup(string groupName) => Context.Groups.ExistingForceAdGroup(groupName);
-
-        internal static HDCFullscreenGroup ExistingRewardedGroup => Context.Groups.ExistingRewardedGroup;
 
         private static HDCAdsRuntime Runtime => HDCAdsRuntime.Current;
         private static HDCAdsContext Context => Runtime.Context;

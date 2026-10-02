@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using HDC.Ads.Domain;
 
-namespace HDC.Ads.Logic
+namespace HDC.Ads.Infrastructure
 {
     /// <summary>
     /// Picks the layout of each native full-screen show: layouts come out of a shuffled bag, so every layout

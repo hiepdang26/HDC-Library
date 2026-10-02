@@ -71,7 +71,7 @@ namespace HDC.Ads.Logic
 
             onBeforeShow?.Invoke();
             context.NotifyFullscreenOpening();
-            context.Placements.Record(source.Id, channel, position);
+            context.Placements.Record(source.Id, channel, position, source.Network.RevenueNetwork);
             bool displayed = false;
             return source.Show(
                 () =>

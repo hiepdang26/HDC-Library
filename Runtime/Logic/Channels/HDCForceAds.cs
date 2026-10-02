@@ -9,8 +9,6 @@ namespace HDC.Ads.Logic
     /// <summary>The force ad channel behind <see cref="IForceAds"/>.</summary>
     internal sealed class HDCForceAds : IForceAds
     {
-        private const string TotalImpressionsKey = "fa_total_impression";
-
         private readonly HDCAdsContext context;
         private bool firstAd = true;
         private bool breakRunning;
@@ -92,9 +90,9 @@ namespace HDC.Ads.Logic
         public bool Reinitialize(string groupName) => !IsDisabled && context.Groups.ReinitializeForceAdGroup(groupName);
 
         /// <summary>The impressions shown at <paramref name="position"/>, across sessions.</summary>
-        public int ImpressionCount(string position) => context.Count("fa_count_" + position);
+        public int ImpressionCount(string position) => context.Count(HDCAdNames.ForceAdCountKey(position));
 
-        public int TotalImpressionCount => context.Count(TotalImpressionsKey);
+        public int TotalImpressionCount => context.Count(HDCAdNames.ForceAdTotalKey);
 
         /// <summary>Starts the break ad timer, if the channel's break ad is enabled.</summary>
         public void StartBreakAd()
@@ -179,8 +177,8 @@ namespace HDC.Ads.Logic
         internal void CountImpression(string position)
         {
             firstAd = false;
-            context.Store.SetInt("fa_count_" + position, ImpressionCount(position) + 1);
-            context.Store.SetInt(TotalImpressionsKey, TotalImpressionCount + 1);
+            context.Store.SetInt(HDCAdNames.ForceAdCountKey(position), ImpressionCount(position) + 1);
+            context.Store.SetInt(HDCAdNames.ForceAdTotalKey, TotalImpressionCount + 1);
         }
 
         private HashSet<string> AutoInitGroups()

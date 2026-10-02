@@ -1,20 +1,18 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using HDC.Ads.Domain;
-using HDC.Ads.Infrastructure;
+using HDC.Ads.Ports;
 
 namespace HDC.Ads.Logic
 {
     /// <summary>
-    /// The full-screen groups of the ad core config, made the first time a channel asks for one and kept for
-    /// the session. A group holds a slot's ad units in show order.
+    /// What each slot of the configs loads, and the full-screen groups made from it. A slot's plans list its ads in
+    /// show order: for each network the order policy picks, the ad that network makes of its unit, if it serves the
+    /// slot. The debug panel reads the same plans before the channels make anything.
     /// </summary>
     internal sealed class HDCAdGroups
     {
-        // Priority values of force ads, rewarded and the bottom banner.
-        internal const int PluginUnit = 0;
-        internal const int NativeUnit = 1;
-        private const int RemovedNetwork = 2;
-
         private readonly HDCAdsContext context;
         private readonly Dictionary<string, HDCFullscreenGroup> forceAdGroups = new Dictionary<string, HDCFullscreenGroup>();
         private HDCFullscreenGroup rewardedGroup;
@@ -30,25 +28,48 @@ namespace HDC.Ads.Logic
 
         private HDCAdCoreConfig CoreConfig => context.CoreConfig;
 
-        /// <summary>
-        /// Units in show order: the chosen one, then with backups the rest in the order plugin, native. Units of
-        /// networks no longer served are left out.
-        /// </summary>
-        internal static IEnumerable<int> Order(int priority, bool useBackup)
+        internal IReadOnlyList<HDCAdPlan> ForceAdPlans(string groupName)
         {
-            var order = new List<int> { priority };
-            if (useBackup)
-            {
-                foreach (int unit in new[] { PluginUnit, RemovedNetwork, NativeUnit })
-                {
-                    if (!order.Contains(unit))
-                        order.Add(unit);
-                }
-            }
-
-            order.Remove(RemovedNetwork);
-            return order;
+            HDCAdCoreConfig.ForceAdGroup config = CoreConfig.ForceAdGroupNamed(groupName);
+            return config == null
+                ? new HDCAdPlan[0]
+                : Plans(HDCAdUse.ForceAd, groupName, config.mediationPriority, config.useBackup, config.UnitFor, !config.disablePostInitReload);
         }
+
+        internal IReadOnlyList<HDCAdPlan> RewardedPlans()
+        {
+            HDCAdCoreConfig.FullscreenUnit config = CoreConfig.rewardedUnit ?? new HDCAdCoreConfig.FullscreenUnit();
+            return Plans(HDCAdUse.Rewarded, "", config.mediationPriority, config.useBackup, config.UnitFor, true);
+        }
+
+        internal IReadOnlyList<HDCAdPlan> AppOpenPlans()
+        {
+            HDCAdCoreConfig.FullscreenUnit config = CoreConfig.appOpenUnit ?? new HDCAdCoreConfig.FullscreenUnit();
+            return Plans(HDCAdUse.AppOpen, "", config.mediationPriority, config.useBackup, config.UnitFor, true);
+        }
+
+        internal IReadOnlyList<HDCAdPlan> BannerPlans(HDCBannerSlot slot)
+        {
+            HDCAdCoreConfig.FullscreenUnit config = CoreConfig.bannerUnit?.Slot(slot) ?? new HDCAdCoreConfig.FullscreenUnit();
+            return Plans(HDCAdUse.Banner, "", config.mediationPriority, config.useBackup, config.UnitFor, true, slot);
+        }
+
+        internal IReadOnlyList<HDCAdPlan> MrecPlans()
+        {
+            HDCAdCoreConfig.FullscreenUnit config = CoreConfig.mrecUnit ?? new HDCAdCoreConfig.FullscreenUnit();
+            return Plans(HDCAdUse.Mrec, "", config.mediationPriority, config.useBackup, config.UnitFor, true);
+        }
+
+        /// <summary>A popup group's ad, from the first network that serves it; null without one.</summary>
+        internal HDCAdPlan PopupPlan(string groupName)
+        {
+            HDCAdCoreConfig.PopupGroup config = CoreConfig.PopupGroupNamed(groupName);
+            return config == null ? null : FirstPlan(HDCAdUse.Popup, groupName, config.UnitFor, !config.disablePostInitReload);
+        }
+
+        /// <summary>The resume ad of the ads config's app resume channel, from the first network that serves it.</summary>
+        internal HDCAdPlan ResumePlan() =>
+            FirstPlan(HDCAdUse.AppResume, "", (context.Config.appResumeChannel ?? new HDCAdsConfig.AppResumeChannel()).UnitFor, false);
 
         /// <summary>A force ad group once a channel made it, for the debug panel, which must not make any.</summary>
         internal HDCFullscreenGroup ExistingForceAdGroup(string groupName) =>
@@ -65,24 +86,7 @@ namespace HDC.Ads.Logic
             if (config == null)
                 return null;
 
-            var sources = new List<HDCFullscreenSource>();
-            foreach (int priority in Order(config.mediationPriority, config.useBackup))
-            {
-                if (priority == PluginUnit && !string.IsNullOrEmpty(config.admobUnit?.id))
-                {
-                    var ad = new HDCGmaInterstitialAd("fa_plugin_" + groupName, config.admobUnit.id, config.admobUnit.preloadAd, config.admobUnit.adBufferSize)
-                    {
-                        LoadOnce = config.disablePostInitReload && !config.admobUnit.preloadAd,
-                    };
-                    sources.Add(new HDCPluginFullscreenSource(HDCAdFormat.Interstitial, ad));
-                }
-                else if (priority == NativeUnit && !string.IsNullOrEmpty(config.androidUnit?.id))
-                {
-                    sources.Add(NativeForceAdSource(groupName, config));
-                }
-            }
-
-            group = new HDCFullscreenGroup(context, groupName, sources, config.useBackup, config.maxShowCount);
+            group = new HDCFullscreenGroup(context, groupName, FullscreenSources(ForceAdPlans(groupName)), config.useBackup, config.maxShowCount);
             forceAdGroups[groupName] = group;
             return group;
         }
@@ -111,22 +115,10 @@ namespace HDC.Ads.Logic
                 return rewardedGroup;
 
             HDCAdCoreConfig.FullscreenUnit config = CoreConfig.rewardedUnit ?? new HDCAdCoreConfig.FullscreenUnit();
-            var sources = new List<HDCFullscreenSource>();
-            foreach (int priority in Order(config.mediationPriority, config.useBackup))
-            {
-                if (priority == PluginUnit && !string.IsNullOrEmpty(config.admobUnit?.id))
-                {
-                    var ad = new HDCGmaRewardedAd("rw_plugin", config.admobUnit.id, config.admobUnit.preloadAd, config.admobUnit.adBufferSize);
-                    sources.Add(new HDCPluginFullscreenSource(HDCAdFormat.Rewarded, ad));
-                }
-                else if (priority == NativeUnit && !string.IsNullOrEmpty(config.androidUnit?.id))
-                {
-                    // A native full-screen ad served as rewarded: the reward comes when it closes.
-                    var picker = new HDCLayoutPicker(CoreConfig, config.androidUnit.layoutGroupName);
-                    sources.Add(new HDCNativeFullscreenSource("rw_native", config.androidUnit.id, true, picker) { RewardsOnClose = true });
-                }
-            }
-
+            List<HDCFullscreenSource> sources = FullscreenSources(RewardedPlans());
+            // Ads served as rewarded that report no reward, such as native full-screen ones, reward when they close.
+            foreach (HDCFullscreenSource source in sources)
+                source.RewardsOnClose = source.Format != HDCAdFormat.Rewarded;
             rewardedGroup = new HDCFullscreenGroup(context, "rewarded", sources, config.useBackup, 0);
             return rewardedGroup;
         }
@@ -136,31 +128,43 @@ namespace HDC.Ads.Logic
             if (appOpenGroup != null)
                 return appOpenGroup;
 
-            // App open units only come from the plugin: priority 0 picks it, anything else needs backups on.
             HDCAdCoreConfig.FullscreenUnit config = CoreConfig.appOpenUnit ?? new HDCAdCoreConfig.FullscreenUnit();
-            var sources = new List<HDCFullscreenSource>();
-            if ((config.mediationPriority == PluginUnit || config.useBackup) && !string.IsNullOrEmpty(config.admobUnit?.id))
-            {
-                var ad = new HDCGmaAppOpenAd("ao_plugin", config.admobUnit.id, config.admobUnit.preloadAd, config.admobUnit.adBufferSize);
-                sources.Add(new HDCPluginFullscreenSource(HDCAdFormat.AppOpen, ad));
-            }
-
-            appOpenGroup = new HDCFullscreenGroup(context, "app_open", sources, config.useBackup, 0);
+            appOpenGroup = new HDCFullscreenGroup(context, "app_open", FullscreenSources(AppOpenPlans()), config.useBackup, 0);
             return appOpenGroup;
         }
 
-        private HDCFullscreenSource NativeForceAdSource(string groupName, HDCAdCoreConfig.ForceAdGroup config)
+        /// <summary>Makes the full-screen ads of plans, in order.</summary>
+        internal static List<HDCFullscreenSource> FullscreenSources(IEnumerable<HDCAdPlan> plans) =>
+            plans.Select(plan => new HDCFullscreenSource(plan.Network.CreateFullscreen(plan), plan.Network)).ToList();
+
+        /// <summary>Makes the banner or MREC views of plans, in order.</summary>
+        internal static List<HDCRectSource> ViewSources(IEnumerable<HDCAdPlan> plans) =>
+            plans.Select(plan => new HDCRectSource(plan.Network.CreateView(plan), plan.Network)).ToList();
+
+        private List<HDCAdPlan> Plans(HDCAdUse use, string slotName, int priority, bool useBackup, Func<string, object> unitFor,
+            bool reloadAfterShow, HDCBannerSlot bannerSlot = HDCBannerSlot.FullBottom)
         {
-            HDCAdCoreConfig.NativeUnit unit = config.androidUnit;
-            HDCAdCoreConfig.Interstitials interstitials = unit.androidInterstitials;
-            if (interstitials != null && interstitials.switchToInterstitialAndroid)
+            var plans = new List<HDCAdPlan>();
+            foreach (string key in context.Order.Order(priority, useBackup))
             {
-                int bufferSize = interstitials.isPreloadAd && interstitials.bufferSize > 0 ? interstitials.bufferSize : 1;
-                return new HDCNativeInterstitialSource("fa_interstitial_" + groupName, unit.id, bufferSize, !config.disablePostInitReload);
+                HDCAdPlan plan = Plan(context.Network(key), use, slotName, unitFor, reloadAfterShow, bannerSlot);
+                if (plan != null)
+                    plans.Add(plan);
             }
 
-            var picker = new HDCLayoutPicker(CoreConfig, unit.layoutGroupName);
-            return new HDCNativeFullscreenSource("fa_" + groupName, unit.id, !config.disablePostInitReload, picker);
+            return plans;
+        }
+
+        // Slots without a priority have one unit, which the first network that serves it makes.
+        private HDCAdPlan FirstPlan(HDCAdUse use, string slotName, Func<string, object> unitFor, bool reloadAfterShow) =>
+            context.Networks.Select(network => Plan(network, use, slotName, unitFor, reloadAfterShow, HDCBannerSlot.FullBottom))
+                .FirstOrDefault(plan => plan != null);
+
+        private HDCAdPlan Plan(IAdNetwork network, HDCAdUse use, string slotName, Func<string, object> unitFor, bool reloadAfterShow,
+            HDCBannerSlot bannerSlot)
+        {
+            object unit = network == null ? null : unitFor(network.UnitKey);
+            return unit == null ? null : network.Plan(use, new HDCAdUnitSpec(slotName, unit, reloadAfterShow, CoreConfig, bannerSlot));
         }
     }
 }

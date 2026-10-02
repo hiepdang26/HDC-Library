@@ -141,6 +141,10 @@ namespace HDC.Ads.Domain
 
             public AdmobUnit admobUnit = new AdmobUnit();
             public NativeUnit androidUnit = new NativeUnit();
+
+            /// <summary>This slot's unit for a network, by the network's key; null when it has none.</summary>
+            internal object UnitFor(string networkKey) =>
+                networkKey == HDCAdUnitKeys.AdMob ? admobUnit : networkKey == HDCAdUnitKeys.Native ? (object)androidUnit : null;
         }
 
         /// <summary>Rewarded, app open or MREC ad units in priority order, as in <see cref="ForceAdGroup"/>.</summary>
@@ -151,6 +155,10 @@ namespace HDC.Ads.Domain
             public bool useBackup;
             public AdmobUnit admobUnit = new AdmobUnit();
             public NativeUnit androidUnit = new NativeUnit();
+
+            /// <summary>This slot's unit for a network, by the network's key; null when it has none.</summary>
+            internal object UnitFor(string networkKey) =>
+                networkKey == HDCAdUnitKeys.AdMob ? admobUnit : networkKey == HDCAdUnitKeys.Native ? (object)androidUnit : null;
         }
 
         [Serializable]
@@ -184,6 +192,9 @@ namespace HDC.Ads.Domain
             public string[] positionNames = new string[0];
             public bool disablePostInitReload;
             public NativeUnit androidUnit = new NativeUnit();
+
+            /// <summary>This group's unit for a network, by the network's key; popups are native only.</summary>
+            internal object UnitFor(string networkKey) => networkKey == HDCAdUnitKeys.Native ? androidUnit : null;
         }
 
         /// <summary>A Google Mobile Ads plugin unit. Preloading applies to full-screen formats.</summary>

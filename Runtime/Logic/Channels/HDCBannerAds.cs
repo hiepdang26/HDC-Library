@@ -104,21 +104,9 @@ namespace HDC.Ads.Logic
                 return group;
 
             HDCAdCoreConfig.FullscreenUnit unit = context.CoreConfig.bannerUnit?.Slot(slot) ?? new HDCAdCoreConfig.FullscreenUnit();
-            var sources = new List<HDCRectSource>();
-            // Only the bottom slot has a native unit; for the others priority 0 is the plugin and 1 a removed network.
-            IEnumerable<int> order = slot == HDCBannerSlot.FullBottom
-                ? HDCAdGroups.Order(unit.mediationPriority, unit.useBackup)
-                : unit.mediationPriority == HDCAdGroups.PluginUnit || unit.useBackup ? new[] { HDCAdGroups.PluginUnit } : new int[0];
-            foreach (int priority in order)
-            {
-                if (priority == HDCAdGroups.PluginUnit && !string.IsNullOrEmpty(unit.admobUnit?.id))
-                    sources.Add(new HDCPluginRectSource("bn_plugin_" + slot, unit.admobUnit.id, Placement(slot)));
-                else if (priority == HDCAdGroups.NativeUnit && slot == HDCBannerSlot.FullBottom && HasNativeUnit(unit.androidUnit))
-                    sources.Add(new HDCNativeBannerSource("bn_native", unit.androidUnit));
-            }
-
+            List<HDCRectSource> sources = HDCAdGroups.ViewSources(context.Groups.BannerPlans(slot));
             foreach (HDCRectSource source in sources)
-                context.Placements.Record(source.Id, HDCAdChannel.Banner, slot.ToString());
+                context.Placements.Record(source.Id, HDCAdChannel.Banner, slot.ToString(), source.Network.RevenueNetwork);
             group = new HDCRectGroup(sources, unit.useBackup);
             group.Loaded += () =>
             {
@@ -127,22 +115,6 @@ namespace HDC.Ads.Logic
             };
             groups[slot] = group;
             return group;
-        }
-
-        private static bool HasNativeUnit(HDCAdCoreConfig.NativeUnit unit) =>
-            unit != null && (!string.IsNullOrEmpty(unit.id) || (unit.ids != null && unit.ids.Length > 0));
-
-        private static HDCBannerViewPlacement Placement(HDCBannerSlot slot)
-        {
-            switch (slot)
-            {
-                case HDCBannerSlot.FullTop: return HDCBannerViewPlacement.FullTop;
-                case HDCBannerSlot.TopLeft: return HDCBannerViewPlacement.TopLeft;
-                case HDCBannerSlot.TopRight: return HDCBannerViewPlacement.TopRight;
-                case HDCBannerSlot.BottomLeft: return HDCBannerViewPlacement.BottomLeft;
-                case HDCBannerSlot.BottomRight: return HDCBannerViewPlacement.BottomRight;
-                default: return HDCBannerViewPlacement.FullBottom;
-            }
         }
     }
 }

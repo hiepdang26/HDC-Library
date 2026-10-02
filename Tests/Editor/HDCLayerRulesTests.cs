@@ -45,25 +45,11 @@ namespace HDC.Ads.Tests
         };
 
         /// <summary>
-        /// Uses that predate the rules, as "file: rule". The test fails once one is fixed, so the list only
-        /// shrinks: take the entry out in the same commit.
+        /// Uses that break a rule but are known, as "file: rule", for a rule that comes before the code meets it.
+        /// The test fails once one is fixed, so the list only shrinks: take the entry out in the same commit.
         /// </summary>
         private static readonly string[] KnownDebt =
         {
-            // MobileAds.Utils.GetDeviceScale, which turns a popup's pixels into dp: phase 3 asks the adapter.
-            "Runtime/Logic/Channels/HDCPopupAds.cs: Google Mobile Ads",
-            // The ad sources and the groups that make them call the SDK and the plugin's ads directly: phase 3 puts
-            // them behind the ad ports.
-            "Runtime/Logic/HDCAdGroups.cs: uses Infrastructure",
-            "Runtime/Logic/Channels/HDCMrecAds.cs: uses Infrastructure",
-            "Runtime/Logic/Channels/HDCPopupAds.cs: uses Infrastructure",
-            "Runtime/Logic/Groups/HDCFullscreenSource.cs: uses Infrastructure",
-            "Runtime/Logic/Groups/HDCNativeBannerSource.cs: uses Infrastructure",
-            "Runtime/Logic/Groups/HDCNativeFullscreenSource.cs: uses Infrastructure",
-            "Runtime/Logic/Groups/HDCNativeInterstitialSource.cs: uses Infrastructure",
-            "Runtime/Logic/Groups/HDCPluginFullscreenSource.cs: uses Infrastructure",
-            "Runtime/Logic/Groups/HDCPluginRectSource.cs: uses Infrastructure",
-            "Runtime/Logic/Groups/HDCRectSource.cs: uses Infrastructure",
         };
 
         [Test]

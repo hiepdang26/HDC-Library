@@ -1,5 +1,6 @@
 using HDC.Ads.Diagnostics;
 using HDC.Ads.Domain;
+using HDC.Ads.Ports;
 using UnityEngine;
 
 namespace HDC.Ads.Logic
@@ -7,10 +8,8 @@ namespace HDC.Ads.Logic
     /// <summary>The app resume channel behind <see cref="IAppResumeAds"/>.</summary>
     internal sealed class HDCAppResumeAds : IAppResumeAds
     {
-        private const string InstanceId = "native_resume";
-
         private readonly HDCAdsContext context;
-        private HDCNativeFullscreenSource source;
+        private HDCFullscreenSource source;
         private bool blocked;
         private bool showing;
         private bool showWhenLoaded;
@@ -24,9 +23,6 @@ namespace HDC.Ads.Logic
         }
 
         public bool IgnoreAds { get; set; }
-
-        // For the debug panel: the instance the channel loads, once it started.
-        internal static string DebugInstanceId => InstanceId;
 
         internal string DebugAdUnitId => Channel.adUnitId;
 
@@ -82,11 +78,13 @@ namespace HDC.Ads.Logic
 
         private void Start()
         {
-            if (source != null || IsDisabled || string.IsNullOrEmpty(Channel.adUnitId))
+            if (source != null || IsDisabled)
                 return;
 
-            var layouts = new HDCLayoutPicker(context.CoreConfig, Channel.layoutGroup);
-            source = new HDCNativeFullscreenSource(InstanceId, Channel.adUnitId, false, layouts);
+            HDCAdPlan plan = context.Groups.ResumePlan();
+            if (plan == null)
+                return;
+            source = new HDCFullscreenSource(plan.Network.CreateFullscreen(plan), plan.Network);
             context.MainThread.ApplicationPaused += OnApplicationPaused;
         }
 
@@ -122,12 +120,12 @@ namespace HDC.Ads.Logic
             if (source == null)
                 return;
 
-            if (adEvent.id == InstanceId && adEvent.format == HDCAdFormat.Fullscreen)
+            if (adEvent.id == source.Id && adEvent.format == source.Format)
             {
                 if (adEvent.type == HDCAdEventType.Loaded && showWhenLoaded)
                 {
                     showWhenLoaded = false;
-                    context.Placements.Record(InstanceId, HDCAdChannel.AppResume);
+                    context.Placements.Record(source.Id, HDCAdChannel.AppResume, "", source.Network.RevenueNetwork);
                     showing = source.Show(null, _ => showing = false);
                 }
 

@@ -60,6 +60,10 @@ namespace HDC.Ads.Domain
 
             /// <summary>Layout group, from <see cref="HDCAdCoreConfig.forceAdLayoutConfig"/>, the ad shows with.</summary>
             public string layoutGroup = "";
+
+            /// <summary>The resume ad's unit for a network, by the network's key: a native full-screen unit.</summary>
+            internal object UnitFor(string networkKey) =>
+                networkKey == HDCAdUnitKeys.Native ? new HDCAdCoreConfig.NativeUnit { id = adUnitId, layoutGroupName = layoutGroup } : null;
         }
 
         [Serializable]

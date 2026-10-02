@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Text;
 using HDC.Ads.Diagnostics;
 using HDC.Ads.Domain;
-using HDC.Ads.Logic;
 
 namespace HDC.Ads.DebugUI
 {
@@ -35,7 +34,7 @@ namespace HDC.Ads.DebugUI
                 return "RW";
             if (id.StartsWith("ao_"))
                 return "AL";
-            if (id == HDCAppResumeAds.DebugInstanceId)
+            if (id == HDCAdNames.NativeAppResume)
                 return "AR";
             if (id.StartsWith("bn_"))
                 return "BN";
