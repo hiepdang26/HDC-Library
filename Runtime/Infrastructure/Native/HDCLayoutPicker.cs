@@ -37,7 +37,7 @@ namespace HDC.Ads.Infrastructure
         {
             var options = new HDCFullscreenOptions
             {
-                layoutNames = new[] { layout.layout },
+                layoutNames = new[] { HDCAdLayouts.Fullscreen(layout.layout) },
                 duration = layout.layoutTime,
                 delay = layout.delay,
                 timeUpC = layout.timeUpC,

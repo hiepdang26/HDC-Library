@@ -124,9 +124,22 @@ namespace HDC.Ads.Logic
                     map.Section("Popup · " + group.groupName)
                         .Line("Positions", Join(group.positionNames))
                         .Line("Native Unit", Dash(group.androidUnit?.id))
-                        .Line("Layout", Dash(group.androidUnit?.layout));
+                        .Add("Layout", LayoutText(group.androidUnit?.layout), LayoutTone(group.androidUnit?.layout));
                 }
             }
+
+            private static string LayoutText(string configured)
+            {
+                string used = HDCAdLayouts.Popup(configured);
+                if (string.IsNullOrWhiteSpace(configured))
+                    return used + " · default: the config names no layout";
+                if (!HDCAdLayouts.IsPopup(configured))
+                    return $"{used} · default: no layout named '{configured.Trim()}'";
+                return used == configured.Trim() ? used : $"{used} · from '{configured.Trim()}'";
+            }
+
+            private static HDCDebugTone LayoutTone(string configured) =>
+                string.IsNullOrWhiteSpace(configured) || HDCAdLayouts.IsPopup(configured) ? HDCDebugTone.Normal : HDCDebugTone.Bad;
 
             public override bool Owns(string instanceId) => instanceId.StartsWith(HDCAdNames.PopupPrefix, StringComparison.Ordinal);
 
@@ -151,7 +164,7 @@ namespace HDC.Ads.Logic
                     .Line("Positions", Join(config.positionNames))
                     .Needed("Placed (Move)", popup?.Ad.IsPlaced ?? false)
                     .Line("Reload After Show", !config.disablePostInitReload)
-                    .Line("Layout", config.androidUnit?.layout)
+                    .Add("Layout", LayoutText(config.androidUnit?.layout), LayoutTone(config.androidUnit?.layout))
                     .Line("Native State", nativeState ?? "-");
                 group.Units.Add(new HDCDebugUnit
                 {
@@ -184,6 +197,9 @@ namespace HDC.Ads.Logic
                     yield return HDCConfigFinding.Error($"PU: position '{position}' không thuộc popup group nào.");
                 foreach (HDCAdCoreConfig.PopupGroup group in groups.Where(g => string.IsNullOrEmpty(g.androidUnit?.id)))
                     yield return HDCConfigFinding.Error($"PU: group '{group.groupName}' không có androidUnit.id.");
+                foreach (HDCAdCoreConfig.PopupGroup group in groups.Where(g => !string.IsNullOrWhiteSpace(g.androidUnit?.layout) && !HDCAdLayouts.IsPopup(g.androidUnit.layout)))
+                    yield return HDCConfigFinding.Error($"PU: group '{group.groupName}' dùng layout '{group.androidUnit.layout}' không có, nên popup hiện layout mặc định {HDCAdLayouts.PopupDefault}. " +
+                                                        "Tên hợp lệ: popup_single_manual_01 tới 15, hoặc tên cũ mrec_single_manual_01 tới 15.");
             }
 
             public IEnumerable<string> Positions(HDCAdsConfig ads) =>

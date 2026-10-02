@@ -15,11 +15,10 @@ namespace HDC.Ads.Infrastructure
             AdUnitId = unit.id;
             options = new HDCPopupOptions
             {
+                layout = HDCAdLayouts.Popup(unit.layout),
                 timeShow = unit.timeShow,
                 timeReload = reloadAfterShow ? unit.reloadTime : 0,
             };
-            if (!string.IsNullOrEmpty(unit.layout))
-                options.layout = unit.layout;
         }
 
         public string Id { get; }

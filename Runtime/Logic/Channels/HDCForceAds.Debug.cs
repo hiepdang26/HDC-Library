@@ -169,6 +169,13 @@ namespace HDC.Ads.Logic
                     foreach (string position in (group.positionNames ?? new string[0]).Where(p => !string.IsNullOrEmpty(p) && !positions.Contains(p)))
                         yield return HDCConfigFinding.Warning($"FA: group '{group.groupName}' có position '{position}' không có trong forceAdChannel.positionConfigs.");
                 }
+
+                foreach (HDCAdCoreConfig.LayoutGroup layoutGroup in (core.forceAdLayoutConfig?.layoutGroups ?? new HDCAdCoreConfig.LayoutGroup[0]).Where(g => g != null))
+                {
+                    foreach (HDCAdCoreConfig.Layout layout in (layoutGroup.layouts ?? new HDCAdCoreConfig.Layout[0])
+                                 .Where(l => !string.IsNullOrWhiteSpace(l?.layout) && !HDCAdLayouts.IsFullscreen(l.layout)))
+                        yield return HDCConfigFinding.Error($"FA: layout group '{layoutGroup.groupName}' có layout '{layout.layout}' không có, nên quảng cáo hiện layout mặc định {HDCAdLayouts.FullscreenDefault}.");
+                }
             }
 
             public IEnumerable<string> Positions(HDCAdsConfig ads) =>

@@ -191,6 +191,11 @@ Config giữ nguyên key và schema JSON của hệ thống cũ, nên dùng lạ
 - `admobUnit` chạy qua plugin Google Mobile Ads. `androidUnit` chạy qua thư viện native trên cả Android và iOS:
   - Native fullscreen dùng layout ngẫu nhiên trong layout group, không lặp cho tới khi dùng hết.
   - Nếu bật `switchToInterstitialAndroid` thì dùng interstitial.
+- Quảng cáo native luôn hiện đúng layout mà config ghi. Layout mặc định chỉ dùng khi config không ghi layout, hoặc ghi tên layout không tồn tại:
+  - Popup (`popupGroups[].androidUnit.layout`): `popup_single_manual_01` tới `15`. Tên cũ `mrec_single_manual_NN` hiện layout `popup_single_manual_NN`. Mặc định là `popup_single_manual_01`.
+  - Fullscreen (`forceAdLayoutConfig`): các layout `fs_single_*` của thư viện native. Tên có đuôi `_left` hoặc `_right` (ví dụ `fs_single_cls_03_left`, `fs_single_nav_01_right`) hiện layout gốc. Mặc định là `fs_single_universal_01`.
+  - Tên không tồn tại hiện thành lỗi ở thẻ Config Check. Dòng `Layout` của popup trên trang Ads cho biết layout đang dùng.
+  - Bật Google test ad units không đổi layout: chỉ ad unit được thay.
 - Trên máy thật, `HDCRemoteConfig` lấy giá trị theo thứ tự: Remote Config, giá trị máy lưu từ lần trước, rồi config mặc định. Nó luôn fetch mới, timeout mặc định 10 giây. Firebase không chạy được (kể cả khi thiếu thư viện native) thì nó cũng dùng giá trị máy lưu rồi config mặc định. Trong Editor nó dùng config mặc định, trừ khi bật `HDCRemoteConfig.FetchInEditor`. Trang Remote Config của bảng debug cho thấy từng key lấy từ nguồn nào.
 - Giá trị Remote Config là `{}` vẫn được coi là có giá trị. Một ad core config `{}` nghĩa là không có ad unit nào.
 
@@ -243,7 +248,7 @@ Prefab `Debug/HDCAdsDebugPanel.prefab` là bảng debug nằm đè lên game. Ch
 ### Trang Remote Config
 
 - Thẻ Remote Config: config lấy từ đâu (Remote Config, giá trị lưu trên máy, hay mặc định), trạng thái Firebase, lần fetch gần nhất, thời gian tải, ad core key, nguồn của từng key và lúc áp dụng vào HDCAds.
-- Thẻ Config Check: lỗi và cảnh báo của config, bằng tiếng Việt: Firebase không chạy, fetch lỗi, key không có trên Remote Config, ad core config rỗng `{}`, kênh bật mà không có ad unit, position không thuộc group nào, layout group không tồn tại, position trùng tên...
+- Thẻ Config Check: lỗi và cảnh báo của config, bằng tiếng Việt: Firebase không chạy, fetch lỗi, key không có trên Remote Config, ad core config rỗng `{}`, kênh bật mà không có ad unit, position không thuộc group nào, layout group không tồn tại, tên layout không tồn tại, position trùng tên...
 - Thẻ Config Viewer: xem `ads_config`, ad core config hoặc mọi key Remote Config đang có (`All Keys`), theo 4 nguồn:
   - `Remote`: giá trị trên Remote Config; `Saved`: giá trị lần trước lưu trên máy; `Default`: config mặc định trong `HDC > Edit configs`; `Applied`: config HDCAds đang chạy.
   - Config đang chạy lấy từ nguồn nào được ghi rõ: dòng `APPLIED = REMOTE` (hoặc `SAVED`, `DEFAULT`) kèm lý do nằm ngay trên JSON, nút `Applied` hiện `Applied: Remote`, và nút của nguồn đó có chữ `used`. `Direct` nghĩa là code khác tự gọi `HDCAds.Initialize`, không qua Remote Config của HDC.

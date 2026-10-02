@@ -28,7 +28,7 @@ Assembly `HDC.Ads` nằm trong `Runtime/`. Mỗi thư mục con là một tầng
 |---|---|---|
 | `Api` | `HDC.Ads` | Thứ game gọi: facade `HDCAds`, interface của 7 kênh, `HDCAdRevenue`, `HDCAdChannel`, `HDCAdFormat`, `HDCAdPosition`, `HDCBannerSlot`. Chỉ tầng này public; danh sách được duyệt nằm trong `Tests/Editor/PublicApi.txt`. |
 | `Logic` | `HDC.Ads.Logic` | Các quy tắc quảng cáo, xem chi tiết dưới bảng. |
-| `Domain` | `HDC.Ads.Domain` | Dữ liệu: `HDCAdsConfig` và `HDCAdCoreConfig` (đúng schema JSON trên Remote Config), `HDCAdEvent`, các tùy chọn, `HDCAdNames` (instance id và khóa lưu trữ), `HDCAdUnitKeys`, `HDCAdUnitSpec`. |
+| `Domain` | `HDC.Ads.Domain` | Dữ liệu: `HDCAdsConfig` và `HDCAdCoreConfig` (đúng schema JSON trên Remote Config), `HDCAdEvent`, các tùy chọn, `HDCAdNames` (instance id và khóa lưu trữ), `HDCAdUnitKeys`, `HDCAdUnitSpec`, `HDCAdLayouts` (tên layout native hợp lệ, kèm tên cũ; phải khớp danh sách layout của thư viện native). |
 | `Diagnostics` | `HDC.Ads.Diagnostics` | Thứ bảng debug đọc: tracker sự kiện, báo cáo config và mediation, `HDCDebugInfo`, `IChannelDiagnostics`, `IConfigRule`, `HDCDebugAction`. |
 | `Ports` | `HDC.Ads.Ports` | Interface mà Logic gọi và Infrastructure hiện thực: `IAdNetwork`, `IFullscreenAd`, `IViewAd`, `IPopupAd`, `IMediationPartner`, `IAdsSdk`, `IAdsTesting`, `IClock`, `IKeyValueStore`, `IMainThread`, `IAdsLog`. |
 | `Infrastructure` | `HDC.Ads.Infrastructure` | Code chạm vào SDK, xem chi tiết dưới bảng. |
