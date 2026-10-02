@@ -14,13 +14,15 @@ Game chỉ gọi `HDCAds` (thư mục `Runtime/Api`):
 
 Mọi thứ bên dưới (SDK, cầu nối native, config, sự kiện thô của từng quảng cáo) là internal: game không thấy và không phụ thuộc vào chúng. Xem phần [API cho game](#api-cho-game).
 
+Muốn sửa thư viện thì đọc [ARCHITECTURE.md](ARCHITECTURE.md): các tầng, luật phụ thuộc, và các bước thêm mạng quảng cáo, partner mediation, kênh hay nút debug.
+
 ## Cấu trúc
 
 ```
 Runtime/                       Assembly HDC.Ads, chỉ compile khi có define HDC_ADS. Mỗi thư mục là một tầng:
   Api/                         (HDC.Ads) API cho game: HDCAds, interface của 7 kênh, HDCAdRevenue, các enum
   Logic/                       (HDC.Ads.Logic) Kênh và group: khi nào load, show, dùng ad unit dự phòng
-    Channels/                  7 kênh, mỗi kênh một class
+    Channels/                  7 kênh (IAdChannel), mỗi kênh một class, cùng module debug của nó trong file *.Debug.cs
     Groups/                    Group fallback full-screen và banner, cùng các nguồn ad của chúng
     HDCAdsContext.cs           Thứ các kênh dùng chung: config, cờ gỡ quảng cáo, group, các port
     HDCAdGroups.cs             Kế hoạch của từng slot: mạng nào làm ad nào, theo thứ tự ưu tiên; tạo group từ đó
@@ -28,7 +30,8 @@ Runtime/                       Assembly HDC.Ads, chỉ compile khi có define HD
   Ports/                       (HDC.Ads.Ports) Interface Logic gọi, Infrastructure hiện thực:
                                mạng quảng cáo (IAdNetwork), ad full-screen, view, popup, đồng hồ, lưu trữ, main thread, log, SDK
   Domain/                      (HDC.Ads.Domain) Config, tuỳ chọn hiển thị, sự kiện của SDK
-  Diagnostics/                 (HDC.Ads.Diagnostics) Trạng thái từng ad, nguồn config, cho bảng debug
+  Diagnostics/                 (HDC.Ads.Diagnostics) Cho bảng debug: trạng thái từng ad, nguồn config, mediation,
+                               interface module debug của kênh (IChannelDiagnostics) và luật config (IConfigRule)
   Infrastructure/              (HDC.Ads.Infrastructure) HDCAdsSdk, main thread, retry, ID test của Google
     Native/                    Mạng native (HDCNativeNetwork) và ad của nó; cầu nối iOS (DllImport), Android (JNI), Editor (giả lập)
     Gma/                       Mạng AdMob qua plugin GMA (HDCAdMobNetwork): interstitial, rewarded, app open, banner view, MREC
@@ -45,6 +48,8 @@ Demo/                          HDCAdsDemo: mỗi kênh một hàng nút, gọi �
 Tests/Editor/                  Test Edit Mode (assembly HDC.Ads.Tests, chỉ có trong Editor) và PublicApi.txt
 Tools~/                        Script chạy test và biên dịch nhiều cấu hình (Unity bỏ qua thư mục có đuôi "~")
 package.json                   Để cài HDCLib như một package (UPM)
+ARCHITECTURE.md                Các tầng, luật phụ thuộc, cách thêm mạng, partner, kênh, nút debug
+CHANGELOG.md                   Thay đổi theo từng phiên bản
 ```
 
 ## Cài đặt
@@ -300,6 +305,7 @@ Các nhóm test:
   - Có: mạng giả load và show, capping (launch, giảm theo lượt, mức tối thiểu), backup khi mạng đầu lỗi, timeout của app launch, gỡ quảng cáo, thứ tự ưu tiên, doanh thu.
   - Thêm mạng hay kênh mới thì viết test kiểu này trước: `HDCFakeAds` dựng runtime với đồng hồ, lưu trữ, SDK và mạng giả do test điều khiển.
 - Bảng debug, tracker, ID test của Google, post-process iOS: chạy Play Mode với phần giả lập của Editor. Trong giả lập, ad unit có chữ `fail` trong ID load lỗi no fill.
+  - Một kênh giả (`HDCFakeChannel`) đăng ký từ test hiện đủ tab, nút, ad unit, trạng thái, cảnh báo config và bản đồ ad unit: bảng debug không có code riêng cho kênh nào.
 - Hợp đồng API (`HDCPublicApiTests`):
   - So mọi type và member public của các assembly runtime với `Tests/Editor/PublicApi.txt`.
   - Type hay member public mà file chưa có làm test fail, mục trong file mà code không còn cũng vậy.
@@ -307,7 +313,7 @@ Các nhóm test:
 - Luật tầng (`HDCLayerRulesTests`):
   - Chỉ Infrastructure được gọi thẳng Google Mobile Ads, Firebase, `PlayerPrefs`, JNI hay `DllImport`.
   - Không tầng nào phụ thuộc ngược lên: Domain và Ports không dùng tầng nào ngoài Domain và Api; Diagnostics và Infrastructure không dùng Logic hay Composition; Api và Logic không dùng Infrastructure, Logic không dùng Composition.
-  - Những chỗ có từ trước nằm trong danh sách `KnownDebt` của test. Danh sách này chỉ được giảm: sửa xong chỗ nào thì xoá mục đó.
+  - Chỗ vi phạm có từ trước thì ghi vào danh sách `KnownDebt` của test (hiện trống). Danh sách này chỉ được giảm: sửa xong chỗ nào thì xoá mục đó.
 
 `Tools~/compile-matrix.sh` biên dịch mọi assembly bằng Roslyn của đúng bản Unity của project, không cần mở Unity:
 
@@ -393,3 +399,7 @@ Các giới hạn sau đến từ GMA, Meta và AndroidX, không phải từ HDC
 - Prefab `HDCAdsSetup` cho scene đầu: lấy config, khởi tạo ads, chạy app launch rồi mở scene tiếp theo.
 - Bộ test Edit Mode: bảng debug, tracker, ID test, post-process iOS, hợp đồng API, luật tầng, doanh thu. Kèm script chạy test và biên dịch nhiều cấu hình.
 - Tầng API riêng: game chỉ thấy `HDCAds`, bảy kênh qua interface, `HDCAds.Revenue` và `HDCAds.Testing`. SDK, config và sự kiện thô là internal.
+- Kiến trúc theo tầng (Api, Logic, Domain, Diagnostics, Ports, Infrastructure, Composition), có test kiểm luật phụ thuộc:
+  - Mạng quảng cáo và partner mediation nằm sau port.
+  - Mỗi kênh mang module debug và luật config của riêng nó.
+  - Xem [ARCHITECTURE.md](ARCHITECTURE.md).
