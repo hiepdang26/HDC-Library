@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using HDC.Ads.Diagnostics;
 using HDC.Ads.Domain;
-using HDC.Ads.Infrastructure;
 using UnityEngine;
 
 namespace HDC.Ads.Logic
@@ -12,6 +11,7 @@ namespace HDC.Ads.Logic
     {
         private const string TotalImpressionsKey = "fa_total_impression";
 
+        private readonly HDCAdsContext context;
         private bool firstAd = true;
         private bool breakRunning;
         private bool breakAttempting;
@@ -19,12 +19,13 @@ namespace HDC.Ads.Logic
         private float breakElapsed;
         private int breakResetFrame = -1;
 
-        internal HDCForceAds()
+        internal HDCForceAds(HDCAdsContext context)
         {
-            HDCAds.FullscreenOpening += () =>
+            this.context = context;
+            context.FullscreenOpening += () =>
             {
                 // Any full-screen ad starts the break over, at most once per frame.
-                if (breakRunning && breakResetFrame != Time.frameCount)
+                if (breakRunning && breakResetFrame != context.Clock.Frame)
                     ResetBreakCycle(false);
             };
         }
@@ -46,9 +47,9 @@ namespace HDC.Ads.Logic
 
         public bool IsBreakAdRunning => breakRunning;
 
-        private static HDCAdsConfig.ForceAdChannel Channel => HDCAds.Config.forceAdChannel ?? new HDCAdsConfig.ForceAdChannel();
+        private HDCAdsConfig.ForceAdChannel Channel => context.Config.forceAdChannel ?? new HDCAdsConfig.ForceAdChannel();
 
-        private static bool IsDisabled => !Channel.isEnabled || HDCAds.IsAdsRemoved;
+        private bool IsDisabled => !Channel.isEnabled || context.IsAdsRemoved;
 
         /// <summary>
         /// Shows the force ad of <paramref name="position"/> if the position may show one now.
@@ -58,12 +59,12 @@ namespace HDC.Ads.Logic
         {
             if (!Allowed(position, false, out string reason))
             {
-                HDCAdsLog.Info($"force ad {position} blocked: {reason}");
+                context.Log.Info($"force ad {position} blocked: {reason}");
                 Run(onDone);
                 return false;
             }
 
-            HDCFullscreenGroup group = HDCAds.ForceAdGroup(HDCAds.CoreConfig.ForceAdGroupAt(position));
+            HDCFullscreenGroup group = context.Groups.ForceAdGroup(context.CoreConfig.ForceAdGroupAt(position));
             bool shown = group != null && group.Show(HDCAdChannel.ForceAd, position, null, () => CountImpression(position), _ => Run(onDone));
             if (!shown)
                 Run(onDone);
@@ -72,41 +73,40 @@ namespace HDC.Ads.Logic
 
         /// <summary>True when the position may show an ad now and its group has one ready.</summary>
         public bool CanShow(string position) =>
-            Allowed(position, false, out _) && (HDCAds.ForceAdGroup(HDCAds.CoreConfig.ForceAdGroupAt(position))?.IsReady ?? false);
+            Allowed(position, false, out _) && (context.Groups.ForceAdGroup(context.CoreConfig.ForceAdGroupAt(position))?.IsReady ?? false);
 
-        public bool IsGroupReady(string groupName) => HDCAds.ForceAdGroup(groupName)?.IsReady ?? false;
+        public bool IsGroupReady(string groupName) => context.Groups.ForceAdGroup(groupName)?.IsReady ?? false;
 
         /// <summary>Starts loading a group whose positions do not load it on their own (autoInit off).</summary>
         public void Initialize(string groupName)
         {
             if (IsDisabled || AutoInitGroups().Contains(groupName))
                 return;
-            HDCAds.ForceAdGroup(groupName)?.Initialize();
+            context.Groups.ForceAdGroup(groupName)?.Initialize();
         }
 
         /// <summary>
         /// Drops a group's ads and show count and loads it again, for groups that load once
         /// (disablePostInitReload) or ran out of shows. False while the group shows an ad.
         /// </summary>
-        public bool Reinitialize(string groupName) => !IsDisabled && HDCAds.ReinitializeForceAdGroup(groupName);
+        public bool Reinitialize(string groupName) => !IsDisabled && context.Groups.ReinitializeForceAdGroup(groupName);
 
         /// <summary>The impressions shown at <paramref name="position"/>, across sessions.</summary>
-        public int ImpressionCount(string position) => HDCAdsLog.GetInt("fa_count_" + position);
+        public int ImpressionCount(string position) => context.Count("fa_count_" + position);
 
-        public int TotalImpressionCount => HDCAdsLog.GetInt(TotalImpressionsKey);
+        public int TotalImpressionCount => context.Count(TotalImpressionsKey);
 
         /// <summary>Starts the break ad timer, if the channel's break ad is enabled.</summary>
         public void StartBreakAd()
         {
             if (!BreakEnabled(out string reason))
             {
-                HDCAdsLog.Info("break ad not started: " + reason);
+                context.Log.Info("break ad not started: " + reason);
                 return;
             }
 
-            HDCMainThread.EnsureCreated();
             if (!breakRunning)
-                HDCMainThread.Ticked += TickBreak;
+                context.MainThread.Ticked += TickBreak;
             breakRunning = true;
             ResetBreakCycle(true);
         }
@@ -114,7 +114,7 @@ namespace HDC.Ads.Logic
         public void StopBreakAd()
         {
             if (breakRunning)
-                HDCMainThread.Ticked -= TickBreak;
+                context.MainThread.Ticked -= TickBreak;
             breakRunning = false;
             ResetBreakCycle(true);
         }
@@ -141,17 +141,17 @@ namespace HDC.Ads.Logic
                 .Line("Ignore Ads", IgnoreAds)
                 .Line("First Ad Of Session", firstAd)
                 .Line("Total Impressions", TotalImpressionCount)
-                .Line("Since Last Full-Screen Ad (s)", Time.realtimeSinceStartup - HDCAds.LastFullscreenAdTime)
+                .Line("Since Last Full-Screen Ad (s)", context.Clock.RealTime - context.LastFullscreenAdTime)
                 .Section("Gates")
                 .Gate("Disabled", IsDisabled)
-                .Gate("Ads Removed", HDCAds.IsAdsRemoved);
+                .Gate("Ads Removed", context.IsAdsRemoved);
 
             HDCAdsConfig.ForceAdPosition config = PositionConfig(position);
             if (config != null)
             {
                 bool allowed = Allowed(position, false, out string reason);
                 info.Section("Position " + position)
-                    .Line("Group", HDCAds.CoreConfig.ForceAdGroupAt(position))
+                    .Line("Group", context.CoreConfig.ForceAdGroupAt(position))
                     .Line("Can Show (Config)", config.canShow)
                     .Line("Auto Init", config.autoInit)
                     .Line("Capping Now (s)", Capping(config))
@@ -160,7 +160,7 @@ namespace HDC.Ads.Logic
             }
 
             info.Section("Group " + (string.IsNullOrEmpty(groupName) ? "-" : groupName));
-            HDCFullscreenGroup group = HDCAds.ExistingForceAdGroup(groupName);
+            HDCFullscreenGroup group = context.Groups.ExistingForceAdGroup(groupName);
             if (group != null)
                 group.DescribeTo(info);
             else
@@ -173,24 +173,24 @@ namespace HDC.Ads.Logic
             if (IsDisabled)
                 return;
             foreach (string groupName in AutoInitGroups())
-                HDCAds.ForceAdGroup(groupName)?.Initialize();
+                context.Groups.ForceAdGroup(groupName)?.Initialize();
         }
 
         internal void CountImpression(string position)
         {
             firstAd = false;
-            HDCAdsLog.SetInt("fa_count_" + position, ImpressionCount(position) + 1);
-            HDCAdsLog.SetInt(TotalImpressionsKey, TotalImpressionCount + 1);
+            context.Store.SetInt("fa_count_" + position, ImpressionCount(position) + 1);
+            context.Store.SetInt(TotalImpressionsKey, TotalImpressionCount + 1);
         }
 
-        private static HashSet<string> AutoInitGroups()
+        private HashSet<string> AutoInitGroups()
         {
             var groups = new HashSet<string>(StringComparer.Ordinal);
             foreach (HDCAdsConfig.ForceAdPosition position in Channel.positionConfigs ?? new HDCAdsConfig.ForceAdPosition[0])
             {
                 if (position == null || !position.autoInit || !position.canShow)
                     continue;
-                string groupName = HDCAds.CoreConfig.ForceAdGroupAt(position.positionName);
+                string groupName = context.CoreConfig.ForceAdGroupAt(position.positionName);
                 if (!string.IsNullOrEmpty(groupName))
                     groups.Add(groupName);
             }
@@ -202,7 +202,7 @@ namespace HDC.Ads.Logic
         {
             if (IsDisabled)
             {
-                reason = HDCAds.IsAdsRemoved ? "ads removed" : "channel disabled";
+                reason = context.IsAdsRemoved ? "ads removed" : "channel disabled";
                 return false;
             }
 
@@ -215,7 +215,7 @@ namespace HDC.Ads.Logic
 
             if (!ignoreCapping)
             {
-                float elapsed = Time.realtimeSinceStartup - HDCAds.LastFullscreenAdTime;
+                float elapsed = context.Clock.RealTime - context.LastFullscreenAdTime;
                 float capping = Capping(config);
                 if (elapsed < capping)
                 {
@@ -242,21 +242,21 @@ namespace HDC.Ads.Logic
             return firstAd ? Mathf.Max(Channel.launchCappingTime, capping) : capping;
         }
 
-        private static HDCAdsConfig.ForceAdPosition PositionConfig(string position) =>
+        private HDCAdsConfig.ForceAdPosition PositionConfig(string position) =>
             string.IsNullOrEmpty(position)
                 ? null
                 : Array.Find(Channel.positionConfigs ?? new HDCAdsConfig.ForceAdPosition[0], p => p != null && p.positionName == position);
 
         // Break ad
 
-        private static string BreakPosition => Channel.breakAdConfig?.positionName ?? "";
+        private string BreakPosition => Channel.breakAdConfig?.positionName ?? "";
 
         private bool BreakEnabled(out string reason)
         {
             HDCAdsConfig.BreakAd breakAd = Channel.breakAdConfig;
             if (!Channel.isEnabled || breakAd == null || !breakAd.isEnabled)
                 reason = "disabled in the config";
-            else if (HDCAds.IsAdsRemoved)
+            else if (context.IsAdsRemoved)
                 reason = "ads removed";
             else if (PositionConfig(breakAd.positionName) == null)
                 reason = $"position '{breakAd.positionName}' not in positionConfigs";
@@ -277,7 +277,7 @@ namespace HDC.Ads.Logic
 
             float target = Capping(config);
             int lead = Mathf.Max(0, Channel.breakAdConfig?.notificationLeadTimeSeconds ?? 0);
-            breakElapsed += Time.deltaTime;
+            breakElapsed += context.Clock.DeltaTime;
             if (!breakNoticeSent && lead > 0 && target - breakElapsed <= lead)
             {
                 breakNoticeSent = true;
@@ -296,7 +296,7 @@ namespace HDC.Ads.Logic
                 return;
             }
 
-            HDCFullscreenGroup group = HDCAds.ForceAdGroup(HDCAds.CoreConfig.ForceAdGroupAt(position));
+            HDCFullscreenGroup group = context.Groups.ForceAdGroup(context.CoreConfig.ForceAdGroupAt(position));
             if (group == null || !group.IsReady)
             {
                 BreakFailed(position, group == null ? "no group for the position" : "not ready");
@@ -334,25 +334,25 @@ namespace HDC.Ads.Logic
 
         private void BreakFailed(string position, string reason)
         {
-            HDCAdsLog.Info($"break ad at {position} failed: {reason}");
+            context.Log.Info($"break ad at {position} failed: {reason}");
             Raise(BreakAdShowFailed, position, reason);
             ResetBreakCycle(true);
         }
 
         private void ResetBreakCycle(bool clearAttempt)
         {
-            breakResetFrame = Time.frameCount;
+            breakResetFrame = context.Clock.Frame;
             breakElapsed = 0f;
             breakNoticeSent = false;
             if (clearAttempt)
                 breakAttempting = false;
         }
 
-        private static void Run(Action action) => HDCAdsLog.Run(action);
+        private static void Run(Action action) => HDCCallbacks.Run(action);
 
-        private static void Raise(Action<string> handler, string position) => HDCAdsLog.Run(() => handler?.Invoke(position));
+        private static void Raise(Action<string> handler, string position) => HDCCallbacks.Run(() => handler?.Invoke(position));
 
         private static void Raise<T>(Action<string, T> handler, string position, T value) =>
-            HDCAdsLog.Run(() => handler?.Invoke(position, value));
+            HDCCallbacks.Run(() => handler?.Invoke(position, value));
     }
 }

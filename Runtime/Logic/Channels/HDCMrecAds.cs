@@ -11,15 +11,17 @@ namespace HDC.Ads.Logic
     {
         private const string InstanceId = "mrec_plugin";
 
+        private readonly HDCAdsContext context;
         private HDCRectGroup group;
 
-        internal HDCMrecAds()
+        internal HDCMrecAds(HDCAdsContext context)
         {
+            this.context = context;
         }
 
-        private static HDCAdsConfig.MrecChannel Channel => HDCAds.Config.mrecChannel ?? new HDCAdsConfig.MrecChannel();
+        private HDCAdsConfig.MrecChannel Channel => context.Config.mrecChannel ?? new HDCAdsConfig.MrecChannel();
 
-        private static bool IsEnabled => Channel.isEnabled && !HDCAds.IsAdsRemoved;
+        private bool IsEnabled => Channel.isEnabled && !context.IsAdsRemoved;
 
         public bool CanShow => IsEnabled && Group().IsLoaded;
 
@@ -79,7 +81,7 @@ namespace HDC.Ads.Logic
                 .Line("Size In Pixels", size == Vector2.zero ? "-" : $"{size.x:0} x {size.y:0}")
                 .Section("Gates")
                 .Gate("Disabled", !IsEnabled)
-                .Gate("Ads Removed", HDCAds.IsAdsRemoved)
+                .Gate("Ads Removed", context.IsAdsRemoved)
                 .Section("Group");
             if (group != null)
                 group.DescribeTo(info);
@@ -103,11 +105,11 @@ namespace HDC.Ads.Logic
                 return group;
 
             // Priority 0 is the plugin; 1 is a network no longer served, used only as a backup order.
-            HDCAdCoreConfig.FullscreenUnit unit = HDCAds.CoreConfig.mrecUnit ?? new HDCAdCoreConfig.FullscreenUnit();
+            HDCAdCoreConfig.FullscreenUnit unit = context.CoreConfig.mrecUnit ?? new HDCAdCoreConfig.FullscreenUnit();
             var sources = new List<HDCRectSource>();
-            if ((unit.mediationPriority == HDCAds.PluginUnit || unit.useBackup) && !string.IsNullOrEmpty(unit.admobUnit?.id))
+            if ((unit.mediationPriority == HDCAdGroups.PluginUnit || unit.useBackup) && !string.IsNullOrEmpty(unit.admobUnit?.id))
                 sources.Add(new HDCPluginRectSource(InstanceId, unit.admobUnit.id, HDCBannerViewPlacement.Mrec));
-            HDCAdPlacements.Record(InstanceId, HDCAdChannel.Mrec);
+            context.Placements.Record(InstanceId, HDCAdChannel.Mrec);
             group = new HDCRectGroup(sources, false);
             return group;
         }

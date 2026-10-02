@@ -22,11 +22,14 @@ Runtime/                       Assembly HDC.Ads, chỉ compile khi có define HD
   Logic/                       (HDC.Ads.Logic) Kênh và group: khi nào load, show, dùng ad unit dự phòng
     Channels/                  7 kênh, mỗi kênh một class
     Groups/                    Group fallback full-screen và banner, cùng các nguồn ad của chúng
+    HDCAdsContext.cs           Thứ các kênh dùng chung: config, cờ gỡ quảng cáo, group, các port
+  Ports/                       (HDC.Ads.Ports) Interface Logic gọi, Infrastructure hiện thực: đồng hồ, lưu trữ, main thread, log, SDK
   Domain/                      (HDC.Ads.Domain) Config, tuỳ chọn hiển thị, sự kiện của SDK
   Diagnostics/                 (HDC.Ads.Diagnostics) Trạng thái từng ad, nguồn config, cho bảng debug
   Infrastructure/              (HDC.Ads.Infrastructure) HDCAdsSdk, main thread, retry, ID test của Google
     Native/                    Cầu nối iOS (DllImport), Android (JNI), Editor (giả lập)
     Gma/                       Rewarded, app open, banner view qua plugin GMA
+  Composition/                 (HDC.Ads.Composition) HDCAdsRuntime: lắp Infrastructure vào các port, tạo context và 7 kênh
   Firebase/                    HDCRemoteConfig (assembly HDC.Ads.Firebase, cần define HDC_FIREBASE)
   Settings/                    HDCAdsSettings: config mặc định (assembly HDC.Ads.Settings, luôn được biên dịch)
 Plugins/iOS/                   HDCAds.xcframework, HDCAdsBridge.mm (post-process Xcode tự thêm vào project)
@@ -292,7 +295,7 @@ Các nhóm test:
   - Khi cố ý đổi API, cập nhật file trong cùng commit: chạy test một lần với `HDC_ACCEPT_API=1`, hoặc sửa tay.
 - Luật tầng (`HDCLayerRulesTests`):
   - Chỉ Infrastructure được gọi thẳng Google Mobile Ads, Firebase, `PlayerPrefs`, JNI hay `DllImport`.
-  - Không tầng nào phụ thuộc ngược lên: Domain không dùng Logic, Diagnostics hay Infrastructure; Diagnostics và Infrastructure không dùng Logic; Api và Logic không dùng Infrastructure.
+  - Không tầng nào phụ thuộc ngược lên: Domain và Ports không dùng tầng nào ngoài Domain và Api; Diagnostics và Infrastructure không dùng Logic hay Composition; Api và Logic không dùng Infrastructure, Logic không dùng Composition.
   - Những chỗ có từ trước nằm trong danh sách `KnownDebt` của test. Danh sách này chỉ được giảm: sửa xong chỗ nào thì xoá mục đó.
 
 `Tools~/compile-matrix.sh` biên dịch mọi assembly bằng Roslyn của đúng bản Unity của project, không cần mở Unity:

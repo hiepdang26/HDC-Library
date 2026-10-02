@@ -11,13 +11,15 @@ namespace HDC.Ads.Logic
     /// </summary>
     internal sealed class HDCFullscreenGroup
     {
+        private readonly HDCAdsContext context;
         private readonly List<HDCFullscreenSource> sources;
         private readonly bool useBackup;
         private int started;
         private int remainingShows;
 
-        internal HDCFullscreenGroup(string name, List<HDCFullscreenSource> sources, bool useBackup, int maxShowCount)
+        internal HDCFullscreenGroup(HDCAdsContext context, string name, List<HDCFullscreenSource> sources, bool useBackup, int maxShowCount)
         {
+            this.context = context;
             Name = name;
             this.sources = sources;
             this.useBackup = useBackup;
@@ -68,8 +70,8 @@ namespace HDC.Ads.Logic
             }
 
             onBeforeShow?.Invoke();
-            HDCAds.NotifyFullscreenOpening();
-            HDCAdPlacements.Record(source.Id, channel, position);
+            context.NotifyFullscreenOpening();
+            context.Placements.Record(source.Id, channel, position);
             bool displayed = false;
             return source.Show(
                 () =>

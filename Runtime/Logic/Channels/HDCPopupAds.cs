@@ -11,22 +11,24 @@ namespace HDC.Ads.Logic
     /// <summary>The popup channel behind <see cref="IPopupAds"/>.</summary>
     internal sealed class HDCPopupAds : IPopupAds
     {
+        private readonly HDCAdsContext context;
         private readonly Dictionary<string, Popup> popups = new Dictionary<string, Popup>(StringComparer.Ordinal);
 
-        internal HDCPopupAds()
+        internal HDCPopupAds(HDCAdsContext context)
         {
+            this.context = context;
         }
 
-        private static HDCAdsConfig.PopupChannel Channel => HDCAds.Config.popupChannel ?? new HDCAdsConfig.PopupChannel();
+        private HDCAdsConfig.PopupChannel Channel => context.Config.popupChannel ?? new HDCAdsConfig.PopupChannel();
 
-        private static bool IsDisabled => !Channel.isEnabled || HDCAds.IsAdsRemoved;
+        private bool IsDisabled => !Channel.isEnabled || context.IsAdsRemoved;
 
         /// <summary>Shows the popup of <paramref name="position"/>. False when it cannot show now.</summary>
         public bool Show(string position)
         {
             if (!Allowed(position, out string reason))
             {
-                HDCAdsLog.Info($"popup {position} blocked: {reason}");
+                context.Log.Info($"popup {position} blocked: {reason}");
                 return false;
             }
 
@@ -35,12 +37,12 @@ namespace HDC.Ads.Logic
                 return false;
             if (!popup.Placed)
             {
-                HDCAdsLog.Info($"popup {position} blocked: call Move first");
+                context.Log.Info($"popup {position} blocked: call Move first");
                 return false;
             }
 
             popup.Load();
-            HDCAdPlacements.Record(popup.Id, HDCAdChannel.Popup, position);
+            context.Placements.Record(popup.Id, HDCAdChannel.Popup, position);
             return HDCAdsSdk.ShowPopup(popup.Id);
         }
 
@@ -102,13 +104,13 @@ namespace HDC.Ads.Logic
                 .Line("Auto Init Groups", string.Join(", ", AutoInitGroups()))
                 .Section("Gates")
                 .Gate("Disabled", IsDisabled)
-                .Gate("Ads Removed", HDCAds.IsAdsRemoved);
+                .Gate("Ads Removed", context.IsAdsRemoved);
 
             if (!string.IsNullOrEmpty(position))
             {
                 bool allowed = Allowed(position, out string reason);
                 info.Section("Position " + position)
-                    .Line("Group", HDCAds.CoreConfig.PopupGroupAt(position))
+                    .Line("Group", context.CoreConfig.PopupGroupAt(position))
                     .Add("Can Show Here", allowed ? "Yes" : "No · " + reason, allowed ? HDCDebugTone.Good : HDCDebugTone.Bad);
             }
 
@@ -156,13 +158,13 @@ namespace HDC.Ads.Logic
             }
         }
 
-        private static bool Allowed(string position, out string reason)
+        private bool Allowed(string position, out string reason)
         {
             HDCAdsConfig.PopupPosition config = string.IsNullOrEmpty(position)
                 ? null
                 : Array.Find(Channel.positionConfigs ?? new HDCAdsConfig.PopupPosition[0], p => p != null && p.positionName == position);
             if (IsDisabled)
-                reason = HDCAds.IsAdsRemoved ? "ads removed" : "channel disabled";
+                reason = context.IsAdsRemoved ? "ads removed" : "channel disabled";
             else if (config == null || !config.isEnabled)
                 reason = "position disabled";
             else
@@ -170,14 +172,14 @@ namespace HDC.Ads.Logic
             return reason.Length == 0;
         }
 
-        private static HashSet<string> AutoInitGroups()
+        private HashSet<string> AutoInitGroups()
         {
             var groups = new HashSet<string>(StringComparer.Ordinal);
             foreach (HDCAdsConfig.PopupPosition position in Channel.positionConfigs ?? new HDCAdsConfig.PopupPosition[0])
             {
                 if (position == null || !position.autoInit || !position.isEnabled)
                     continue;
-                string groupName = HDCAds.CoreConfig.PopupGroupAt(position.positionName);
+                string groupName = context.CoreConfig.PopupGroupAt(position.positionName);
                 if (!string.IsNullOrEmpty(groupName))
                     groups.Add(groupName);
             }
@@ -185,7 +187,7 @@ namespace HDC.Ads.Logic
             return groups;
         }
 
-        private Popup PopupAt(string position) => PopupNamed(HDCAds.CoreConfig.PopupGroupAt(position));
+        private Popup PopupAt(string position) => PopupNamed(context.CoreConfig.PopupGroupAt(position));
 
         private Popup PopupNamed(string groupName)
         {
@@ -194,7 +196,7 @@ namespace HDC.Ads.Logic
             if (popups.TryGetValue(groupName, out Popup popup))
                 return popup;
 
-            HDCAdCoreConfig.PopupGroup config = HDCAds.CoreConfig.PopupGroupNamed(groupName);
+            HDCAdCoreConfig.PopupGroup config = context.CoreConfig.PopupGroupNamed(groupName);
             if (config == null || string.IsNullOrEmpty(config.androidUnit?.id))
                 return null;
             popup = new Popup(PopupId(groupName), config);

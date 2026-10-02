@@ -1,7 +1,6 @@
 using System;
 using HDC.Ads.Diagnostics;
 using HDC.Ads.Domain;
-using HDC.Ads.Infrastructure;
 using UnityEngine;
 
 namespace HDC.Ads.Logic
@@ -13,6 +12,8 @@ namespace HDC.Ads.Logic
         private const float CloseFallbackSeconds = 15f;
         private const float ReadyCheckInterval = 0.25f;
 
+        private readonly HDCAdsContext context;
+        private readonly HDCForceAds forceAds;
         private bool startRequested;
         private bool clockStarted;
         private float clockStart;
@@ -22,8 +23,10 @@ namespace HDC.Ads.Logic
         private float nextReadyCheck;
         private HDCFullscreenGroup group;
 
-        internal HDCAppLaunchAds()
+        internal HDCAppLaunchAds(HDCAdsContext context, HDCForceAds forceAds)
         {
+            this.context = context;
+            this.forceAds = forceAds;
         }
 
         /// <summary>Right before the launch ad shows, or right before completing without one.</summary>
@@ -40,15 +43,15 @@ namespace HDC.Ads.Logic
 
         public bool CanShow => !IsDisabled && !IgnoreAds && clockStarted && !TimedOut && MinimumWaitPassed && (Group()?.IsReady ?? false);
 
-        private static HDCAdsConfig.AppLaunchChannel Channel => HDCAds.Config.appLaunchChannel ?? new HDCAdsConfig.AppLaunchChannel();
+        private HDCAdsConfig.AppLaunchChannel Channel => context.Config.appLaunchChannel ?? new HDCAdsConfig.AppLaunchChannel();
 
-        private static bool IsDisabled => !Channel.isEnabled || HDCAds.IsAdsRemoved;
+        private bool IsDisabled => !Channel.isEnabled || context.IsAdsRemoved;
 
-        private float Elapsed => clockStarted ? Time.unscaledTime - clockStart : 0f;
+        private float Elapsed => clockStarted ? context.Clock.UnscaledTime - clockStart : 0f;
 
-        private static float MinimumWait => Channel.minWaitSeconds > 0 ? Channel.minWaitSeconds : 5f;
+        private float MinimumWait => Channel.minWaitSeconds > 0 ? Channel.minWaitSeconds : 5f;
 
-        private static float Timeout =>
+        private float Timeout =>
             Channel.timeoutSeconds <= 0 || Channel.timeoutSeconds < MinimumWait ? MinimumWait + 5f : Channel.timeoutSeconds;
 
         private bool MinimumWaitPassed => clockStarted && Elapsed >= MinimumWait;
@@ -61,7 +64,7 @@ namespace HDC.Ads.Logic
         /// </summary>
         public void Initialize()
         {
-            if (!HDCAds.IsInitialized)
+            if (!context.IsInitialized)
             {
                 startRequested = true;
                 return;
@@ -74,7 +77,7 @@ namespace HDC.Ads.Logic
         /// <summary>Configs, clock and state, for the debug panel. It reads the group without making it.</summary>
         internal HDCDebugInfo Describe()
         {
-            HDCAdCoreConfig.Comeback comeback = HDCAds.CoreConfig.comebackChannel ?? new HDCAdCoreConfig.Comeback();
+            HDCAdCoreConfig.Comeback comeback = context.CoreConfig.comebackChannel ?? new HDCAdCoreConfig.Comeback();
             HDCDebugInfo info = new HDCDebugInfo()
                 .Section("Configs")
                 .Needed("Enabled", Channel.isEnabled)
@@ -91,7 +94,7 @@ namespace HDC.Ads.Logic
                 .Line("Ignore Ads", IgnoreAds)
                 .Section("Gates")
                 .Gate("Disabled", IsDisabled)
-                .Gate("Ads Removed", HDCAds.IsAdsRemoved)
+                .Gate("Ads Removed", context.IsAdsRemoved)
                 .Section("Group");
             if (group != null)
                 group.DescribeTo(info);
@@ -112,14 +115,13 @@ namespace HDC.Ads.Logic
                 return;
 
             clockStarted = true;
-            clockStart = Time.unscaledTime;
+            clockStart = context.Clock.UnscaledTime;
             if (!IsDisabled)
                 Group()?.Initialize();
             if (!ticking)
             {
                 ticking = true;
-                HDCMainThread.EnsureCreated();
-                HDCMainThread.Ticked += Tick;
+                context.MainThread.Ticked += Tick;
             }
         }
 
@@ -130,7 +132,7 @@ namespace HDC.Ads.Logic
 
             if (showing)
             {
-                if (Time.unscaledTime - showStart >= CloseFallbackSeconds)
+                if (context.Clock.UnscaledTime - showStart >= CloseFallbackSeconds)
                     Complete("the ad did not report closing");
                 return;
             }
@@ -150,16 +152,16 @@ namespace HDC.Ads.Logic
                 return;
             }
 
-            if (Time.unscaledTime < nextReadyCheck)
+            if (context.Clock.UnscaledTime < nextReadyCheck)
                 return;
-            nextReadyCheck = Time.unscaledTime + ReadyCheckInterval;
+            nextReadyCheck = context.Clock.UnscaledTime + ReadyCheckInterval;
             if (!Group().IsReady)
                 return;
 
             RaiseBeforeShow();
             showing = true;
-            showStart = Time.unscaledTime;
-            bool forceAd = HDCAds.CoreConfig.comebackChannel?.launchAdType == 0;
+            showStart = context.Clock.UnscaledTime;
+            bool forceAd = context.CoreConfig.comebackChannel?.launchAdType == 0;
             bool shown = Group().Show(
                 HDCAdChannel.AppLaunch,
                 "",
@@ -167,7 +169,7 @@ namespace HDC.Ads.Logic
                 () =>
                 {
                     if (forceAd)
-                        HDCAds.Channels.ForceAd.CountImpression("app_launch");
+                        forceAds.CountImpression("app_launch");
                 },
                 _ => Complete("closed"));
             if (!shown)
@@ -179,17 +181,17 @@ namespace HDC.Ads.Logic
             if (IsCompleted)
                 return;
 
-            HDCAdsLog.Info("app launch complete: " + reason);
+            context.Log.Info("app launch complete: " + reason);
             RaiseBeforeShow();
             IsCompleted = true;
             showing = false;
             if (ticking)
             {
                 ticking = false;
-                HDCMainThread.Ticked -= Tick;
+                context.MainThread.Ticked -= Tick;
             }
 
-            HDCAdsLog.Run(Completed);
+            HDCCallbacks.Run(Completed);
         }
 
         private void RaiseBeforeShow()
@@ -197,7 +199,7 @@ namespace HDC.Ads.Logic
             if (IsBeforeShowRaised)
                 return;
             IsBeforeShowRaised = true;
-            HDCAdsLog.Run(BeforeShow);
+            HDCCallbacks.Run(BeforeShow);
         }
 
         /// <summary>The launch ad's group once the channel made it, for the debug panel.</summary>
@@ -208,8 +210,8 @@ namespace HDC.Ads.Logic
             if (group != null)
                 return group;
 
-            HDCAdCoreConfig.Comeback comeback = HDCAds.CoreConfig.comebackChannel ?? new HDCAdCoreConfig.Comeback();
-            group = comeback.launchAdType == 0 ? HDCAds.ForceAdGroup(comeback.launchForceAdGroupName) : HDCAds.AppOpenGroup();
+            HDCAdCoreConfig.Comeback comeback = context.CoreConfig.comebackChannel ?? new HDCAdCoreConfig.Comeback();
+            group = comeback.launchAdType == 0 ? context.Groups.ForceAdGroup(comeback.launchForceAdGroupName) : context.Groups.AppOpenGroup();
             return group;
         }
     }

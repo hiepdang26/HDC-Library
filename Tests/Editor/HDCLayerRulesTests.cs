@@ -15,7 +15,9 @@ namespace HDC.Ads.Tests
     /// <item>Logic: the channels and their groups, which decide when ads load and show.</item>
     /// <item>Domain: the configs, options and events everything else passes around.</item>
     /// <item>Diagnostics: what the debug panel reads.</item>
+    /// <item>Ports: the interfaces Logic calls and Infrastructure implements.</item>
     /// <item>Infrastructure: the SDK, the native bridges and the Google Mobile Ads plugin.</item>
+    /// <item>Composition: puts the others together.</item>
     /// </list>
     /// Only Infrastructure names ad networks, Firebase, storage and native code, and nothing depends on a layer
     /// above it. Each line of <see cref="Layers"/> says what a layer may not name.
@@ -34,10 +36,12 @@ namespace HDC.Ads.Tests
         private static readonly (string Folder, Rule[] Forbidden)[] Layers =
         {
             ("Runtime/Api", Sdks.Append(Uses("Infrastructure")).ToArray()),
-            ("Runtime/Logic", Sdks.Append(Uses("Infrastructure")).ToArray()),
-            ("Runtime/Domain", Sdks.Concat(new[] { Uses("Logic"), Uses("Diagnostics"), Uses("Infrastructure") }).ToArray()),
-            ("Runtime/Diagnostics", Sdks.Append(Uses("Logic")).ToArray()),
-            ("Runtime/Infrastructure", new[] { Uses("Logic") }),
+            ("Runtime/Logic", Sdks.Concat(new[] { Uses("Infrastructure"), Uses("Composition") }).ToArray()),
+            ("Runtime/Domain", Sdks.Concat(new[] { Uses("Logic"), Uses("Diagnostics"), Uses("Ports"), Uses("Infrastructure"), Uses("Composition") }).ToArray()),
+            ("Runtime/Diagnostics", Sdks.Concat(new[] { Uses("Logic"), Uses("Composition") }).ToArray()),
+            ("Runtime/Ports", Sdks.Concat(new[] { Uses("Logic"), Uses("Diagnostics"), Uses("Infrastructure"), Uses("Composition") }).ToArray()),
+            ("Runtime/Infrastructure", new[] { Uses("Logic"), Uses("Composition") }),
+            ("Runtime/Composition", Sdks),
         };
 
         /// <summary>
@@ -46,17 +50,11 @@ namespace HDC.Ads.Tests
         /// </summary>
         private static readonly string[] KnownDebt =
         {
-            // The ads removed flag and the impression counters: phase 3 puts them behind a key-value store.
-            "Runtime/Api/HDCAds.cs: PlayerPrefs",
-            "Runtime/Logic/HDCAdsLog.cs: PlayerPrefs",
             // MobileAds.Utils.GetDeviceScale, which turns a popup's pixels into dp: phase 3 asks the adapter.
             "Runtime/Logic/Channels/HDCPopupAds.cs: Google Mobile Ads",
-            // The facade and the channels call the SDK, the main thread and the plugin's ads directly: phase 3 puts
-            // them behind ports that Infrastructure implements.
-            "Runtime/Api/HDCAds.cs: uses Infrastructure",
-            "Runtime/Logic/Channels/HDCAppLaunchAds.cs: uses Infrastructure",
-            "Runtime/Logic/Channels/HDCAppResumeAds.cs: uses Infrastructure",
-            "Runtime/Logic/Channels/HDCForceAds.cs: uses Infrastructure",
+            // The ad sources and the groups that make them call the SDK and the plugin's ads directly: phase 3 puts
+            // them behind the ad ports.
+            "Runtime/Logic/HDCAdGroups.cs: uses Infrastructure",
             "Runtime/Logic/Channels/HDCMrecAds.cs: uses Infrastructure",
             "Runtime/Logic/Channels/HDCPopupAds.cs: uses Infrastructure",
             "Runtime/Logic/Groups/HDCFullscreenSource.cs: uses Infrastructure",
@@ -66,7 +64,6 @@ namespace HDC.Ads.Tests
             "Runtime/Logic/Groups/HDCPluginFullscreenSource.cs: uses Infrastructure",
             "Runtime/Logic/Groups/HDCPluginRectSource.cs: uses Infrastructure",
             "Runtime/Logic/Groups/HDCRectSource.cs: uses Infrastructure",
-            "Runtime/Logic/HDCAdsLog.cs: uses Infrastructure",
         };
 
         [Test]

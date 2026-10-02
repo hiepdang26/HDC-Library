@@ -8,20 +8,22 @@ namespace HDC.Ads.Logic
     {
         private const string ImpressionsKey = "rw_count";
 
-        internal HDCRewardedAds()
+        private readonly HDCAdsContext context;
+        internal HDCRewardedAds(HDCAdsContext context)
         {
+            this.context = context;
         }
 
         /// <summary>While true, shows skip the ad and grant the reward at once.</summary>
         public bool IgnoreAds { get; set; }
 
-        public bool CanShow => IsEnabled && HDCAds.RewardedGroup().IsReady;
+        public bool CanShow => IsEnabled && context.Groups.RewardedGroup().IsReady;
 
-        public int ImpressionCount => HDCAdsLog.GetInt(ImpressionsKey);
+        public int ImpressionCount => context.Count(ImpressionsKey);
 
-        private static bool IsEnabled => HDCAds.Config.rewardedChannel?.isEnabled ?? false;
+        private bool IsEnabled => context.Config.rewardedChannel?.isEnabled ?? false;
 
-        private static bool AutoInit => HDCAds.Config.rewardedChannel?.autoInit ?? false;
+        private bool AutoInit => context.Config.rewardedChannel?.autoInit ?? false;
 
         /// <summary>
         /// Shows a rewarded ad. Once it closes, <paramref name="onRewarded"/> runs if the player earned the
@@ -31,27 +33,27 @@ namespace HDC.Ads.Logic
         {
             if (!IsEnabled)
             {
-                HDCAdsLog.Info($"rewarded {position} blocked: channel disabled");
+                context.Log.Info($"rewarded {position} blocked: channel disabled");
                 return false;
             }
 
             if (IgnoreAds)
             {
-                HDCAdsLog.Run(onRewarded);
-                HDCAdsLog.Run(onClosed);
+                HDCCallbacks.Run(onRewarded);
+                HDCCallbacks.Run(onClosed);
                 return true;
             }
 
-            return HDCAds.RewardedGroup().Show(
+            return context.Groups.RewardedGroup().Show(
                 HDCAdChannel.Rewarded,
                 position,
                 null,
-                () => HDCAdsLog.SetInt(ImpressionsKey, ImpressionCount + 1),
+                () => context.Store.SetInt(ImpressionsKey, ImpressionCount + 1),
                 rewarded =>
                 {
                     if (rewarded)
-                        HDCAdsLog.Run(onRewarded);
-                    HDCAdsLog.Run(onClosed);
+                        HDCCallbacks.Run(onRewarded);
+                    HDCCallbacks.Run(onClosed);
                 });
         }
 
@@ -59,13 +61,13 @@ namespace HDC.Ads.Logic
         public void Initialize()
         {
             if (IsEnabled && !AutoInit)
-                HDCAds.RewardedGroup().Initialize();
+                context.Groups.RewardedGroup().Initialize();
         }
 
         /// <summary>Configs and state, for the debug panel. It reads the group without making it.</summary>
         internal HDCDebugInfo Describe()
         {
-            HDCFullscreenGroup group = HDCAds.ExistingRewardedGroup;
+            HDCFullscreenGroup group = context.Groups.ExistingRewardedGroup;
             HDCDebugInfo info = new HDCDebugInfo()
                 .Section("Configs")
                 .Needed("Enabled", IsEnabled)
@@ -87,7 +89,7 @@ namespace HDC.Ads.Logic
         internal void OnSdkInitialized()
         {
             if (IsEnabled && AutoInit)
-                HDCAds.RewardedGroup().Initialize();
+                context.Groups.RewardedGroup().Initialize();
         }
     }
 }

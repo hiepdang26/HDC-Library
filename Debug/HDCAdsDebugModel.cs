@@ -232,7 +232,7 @@ namespace HDC.Ads.DebugUI
                 Index = 1,
                 Format = HDCAdFormat.Fullscreen,
                 Id = id,
-                AdUnitId = record?.AdUnitId ?? HDCAppResumeAds.DebugAdUnitId,
+                AdUnitId = record?.AdUnitId ?? HDCAds.Channels.AppResume.DebugAdUnitId,
                 Created = HDCAds.Channels.AppResume.IsStarted,
                 Started = HDCAds.Channels.AppResume.IsStarted,
                 Record = record,
@@ -257,7 +257,7 @@ namespace HDC.Ads.DebugUI
             }
 
             HDCDebugGroup group = RectGroup(slot.ToString(), HDCAds.Channels.Banner.ExistingGroup(slot), selected, planned, details => details
-                .Needed("Enabled", HDCBannerAds.IsSlotEnabled(slot))
+                .Needed("Enabled", HDCAds.Channels.Banner.IsSlotEnabled(slot))
                 .Line("Auto Init", config.autoInit)
                 .Line("Auto Show On Load", config.autoShowOnLoad)
                 .Line("Priority", Priority(unit.mediationPriority))

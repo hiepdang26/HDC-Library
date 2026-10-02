@@ -1,4 +1,3 @@
-
 using HDC.Ads.Infrastructure;
 
 namespace HDC.Ads.Logic

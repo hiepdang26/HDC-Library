@@ -219,7 +219,7 @@ namespace HDC.Ads.Infrastructure
         public static string GetMetaTestDeviceHash() =>
             Call<StringResult>("meta.deviceHash", "{}").value ?? string.Empty;
 
-        /// <summary>Drops the ads, callbacks and subscribers of the last Play Mode session; see HDCAds.</summary>
+        /// <summary>Drops the ads, callbacks and subscribers of the last Play Mode session; see HDCAdsRuntime.</summary>
         internal static void ResetStatics()
         {
             interstitialLoads.Clear();

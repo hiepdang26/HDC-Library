@@ -112,7 +112,7 @@ namespace HDC.Ads.Logic
             // A higher priority unit that loads takes the place of the one on screen.
             if (showing)
                 Display(LoadedSource() ?? source);
-            HDCAdsLog.Run(Loaded);
+            HDCCallbacks.Run(Loaded);
         }
 
         private void StartNext() => sources[started++].Load();

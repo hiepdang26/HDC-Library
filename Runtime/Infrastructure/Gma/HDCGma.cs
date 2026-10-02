@@ -24,7 +24,7 @@ namespace HDC.Ads.Infrastructure
             MobileAds.Initialize(_ => { });
         }
 
-        /// <summary>Lets the next Play Mode session initialize the plugin again; see HDCAds.</summary>
+        /// <summary>Lets the next Play Mode session initialize the plugin again; see HDCAdsRuntime.</summary>
         internal static void ResetStatics() => initializeCalled = false;
 
         /// <summary>Adds this device's ids to the SDK's test devices, so every format serves test ads here.</summary>

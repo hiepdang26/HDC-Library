@@ -30,7 +30,7 @@ namespace HDC.Ads.Infrastructure
             instance = host.AddComponent<HDCMainThread>();
         }
 
-        /// <summary>Drops the work and subscribers of the last Play Mode session; see HDCAds.</summary>
+        /// <summary>Drops the work and subscribers of the last Play Mode session; see HDCAdsRuntime.</summary>
         internal static void ResetStatics()
         {
             while (Queued.TryDequeue(out _))

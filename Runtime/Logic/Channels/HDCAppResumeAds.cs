@@ -1,6 +1,5 @@
 using HDC.Ads.Diagnostics;
 using HDC.Ads.Domain;
-using HDC.Ads.Infrastructure;
 using UnityEngine;
 
 namespace HDC.Ads.Logic
@@ -10,16 +9,18 @@ namespace HDC.Ads.Logic
     {
         private const string InstanceId = "native_resume";
 
+        private readonly HDCAdsContext context;
         private HDCNativeFullscreenSource source;
         private bool blocked;
         private bool showing;
         private bool showWhenLoaded;
 
-        internal HDCAppResumeAds()
+        internal HDCAppResumeAds(HDCAdsContext context)
         {
-            HDCAds.FullscreenOpening += Block;
-            HDCAds.BannerClicked += Block;
-            HDCAdsSdk.AdEvent += OnAdEvent;
+            this.context = context;
+            context.FullscreenOpening += Block;
+            context.BannerClicked += Block;
+            context.Sdk.AdEvent += OnAdEvent;
         }
 
         public bool IgnoreAds { get; set; }
@@ -27,15 +28,15 @@ namespace HDC.Ads.Logic
         // For the debug panel: the instance the channel loads, once it started.
         internal static string DebugInstanceId => InstanceId;
 
-        internal static string DebugAdUnitId => Channel.adUnitId;
+        internal string DebugAdUnitId => Channel.adUnitId;
 
         internal bool IsStarted => source != null;
 
         public bool IsInitialized => source != null;
 
-        private static HDCAdsConfig.AppResumeChannel Channel => HDCAds.Config.appResumeChannel ?? new HDCAdsConfig.AppResumeChannel();
+        private HDCAdsConfig.AppResumeChannel Channel => context.Config.appResumeChannel ?? new HDCAdsConfig.AppResumeChannel();
 
-        private static bool IsDisabled => !Channel.isEnabled || HDCAds.IsAdsRemoved;
+        private bool IsDisabled => !Channel.isEnabled || context.IsAdsRemoved;
 
         /// <summary>Starts the channel when it does not start on its own (autoInit off).</summary>
         public void Initialize()
@@ -71,7 +72,7 @@ namespace HDC.Ads.Logic
                 .Line("Ignore Ads", IgnoreAds)
                 .Section("Gates")
                 .Gate("Disabled", IsDisabled)
-                .Gate("Ads Removed", HDCAds.IsAdsRemoved);
+                .Gate("Ads Removed", context.IsAdsRemoved);
 
         internal void OnSdkInitialized()
         {
@@ -84,10 +85,9 @@ namespace HDC.Ads.Logic
             if (source != null || IsDisabled || string.IsNullOrEmpty(Channel.adUnitId))
                 return;
 
-            var layouts = new HDCLayoutPicker(HDCAds.CoreConfig, Channel.layoutGroup);
+            var layouts = new HDCLayoutPicker(context.CoreConfig, Channel.layoutGroup);
             source = new HDCNativeFullscreenSource(InstanceId, Channel.adUnitId, false, layouts);
-            HDCMainThread.EnsureCreated();
-            HDCMainThread.ApplicationPaused += OnApplicationPaused;
+            context.MainThread.ApplicationPaused += OnApplicationPaused;
         }
 
         private void OnApplicationPaused(bool paused)
@@ -127,7 +127,7 @@ namespace HDC.Ads.Logic
                 if (adEvent.type == HDCAdEventType.Loaded && showWhenLoaded)
                 {
                     showWhenLoaded = false;
-                    HDCAdPlacements.Record(InstanceId, HDCAdChannel.AppResume);
+                    context.Placements.Record(InstanceId, HDCAdChannel.AppResume);
                     showing = source.Show(null, _ => showing = false);
                 }
 

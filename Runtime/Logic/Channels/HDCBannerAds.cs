@@ -7,14 +7,16 @@ namespace HDC.Ads.Logic
     /// <summary>The banner channel behind <see cref="IBannerAds"/>.</summary>
     internal sealed class HDCBannerAds : IBannerAds
     {
+        private readonly HDCAdsContext context;
         private readonly Dictionary<HDCBannerSlot, HDCRectGroup> groups = new Dictionary<HDCBannerSlot, HDCRectGroup>();
         private readonly HashSet<HDCBannerSlot> autoShown = new HashSet<HDCBannerSlot>();
 
-        internal HDCBannerAds()
+        internal HDCBannerAds(HDCAdsContext context)
         {
+            this.context = context;
         }
 
-        private static HDCAdsConfig.BannerChannel Channel => HDCAds.Config.bannerChannel ?? new HDCAdsConfig.BannerChannel();
+        private HDCAdsConfig.BannerChannel Channel => context.Config.bannerChannel ?? new HDCAdsConfig.BannerChannel();
 
         /// <summary>Shows the slot's banner now, or as soon as it loads. False when the slot is off.</summary>
         public bool Show(HDCBannerSlot slot = HDCBannerSlot.FullBottom)
@@ -59,7 +61,7 @@ namespace HDC.Ads.Logic
                 .Line("Can Show", CanShow(slot))
                 .Section("Gates")
                 .Gate("Disabled", !IsEnabled(slot))
-                .Gate("Ads Removed", HDCAds.IsAdsRemoved)
+                .Gate("Ads Removed", context.IsAdsRemoved)
                 .Section("Placement " + slot);
             if (groups.TryGetValue(slot, out HDCRectGroup group))
                 group.DescribeTo(info);
@@ -90,9 +92,9 @@ namespace HDC.Ads.Logic
         /// <summary>A slot's group once the channel made it, for the debug panel.</summary>
         internal HDCRectGroup ExistingGroup(HDCBannerSlot slot) => groups.TryGetValue(slot, out HDCRectGroup group) ? group : null;
 
-        internal static bool IsSlotEnabled(HDCBannerSlot slot) => IsEnabled(slot);
+        internal bool IsSlotEnabled(HDCBannerSlot slot) => IsEnabled(slot);
 
-        private static bool IsEnabled(HDCBannerSlot slot) => Channel.isEnabled && Channel.Slot(slot).isEnabled && !HDCAds.IsAdsRemoved;
+        private bool IsEnabled(HDCBannerSlot slot) => Channel.isEnabled && Channel.Slot(slot).isEnabled && !context.IsAdsRemoved;
 
         private HDCRectGroup EnabledGroup(HDCBannerSlot slot)
         {
@@ -101,22 +103,22 @@ namespace HDC.Ads.Logic
             if (groups.TryGetValue(slot, out HDCRectGroup group))
                 return group;
 
-            HDCAdCoreConfig.FullscreenUnit unit = HDCAds.CoreConfig.bannerUnit?.Slot(slot) ?? new HDCAdCoreConfig.FullscreenUnit();
+            HDCAdCoreConfig.FullscreenUnit unit = context.CoreConfig.bannerUnit?.Slot(slot) ?? new HDCAdCoreConfig.FullscreenUnit();
             var sources = new List<HDCRectSource>();
             // Only the bottom slot has a native unit; for the others priority 0 is the plugin and 1 a removed network.
             IEnumerable<int> order = slot == HDCBannerSlot.FullBottom
-                ? HDCAds.Order(unit.mediationPriority, unit.useBackup)
-                : unit.mediationPriority == HDCAds.PluginUnit || unit.useBackup ? new[] { HDCAds.PluginUnit } : new int[0];
+                ? HDCAdGroups.Order(unit.mediationPriority, unit.useBackup)
+                : unit.mediationPriority == HDCAdGroups.PluginUnit || unit.useBackup ? new[] { HDCAdGroups.PluginUnit } : new int[0];
             foreach (int priority in order)
             {
-                if (priority == HDCAds.PluginUnit && !string.IsNullOrEmpty(unit.admobUnit?.id))
+                if (priority == HDCAdGroups.PluginUnit && !string.IsNullOrEmpty(unit.admobUnit?.id))
                     sources.Add(new HDCPluginRectSource("bn_plugin_" + slot, unit.admobUnit.id, Placement(slot)));
-                else if (priority == HDCAds.NativeUnit && slot == HDCBannerSlot.FullBottom && HasNativeUnit(unit.androidUnit))
+                else if (priority == HDCAdGroups.NativeUnit && slot == HDCBannerSlot.FullBottom && HasNativeUnit(unit.androidUnit))
                     sources.Add(new HDCNativeBannerSource("bn_native", unit.androidUnit));
             }
 
             foreach (HDCRectSource source in sources)
-                HDCAdPlacements.Record(source.Id, HDCAdChannel.Banner, slot.ToString());
+                context.Placements.Record(source.Id, HDCAdChannel.Banner, slot.ToString());
             group = new HDCRectGroup(sources, unit.useBackup);
             group.Loaded += () =>
             {
