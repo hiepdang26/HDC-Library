@@ -1,0 +1,29 @@
+{
+    "name": "HDC.Ads.Tests",
+    "rootNamespace": "HDC.Ads.Tests",
+    "references": [
+        "HDC.Ads",
+        "HDC.Ads.Firebase",
+        "HDC.Ads.Settings",
+        "HDC.Ads.Debug",
+        "UnityEngine.UI",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS",
+        "HDC_ADS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

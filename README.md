@@ -33,6 +33,8 @@ Editor/                        Menu HDC (bật/tắt, sửa config), post-proces
 Setup/                         HDCAdsSetup.prefab: khởi động ads ở scene đầu (assembly HDC.Ads.Setup, luôn được biên dịch)
 Debug/                         Bảng debug HDCAdsDebugPanel.prefab (assembly HDC.Ads.Debug, cần define HDC_ADS)
 Demo/                          HDCAdsDemo: các nút bấm để thử từng định dạng
+Tests/Editor/                  Test Edit Mode (assembly HDC.Ads.Tests, chỉ có trong Editor) và PublicApi.txt
+Tools~/                        Script chạy test và biên dịch nhiều cấu hình (Unity bỏ qua thư mục có đuôi "~")
 package.json                   Để cài HDCLib như một package (UPM)
 ```
 
@@ -279,6 +281,33 @@ Lệnh này làm hai việc:
   - Module này dùng lại logic của `:shared` và vẽ quảng cáo bằng View/XML, không dùng Compose, để mọi bản Unity build được.
   - Khi đổi version, sửa cả `unityAndroid/build.gradle.kts` và `Editor/Templates~/HDCAdsDependencies.xml`.
 
+## Kiểm thử
+
+Test Edit Mode nằm trong `Tests/Editor` (assembly `HDC.Ads.Tests`). Assembly này chỉ compile khi project có package Test Framework và đang bật HDC (define `HDC_ADS`), và không bao giờ vào bản build của game.
+
+- Chạy trong Editor: Window > General > Test Runner > EditMode > Run All.
+- Chạy bằng dòng lệnh: `Tools~/run-tests.sh <project>`.
+  - Unity không mở được project đang mở trong Editor, nên hãy chạy trên một bản copy (`cp -c -R` trên APFS copy tức thì).
+  - Kết quả ghi vào `Logs/hdc-tests.xml` của project đó.
+- Test cần mạng (lấy Remote Config thật của project) có `[Explicit]` và category `Network`. Run All không chạy test này; muốn chạy thì chọn đích danh.
+
+Các nhóm test:
+
+- Bảng debug, tracker, ID test của Google, post-process iOS: chạy Play Mode với phần giả lập của Editor. Trong giả lập, ad unit có chữ `fail` trong ID load lỗi no fill.
+- Hợp đồng API (`HDCPublicApiTests`):
+  - So mọi type và member public của các assembly runtime với `Tests/Editor/PublicApi.txt`.
+  - Type hay member public mà file chưa có làm test fail, mục trong file mà code không còn cũng vậy.
+  - Khi cố ý đổi API, cập nhật file trong cùng commit: chạy test một lần với `HDC_ACCEPT_API=1`, hoặc sửa tay.
+- Luật tầng (`HDCLayerRulesTests`):
+  - Code trong `Runtime/Logic` không được gọi thẳng Google Mobile Ads, Firebase, `PlayerPrefs`, JNI hay `DllImport`.
+  - Những chỗ có từ trước nằm trong danh sách `KnownDebt` của test. Danh sách này chỉ được giảm: sửa xong chỗ nào thì xoá mục đó.
+
+`Tools~/compile-matrix.sh` biên dịch mọi assembly bằng Roslyn của đúng bản Unity của project, không cần mở Unity:
+
+- Các cấu hình: Editor, iOS, Android, không Firebase, Input System, tắt HDC, assembly Editor theo từng build target, và assembly test.
+- Chạy sau mỗi thay đổi có `#if`. Mất khoảng 15 giây.
+- Mặc định tìm Unity theo đường dẫn Unity Hub trên macOS. Máy khác thì đặt `UNITY_EDITOR_DIR`.
+
 ## Yêu cầu
 
 - Unity 2021.3 trở lên, tới Unity 6000.6. Xem bảng bên dưới.
@@ -355,3 +384,4 @@ Các giới hạn sau đến từ GMA, Meta và AndroidX, không phải từ HDC
   - Remote Config: config lấy từ đâu, kiểm tra lỗi config, xem JSON theo Remote, Saved, Default, Applied và mọi key Remote Config.
   - Events: mọi sự kiện quảng cáo, lọc và giải thích. Device: build, test ads, thiết bị, mạng, Adjust.
 - Prefab `HDCAdsSetup` cho scene đầu: lấy config, khởi tạo ads, chạy app launch rồi mở scene tiếp theo.
+- Bộ test Edit Mode: bảng debug, tracker, ID test, post-process iOS, hợp đồng API, luật tầng. Kèm script chạy test và biên dịch nhiều cấu hình.
