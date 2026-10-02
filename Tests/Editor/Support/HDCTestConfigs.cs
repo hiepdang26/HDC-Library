@@ -1,9 +1,5 @@
 namespace HDC.Ads.Tests
 {
-    /// <summary>
-    /// Configs for the Editor simulation, where an ad unit id containing "fail" fails with no fill and the
-    /// others load: native_gameplay fails then falls back to its AdMob backup, native_ui loads, the popup fails.
-    /// </summary>
     internal static class HDCTestConfigs
     {
         internal const string Ads = @"{ ""selectedAdCoreName"": ""core"",

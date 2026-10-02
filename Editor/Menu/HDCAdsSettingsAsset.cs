@@ -3,7 +3,6 @@ using UnityEngine;
 
 namespace HDC.Ads.Editor
 {
-    /// <summary>Finds the project's HDCAdsSettings asset, or creates it in Assets/HDCAds/Resources.</summary>
     internal static class HDCAdsSettingsAsset
     {
         private const string Folder = "Assets/HDCAds/Resources";
@@ -18,7 +17,6 @@ namespace HDC.Ads.Editor
                 var settings = AssetDatabase.LoadAssetAtPath<HDCAdsSettings>(path);
                 if (settings == null)
                     continue;
-                // Builds only read the asset from a Resources folder, under its own name.
                 if (path.EndsWith("/Resources/" + HDCAdsSettings.ResourceName + ".asset"))
                     return settings;
                 if (found == null)

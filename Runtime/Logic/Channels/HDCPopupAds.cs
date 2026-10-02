@@ -6,7 +6,6 @@ using UnityEngine;
 
 namespace HDC.Ads.Logic
 {
-    /// <summary>The popup channel behind <see cref="IPopupAds"/>.</summary>
     internal sealed partial class HDCPopupAds : IPopupAds, IAdChannel
     {
         private readonly HDCAdsContext context;
@@ -21,7 +20,6 @@ namespace HDC.Ads.Logic
 
         private bool IsDisabled => !Channel.isEnabled || context.IsAdsRemoved;
 
-        /// <summary>Shows the popup of <paramref name="position"/>. False when it cannot show now.</summary>
         public bool Show(string position)
         {
             if (!Allowed(position, out string reason))
@@ -46,14 +44,12 @@ namespace HDC.Ads.Logic
 
         public void Hide(string position) => PopupAt(position)?.Ad.Hide();
 
-        /// <summary>Places the popup of <paramref name="position"/> over a rectangle in Unity screen pixels.</summary>
         public void Move(string position, Rect screenRect)
         {
             Popup popup = Allowed(position, out _) ? PopupAt(position) : null;
             popup?.Ad.Place(screenRect);
         }
 
-        /// <summary>Places the popup of <paramref name="position"/> over a UI element.</summary>
         public void Move(string position, RectTransform area, Camera camera = null)
         {
             if (area == null)
@@ -73,10 +69,8 @@ namespace HDC.Ads.Logic
 
         public bool IsGroupReady(string groupName) => PopupNamed(groupName)?.Ad.IsReady ?? false;
 
-        /// <summary>Drops a group's popup and loads a new one. False while it shows.</summary>
         public bool Reinitialize(string groupName) => !IsDisabled && (PopupNamed(groupName)?.Ad.Reload() ?? false);
 
-        /// <summary>Starts loading a group whose positions do not load it on their own (autoInit off).</summary>
         public void Initialize(string groupName)
         {
             if (!IsDisabled && !AutoInitGroups().Contains(groupName))
@@ -156,7 +150,6 @@ namespace HDC.Ads.Logic
             return popup;
         }
 
-        // A group's popup, with the network it came from for its revenue.
         private sealed class Popup
         {
             internal Popup(IPopupAd ad, IAdNetwork network)

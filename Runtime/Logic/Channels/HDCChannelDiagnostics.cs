@@ -7,11 +7,6 @@ using HDC.Ads.Ports;
 
 namespace HDC.Ads.Logic
 {
-    /// <summary>
-    /// The base of the channels' debug modules: no groups or positions to pick unless the channel has some, and
-    /// the panel's ways to read groups of ad units. A group the channel has not made yet shows the units its
-    /// plans would make; reading never makes anything.
-    /// </summary>
     internal abstract class HDCChannelDiagnostics : IChannelDiagnostics
     {
         private static readonly string[] None = new string[0];
@@ -47,7 +42,6 @@ namespace HDC.Ads.Logic
 
         public abstract bool Owns(string instanceId);
 
-        /// <summary>What serves a unit and in which format, such as "AdMob Interstitial".</summary>
         internal static string UnitName(string network, string format)
         {
             string kind;
@@ -67,7 +61,6 @@ namespace HDC.Ads.Logic
             return string.IsNullOrEmpty(network) ? kind : network + " " + kind;
         }
 
-        /// <summary>A full-screen group: the units it made, or before it exists, the units of its plans.</summary>
         protected static HDCDebugGroup FullscreenGroup(string name, HDCFullscreenGroup made, bool selected, IEnumerable<HDCAdPlan> plans,
             Action<HDCDebugInfo> details)
         {
@@ -106,7 +99,6 @@ namespace HDC.Ads.Logic
             return group;
         }
 
-        /// <summary>A banner or MREC group: the views it made, or before it exists, the views of its plans.</summary>
         protected static HDCDebugGroup RectGroup(string name, HDCRectGroup made, bool selected, IEnumerable<HDCAdPlan> plans,
             Action<HDCDebugInfo> details)
         {
@@ -144,14 +136,12 @@ namespace HDC.Ads.Logic
             return group;
         }
 
-        /// <summary>The order of a priority, such as "1 · Native first".</summary>
         protected string Priority(int priority)
         {
             IAdNetwork network = Context.Network(Context.Order.KeyFor(priority));
             return network != null ? $"{priority} · {network.Name} first" : priority.ToString();
         }
 
-        /// <summary>The order of a priority for the ad units map, such as "Native first · backup on".</summary>
         protected string FirstNetwork(int priority, bool useBackup)
         {
             IAdNetwork network = Context.Network(Context.Order.KeyFor(priority));
@@ -170,7 +160,6 @@ namespace HDC.Ads.Logic
         protected static string[] Distinct(IEnumerable<string> values) =>
             values.Where(value => !string.IsNullOrEmpty(value)).Distinct().ToArray();
 
-        // The units a slot would load, as the networks plan them, before its group exists.
         private static void AddPlanned(HDCDebugGroup group, IEnumerable<HDCAdPlan> plans)
         {
             int index = 0;

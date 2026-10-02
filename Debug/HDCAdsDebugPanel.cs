@@ -9,12 +9,6 @@ using UnityEngine.InputSystem.UI;
 
 namespace HDC.Ads.DebugUI
 {
-    /// <summary>
-    /// The ads debug overlay: the Ads, Remote Config, Events and Device pages under a header with the ads' state.
-    /// It stays hidden until opened with three quick taps in a top corner of the screen, or with F10, and closes
-    /// with its close button. It keeps to the screen's safe area and switches its scale to landscape screens.
-    /// A debug tool: leave it out of release builds.
-    /// </summary>
     public sealed class HDCAdsDebugPanel : MonoBehaviour
     {
         private static readonly Vector2 PortraitResolution = new Vector2(1080f, 1920f);
@@ -74,7 +68,6 @@ namespace HDC.Ads.DebugUI
 
         public bool IsOpen => window.activeSelf;
 
-        /// <summary>The page shown: 0 Ads, 1 Remote Config, 2 Events, 3 Device.</summary>
         public int CurrentPage => currentPage;
 
         private void Awake()
@@ -142,7 +135,6 @@ namespace HDC.Ads.DebugUI
             RefreshStatus();
         }
 
-        /// <summary>Shows one page: 0 Ads, 1 Remote Config, 2 Events, 3 Device.</summary>
         public void ShowPage(int index)
         {
             currentPage = Mathf.Clamp(index, 0, pages.Length - 1);
@@ -233,7 +225,6 @@ namespace HDC.Ads.DebugUI
                 : point.x >= Screen.width * (1f - activationSize);
         }
 
-        // The safe area keeps the panel clear of notches; landscape screens get a landscape reference size.
         private void FitScreen()
         {
             var size = new Vector2Int(Screen.width, Screen.height);
@@ -309,7 +300,6 @@ namespace HDC.Ads.DebugUI
         }
 #endif
 
-        // The prefab's texts use the editor's built-in font, which another Unity version may name differently.
         private void FillMissingFonts()
         {
             Font font = null;

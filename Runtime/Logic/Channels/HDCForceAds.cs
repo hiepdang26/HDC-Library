@@ -5,7 +5,6 @@ using UnityEngine;
 
 namespace HDC.Ads.Logic
 {
-    /// <summary>The force ad channel behind <see cref="IForceAds"/>.</summary>
     internal sealed partial class HDCForceAds : IForceAds, IAdChannel
     {
         private readonly HDCAdsContext context;
@@ -21,25 +20,19 @@ namespace HDC.Ads.Logic
             this.context = context;
             context.FullscreenOpening += () =>
             {
-                // Any full-screen ad starts the break over, at most once per frame.
                 if (breakRunning && breakResetFrame != context.Clock.Frame)
                     ResetBreakCycle(false);
             };
         }
 
-        /// <summary>Blocks every force ad while true.</summary>
         public bool IgnoreAds { get; set; }
 
-        /// <summary>The break ad shows in <c>seconds</c>: (position, seconds).</summary>
         public event Action<string, int> BreakAdNotice;
 
-        /// <summary>The break ad is about to show at the position.</summary>
         public event Action<string> BreakAdShown;
 
-        /// <summary>The break ad at the position closed.</summary>
         public event Action<string> BreakAdClosed;
 
-        /// <summary>The break ad could not show: (position, reason). Its timer starts over.</summary>
         public event Action<string, string> BreakAdShowFailed;
 
         public bool IsBreakAdRunning => breakRunning;
@@ -48,10 +41,6 @@ namespace HDC.Ads.Logic
 
         private bool IsDisabled => !Channel.isEnabled || context.IsAdsRemoved;
 
-        /// <summary>
-        /// Shows the force ad of <paramref name="position"/> if the position may show one now.
-        /// <paramref name="onDone"/> runs once the ad closes, or right away when none shows.
-        /// </summary>
         public bool Show(string position, Action onDone = null)
         {
             if (!Allowed(position, false, out string reason))
@@ -68,13 +57,11 @@ namespace HDC.Ads.Logic
             return shown;
         }
 
-        /// <summary>True when the position may show an ad now and its group has one ready.</summary>
         public bool CanShow(string position) =>
             Allowed(position, false, out _) && (context.Groups.ForceAdGroup(context.CoreConfig.ForceAdGroupAt(position))?.IsReady ?? false);
 
         public bool IsGroupReady(string groupName) => context.Groups.ForceAdGroup(groupName)?.IsReady ?? false;
 
-        /// <summary>Starts loading a group whose positions do not load it on their own (autoInit off).</summary>
         public void Initialize(string groupName)
         {
             if (IsDisabled || AutoInitGroups().Contains(groupName))
@@ -82,18 +69,12 @@ namespace HDC.Ads.Logic
             context.Groups.ForceAdGroup(groupName)?.Initialize();
         }
 
-        /// <summary>
-        /// Drops a group's ads and show count and loads it again, for groups that load once
-        /// (disablePostInitReload) or ran out of shows. False while the group shows an ad.
-        /// </summary>
         public bool Reinitialize(string groupName) => !IsDisabled && context.Groups.ReinitializeForceAdGroup(groupName);
 
-        /// <summary>The impressions shown at <paramref name="position"/>, across sessions.</summary>
         public int ImpressionCount(string position) => context.Count(HDCAdNames.ForceAdCountKey(position));
 
         public int TotalImpressionCount => context.Count(HDCAdNames.ForceAdTotalKey);
 
-        /// <summary>Starts the break ad timer, if the channel's break ad is enabled.</summary>
         public void StartBreakAd()
         {
             if (!BreakEnabled(out string reason))
@@ -116,7 +97,6 @@ namespace HDC.Ads.Logic
             ResetBreakCycle(true);
         }
 
-        /// <summary>Starts the running break ad's timer over.</summary>
         public void ResetBreakAd()
         {
             if (breakRunning)
@@ -144,7 +124,6 @@ namespace HDC.Ads.Logic
             }
         }
 
-        // Force ads close on their own; removed ads stop the next ones.
         void IAdChannel.OnAdsRemoved()
         {
         }
@@ -219,8 +198,6 @@ namespace HDC.Ads.Logic
             string.IsNullOrEmpty(position)
                 ? null
                 : Array.Find(Channel.positionConfigs ?? new HDCAdsConfig.ForceAdPosition[0], p => p != null && p.positionName == position);
-
-        // Break ad
 
         private string BreakPosition => Channel.breakAdConfig?.positionName ?? "";
 

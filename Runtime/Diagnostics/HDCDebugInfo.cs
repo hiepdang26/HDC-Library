@@ -4,10 +4,6 @@ using System.Text;
 
 namespace HDC.Ads.Diagnostics
 {
-    /// <summary>
-    /// The state of a channel or group for the debug panel: named sections of labeled values, each with the tone
-    /// the panel colors it with.
-    /// </summary>
     internal sealed class HDCDebugInfo
     {
         internal sealed class Row
@@ -34,24 +30,19 @@ namespace HDC.Ads.Diagnostics
 
         internal List<Part> Parts { get; } = new List<Part>();
 
-        /// <summary>Starts a section; the rows that follow go in it.</summary>
         internal HDCDebugInfo Section(string name)
         {
             Parts.Add(new Part(name));
             return this;
         }
 
-        /// <summary>A value as it is; true and false read Yes and No, and No is dimmed.</summary>
         internal HDCDebugInfo Line(string label, object value) =>
             Add(label, Format(value), value is bool flag && !flag ? HDCDebugTone.Muted : HDCDebugTone.Normal);
 
-        /// <summary>A switch the channel needs on: green when it is, red when not.</summary>
         internal HDCDebugInfo Needed(string label, bool on) => Add(label, Format(on), on ? HDCDebugTone.Good : HDCDebugTone.Bad);
 
-        /// <summary>A switch that may be either way: green when on, dimmed when off.</summary>
         internal HDCDebugInfo Switch(string label, bool on) => Add(label, Format(on), on ? HDCDebugTone.Good : HDCDebugTone.Muted);
 
-        /// <summary>A gate that stops the ads while true: red when it does, green when not.</summary>
         internal HDCDebugInfo Gate(string label, bool closed) => Add(label, Format(closed), closed ? HDCDebugTone.Bad : HDCDebugTone.Good);
 
         internal HDCDebugInfo Add(string label, string value, HDCDebugTone tone)
@@ -62,7 +53,6 @@ namespace HDC.Ads.Diagnostics
             return this;
         }
 
-        /// <summary>Plain text, for copying.</summary>
         internal string ToText()
         {
             var text = new StringBuilder();

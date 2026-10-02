@@ -10,27 +10,12 @@ using UnityEngine;
 
 namespace HDC.Ads
 {
-    /// <summary>
-    /// Reads the ads configs from Firebase Remote Config: <see cref="AdsConfigKey"/>, then the ad core config
-    /// under the key its selectedAdCoreName names. A value Remote Config does not have comes from the one saved
-    /// on the device by the last run, then from the defaults. Every value used is saved on the device for the
-    /// next run. In the Editor the defaults are used as they are, unless <see cref="FetchInEditor"/> is on.
-    /// </summary>
     public static class HDCRemoteConfig
     {
         public const string AdsConfigKey = "ads_config";
 
-        /// <summary>
-        /// Off by default: in the Editor the default configs apply as they are, without Firebase or the values
-        /// saved by earlier runs, so edits to the defaults show at once. Turn it on to fetch in the Editor too.
-        /// </summary>
         public static bool FetchInEditor { get; set; }
 
-        /// <summary>
-        /// Fetches the configs and hands them to <paramref name="onLoaded"/> as (ads config, ad core config).
-        /// When Firebase is unavailable, or the fetch takes longer than <paramref name="timeoutSeconds"/>, the
-        /// saved or default values are used.
-        /// </summary>
         public static void Fetch(
             string defaultAdsConfig,
             IDictionary<string, string> defaultCoreConfigs,
@@ -51,7 +36,6 @@ namespace HDC.Ads
             fetch.Start();
         }
 
-        /// <summary>Fetches the configs, then initializes <see cref="HDCAds"/> with them.</summary>
         public static void FetchAndInitialize(
             string defaultAdsConfig,
             IDictionary<string, string> defaultCoreConfigs,
@@ -101,7 +85,6 @@ namespace HDC.Ads
                 }
                 catch (Exception exception)
                 {
-                    // A Firebase that cannot load its native library throws here: go on with the saved values.
                     Debug.LogWarning("[HDCAds] Firebase cannot start: " + Problem(exception));
                     HDCConfigReport.FirebaseChecked("Cannot start: " + Problem(exception));
                     Finish("Firebase unavailable");
@@ -113,7 +96,6 @@ namespace HDC.Ads
                 try
                 {
                     remoteConfig = FirebaseRemoteConfig.DefaultInstance;
-                    // Always fetch fresh values; a failed fetch keeps the values activated by an earlier run.
                     remoteConfig.FetchAsync(TimeSpan.Zero).ContinueWithOnMainThread(fetch =>
                     {
                         if (finished)
@@ -175,7 +157,6 @@ namespace HDC.Ads
                 }
             }
 
-            // Remote Config's value, else the one saved by the last run, else the default. The report keeps all three.
             private string Read(string key, string fallback)
             {
                 HDCConfigEntry entry = HDCConfigReport.Entry(key);
@@ -237,7 +218,6 @@ namespace HDC.Ads
                 }
             }
 
-            // Every value Remote Config holds, for the debug panel's list of keys.
             private void ReportRemoteValues()
             {
                 if (defaultsOnly || remoteConfig == null)
@@ -253,7 +233,6 @@ namespace HDC.Ads
                 }
             }
 
-            // Firebase reports the epoch for a time it does not have.
             private static DateTime? FirebaseTime(DateTime value) =>
                 value.Year <= 1970 ? (DateTime?)null : value.Kind == DateTimeKind.Utc ? value.ToLocalTime() : value;
 

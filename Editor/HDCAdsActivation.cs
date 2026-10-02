@@ -10,15 +10,6 @@ using UnityEngine;
 
 namespace HDC.Ads.Editor
 {
-    /// <summary>
-    /// Turns HDC ads on or off for builds (HDC > Ads). While off (the default), nothing from HDCLib reaches a build:
-    /// the runtime assembly needs the HDC_ADS define, the iOS postprocess adds the HDCAds framework only
-    /// with it, and the native dependencies file is absent. When the Firebase Remote Config SDK is in the
-    /// project, enabling also adds HDC_FIREBASE, which builds HDCRemoteConfig. While on, the dependencies file
-    /// follows its template, so a library update that changes the native versions takes effect by itself, from the
-    /// next script reload or build.
-    /// HDCLib works from any folder: under Assets, or as a package in Packages, read-only ones included.
-    /// </summary>
     [InitializeOnLoad]
     internal static class HDCAdsActivation
     {
@@ -29,7 +20,6 @@ namespace HDC.Ads.Editor
         private const string RootToken = "{HDC_ROOT}";
         private const string DependenciesName = "HDCAdsDependencies.xml";
 
-        // Where the dependencies file goes when HDCLib is a package, which may be read-only.
         private const string PackageFolder = "Assets/HDCAds";
         private const string PackageDependenciesFolder = PackageFolder + "/Editor";
 
@@ -42,10 +32,6 @@ namespace HDC.Ads.Editor
 
         static HDCAdsActivation() => EditorApplication.delayCall += RefreshDependencies;
 
-        /// <summary>
-        /// HDCLib's folder as a project path, such as "Assets/HDCLib" or "Packages/com.hdc.ads".
-        /// Path.GetFullPath turns it into a disk path, package cache included.
-        /// </summary>
         internal static string Root
         {
             get
@@ -63,7 +49,6 @@ namespace HDC.Ads.Editor
         private static string DependenciesFile =>
             (IsPackage ? PackageDependenciesFolder : Root + "/Editor") + "/" + DependenciesName;
 
-        /// <summary>Whether builds for <paramref name="target"/> include HDC ads.</summary>
         internal static bool IsEnabledFor(NamedBuildTarget target) =>
             SplitDefines(PlayerSettings.GetScriptingDefineSymbols(target)).Contains(Define);
 
@@ -71,7 +56,6 @@ namespace HDC.Ads.Editor
 
         internal static bool IsPartlyEnabled => IsEnabledFor(NamedBuildTarget.iOS) || IsEnabledFor(NamedBuildTarget.Android);
 
-        /// <summary>HDC > Ads > Enable and Disable.</summary>
         internal static void SetEnabled(bool enabled)
         {
             if (enabled)
@@ -89,8 +73,6 @@ namespace HDC.Ads.Editor
                 : "[HDCAds] Disabled. Builds no longer include HDC ads.");
         }
 
-        // The dependency manager reads every *Dependencies.xml in an Editor folder. The template's local Maven
-        // repository path is filled in with where HDCLib is, which the dependency manager resolves in packages too.
         private static void WriteDependencies()
         {
             string file = DependenciesFile;
@@ -102,7 +84,6 @@ namespace HDC.Ads.Editor
         private static string ExpectedDependencies() =>
             File.ReadAllText(Path.GetFullPath(Root + "/Editor/Templates~/" + DependenciesName)).Replace(RootToken, Root);
 
-        // Rewrites a dependencies file an older HDCLib wrote, such as one naming an earlier Android library version.
         private static void RefreshDependencies()
         {
             if (!IsPartlyEnabled)
@@ -112,14 +93,8 @@ namespace HDC.Ads.Editor
                 WriteDependencies();
         }
 
-        /// <summary>
-        /// Refreshes the dependencies file when a build starts. The refresh after a script reload waits for the
-        /// Editor's next update, which a batch mode build started with -executeMethod comes before: the dependency
-        /// manager would resolve the native versions of the HDCLib before the update.
-        /// </summary>
         internal sealed class BuildRefresh : IPreprocessBuildWithReport
         {
-            // Before the dependency manager resolves for the build.
             public int callbackOrder => int.MinValue;
 
             public void OnPreprocessBuild(BuildReport report) => RefreshDependencies();
@@ -133,7 +108,6 @@ namespace HDC.Ads.Editor
 
             if (!IsPackage)
                 return;
-            // The folders made for a package install, once empty.
             foreach (string folder in new[] { PackageDependenciesFolder, PackageFolder })
             {
                 if (AssetDatabase.IsValidFolder(folder) && !Directory.EnumerateFileSystemEntries(folder).Any(entry => !entry.EndsWith(".meta", StringComparison.Ordinal)))

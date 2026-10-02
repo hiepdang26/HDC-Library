@@ -9,10 +9,8 @@ using Object = UnityEngine.Object;
 
 namespace HDC.Ads.Tests
 {
-    /// <summary>Reads and drives the debug panel's uGUI.</summary>
     internal static class HDCTestUi
     {
-        /// <summary>Names a folder to render the panel into while the tests run, to look at a layout change.</summary>
         private const string CaptureFolderVariable = "HDC_TEST_CAPTURE";
 
         internal static void Click(Transform target) => target.GetComponent<Button>().onClick.Invoke();
@@ -21,25 +19,17 @@ namespace HDC.Ads.Tests
 
         internal static string ButtonText(Transform button) => button.GetComponentInChildren<Text>().text;
 
-        /// <summary>Every visible text under <paramref name="root"/>, one per line.</summary>
         internal static string AllText(Transform root) =>
             string.Join("\n", root.GetComponentsInChildren<Text>(false).Select(text => text.text));
 
-        /// <summary>The visible children of a list whose names start with <paramref name="prefix"/>.</summary>
         internal static List<Transform> Rows(Transform list, string prefix) =>
             list.Cast<Transform>().Where(row => row.gameObject.activeSelf && row.name.StartsWith(prefix)).ToList();
 
-        /// <summary>The first visible child of <paramref name="list"/> whose text is <paramref name="text"/>.</summary>
         internal static Transform Option(Transform list, string text) =>
             list.Cast<Transform>().First(child => child.gameObject.activeSelf && ButtonText(child) == text);
 
-        /// <summary>The state badge of a unit in the Detail card.</summary>
         internal static string Badge(Transform unit) => TextOf(unit.Find("Top/Badge/Label"));
 
-        /// <summary>
-        /// Renders the panel in portrait 1080 x 1920 to a PNG when HDC_TEST_CAPTURE names a folder; does nothing
-        /// otherwise. The panel stays in that portrait layout afterwards.
-        /// </summary>
         internal static void Capture(GameObject panel, string file)
         {
             string folder = Environment.GetEnvironmentVariable(CaptureFolderVariable);

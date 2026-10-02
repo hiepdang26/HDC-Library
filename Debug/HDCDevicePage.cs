@@ -15,11 +15,6 @@ using UnityEngine.UI;
 
 namespace HDC.Ads.DebugUI
 {
-    /// <summary>
-    /// The device page: the build, the ads library's switches (debug log, test ads), how the mediation adapters
-    /// started and the partners' test modes, the device, the network with the public IP and country Remote Config
-    /// conditions see, and Adjust when the game has it.
-    /// </summary>
     public sealed class HDCDevicePage : HDCDebugPage
     {
         private const string IpLookupUrl = "https://ipwho.is/";
@@ -38,7 +33,6 @@ namespace HDC.Ads.DebugUI
         [SerializeField] private HDCKeyValueList adjustList;
         [SerializeField] private Button adjustButton;
 
-        // The partners' test modes, read from the native side once per visit and after the buttons.
         private readonly Dictionary<IMediationPartner, (bool On, string DeviceId)> partnerTestModes =
             new Dictionary<IMediationPartner, (bool, string)>();
         private bool probing;
@@ -113,10 +107,8 @@ namespace HDC.Ads.DebugUI
 
         protected override void OnEnable()
         {
-            // The native side is asked once per visit and after the buttons, not on every redraw.
             ReadPartners();
             base.OnEnable();
-            // The first visit looks up the public network and asks Adjust; later visits refresh with the buttons.
             if (!probedOnce)
             {
                 probedOnce = true;
@@ -194,8 +186,6 @@ namespace HDC.Ads.DebugUI
                 if (status != null)
                     AdapterRow("Adapter", status);
                 else
-                    // Google Mobile Ads can leave out a partner that is in the build when no mediation group of the app
-                    // uses it, as with Google's sample app ID.
                     mediationList.Row("Adapter", HDCMediationReport.Received ? "Not reported: not in this build, or no mediation group uses it" : "-",
                         HDCDebugStyle.MutedColor);
                 if (partner.HasTestMode && partnerTestModes.TryGetValue(partner, out (bool On, string DeviceId) test))
@@ -227,7 +217,6 @@ namespace HDC.Ads.DebugUI
                     : "Not ready" + (string.IsNullOrEmpty(status.Description) ? "" : " · " + status.Description),
                 status.Ready ? HDCDebugStyle.GoodColor : HDCDebugStyle.BadColor);
 
-        // The class name without its package, for the adapters with no partner here.
         private static string ShortName(string adapterClass)
         {
             int dot = adapterClass.LastIndexOf('.');
@@ -304,8 +293,6 @@ namespace HDC.Ads.DebugUI
             }
         }
 
-        // Public network, looked up at most once a minute unless asked.
-
         private void Probe(bool force)
         {
             if (probing || (!force && Time.realtimeSinceStartup - lastProbe < ProbeCooldownSeconds))
@@ -365,8 +352,6 @@ namespace HDC.Ads.DebugUI
                 probeError = exception.Message;
             }
         }
-
-        // Helpers
 
         private static string NativeLibrary
         {

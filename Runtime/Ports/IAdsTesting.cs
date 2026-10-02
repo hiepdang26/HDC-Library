@@ -1,6 +1,5 @@
 namespace HDC.Ads.Ports
 {
-    /// <summary>The SDKs' switches for testing, behind <see cref="HDCAds.Testing"/>.</summary>
     internal interface IAdsTesting
     {
         bool DebugLog { get; set; }

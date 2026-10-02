@@ -5,7 +5,6 @@ using UnityEngine;
 
 namespace HDC.Ads.Logic
 {
-    /// <summary>One ad unit of a banner or MREC slot: it follows whether its view loaded.</summary>
     internal sealed class HDCRectSource
     {
         private readonly IViewAd view;
@@ -17,7 +16,6 @@ namespace HDC.Ads.Logic
             view.Event += OnAdEvent;
         }
 
-        /// <summary>The network the view comes from.</summary>
         internal IAdNetwork Network { get; }
 
         internal string Id => view.Id;
@@ -27,7 +25,6 @@ namespace HDC.Ads.Logic
         internal Action<HDCRectSource> Failed { get; set; }
         internal Action<HDCRectSource> LoadedAd { get; set; }
 
-        /// <summary>The view's size in screen pixels, zero until it exists.</summary>
         internal Vector2 SizeInPixels => view.SizeInPixels;
 
         internal void Load() => view.Load();

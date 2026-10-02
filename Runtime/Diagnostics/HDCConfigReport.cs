@@ -4,11 +4,6 @@ using UnityEngine;
 
 namespace HDC.Ads.Diagnostics
 {
-    /// <summary>
-    /// How the ads configs were loaded, for the debug panel: Firebase, the fetch, what each source had for every
-    /// key the ads read, every value Remote Config holds, and the configs HDCAds started with. HDCRemoteConfig
-    /// reports the load and HDCAds.Initialize the configs it applied.
-    /// </summary>
     internal static class HDCConfigReport
     {
         private static readonly List<HDCConfigEntry> entries = new List<HDCConfigEntry>();
@@ -16,48 +11,37 @@ namespace HDC.Ads.Diagnostics
         private static readonly Dictionary<string, string> remoteOrigins = new Dictionary<string, string>(StringComparer.Ordinal);
         private static float startTime;
 
-        /// <summary>True once HDCRemoteConfig started a load.</summary>
         internal static bool Started { get; private set; }
 
         internal static bool Finished { get; private set; }
 
-        /// <summary>The Editor used the defaults without Firebase.</summary>
         internal static bool DefaultsOnly { get; private set; }
 
         internal static DateTime StartClock { get; private set; }
 
-        /// <summary>Seconds the load took; below zero until it finished.</summary>
         internal static float LoadSeconds { get; private set; } = -1f;
 
-        /// <summary>How the load ended: fetched, fetch failed, Firebase unavailable, timeout or defaults in the Editor.</summary>
         internal static string Outcome { get; private set; } = "";
 
-        /// <summary>Firebase's dependency check: Available, or why Firebase cannot run.</summary>
         internal static string Firebase { get; private set; } = "";
 
-        /// <summary>The last fetch's status, with the failure reason.</summary>
         internal static string FetchStatus { get; private set; } = "";
 
         internal static DateTime? FetchTime { get; private set; }
         internal static DateTime? ThrottledUntil { get; private set; }
 
-        /// <summary>Whether the fetched values replaced the active ones.</summary>
         internal static string Activation { get; private set; } = "";
 
-        /// <summary>The ad core config key the ads config picked.</summary>
         internal static string CoreKey { get; private set; } = "";
 
         internal static IReadOnlyList<HDCConfigEntry> Entries => entries;
 
-        /// <summary>Every key Remote Config holds after the load, with its value.</summary>
         internal static IEnumerable<KeyValuePair<string, string>> RemoteValues => remoteValues;
 
         internal static int RemoteValueCount => remoteValues.Count;
 
-        /// <summary>The ads config HDCAds started with; null before HDCAds.Initialize.</summary>
         internal static string AppliedAds { get; private set; }
 
-        /// <summary>The ad core config HDCAds started with; null before HDCAds.Initialize.</summary>
         internal static string AppliedCore { get; private set; }
 
         internal static DateTime AppliedClock { get; private set; }
@@ -120,7 +104,6 @@ namespace HDC.Ads.Diagnostics
             AppliedClock = DateTime.Now;
         }
 
-        /// <summary>Forgets the load, and with <paramref name="applied"/> the configs HDCAds started with.</summary>
         internal static void Reset(bool applied = true)
         {
             entries.Clear();

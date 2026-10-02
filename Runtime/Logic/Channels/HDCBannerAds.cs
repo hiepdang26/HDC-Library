@@ -4,7 +4,6 @@ using HDC.Ads.Domain;
 
 namespace HDC.Ads.Logic
 {
-    /// <summary>The banner channel behind <see cref="IBannerAds"/>.</summary>
     internal sealed partial class HDCBannerAds : IBannerAds, IAdChannel
     {
         private static readonly HDCBannerSlot[] Slots = (HDCBannerSlot[])Enum.GetValues(typeof(HDCBannerSlot));
@@ -20,7 +19,6 @@ namespace HDC.Ads.Logic
 
         private HDCAdsConfig.BannerChannel Channel => context.Config.bannerChannel ?? new HDCAdsConfig.BannerChannel();
 
-        /// <summary>Shows the slot's banner now, or as soon as it loads. False when the slot is off.</summary>
         public bool Show(HDCBannerSlot slot = HDCBannerSlot.FullBottom)
         {
             HDCRectGroup group = EnabledGroup(slot);
@@ -36,13 +34,11 @@ namespace HDC.Ads.Logic
                 group.Hide();
         }
 
-        /// <summary>Expands the shown native banner. False for plugin banners or when it cannot expand now.</summary>
         public bool Expand(HDCBannerSlot slot = HDCBannerSlot.FullBottom, bool enableClick = true) =>
             EnabledGroup(slot)?.Expand(enableClick) ?? false;
 
         public bool CanShow(HDCBannerSlot slot = HDCBannerSlot.FullBottom) => EnabledGroup(slot)?.IsLoaded ?? false;
 
-        /// <summary>Starts loading a slot that does not load on its own (autoInit off).</summary>
         public void Initialize(HDCBannerSlot slot = HDCBannerSlot.FullBottom)
         {
             if (!Channel.Slot(slot).autoInit)

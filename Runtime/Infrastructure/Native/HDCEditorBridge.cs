@@ -7,12 +7,6 @@ using UnityEngine;
 
 namespace HDC.Ads.Infrastructure
 {
-    /// <summary>
-    /// Simulates the native SDK in the Editor so game flows run without a device. Ads load after half a
-    /// second; an ad unit id containing "fail" fails instead, with no fill. A show sends Shown, Impression and
-    /// Paid; interstitials and fullscreen ads close a second later, popups after three seconds, and banners
-    /// stay until hidden. As on devices, a banner shown before its ad loads appears once it has.
-    /// </summary>
     internal sealed class HDCEditorBridge : IHDCNativeBridge
     {
         private const float LoadSeconds = 0.5f;
@@ -21,7 +15,6 @@ namespace HDC.Ads.Infrastructure
         private const string SimulatedSource = "Editor simulation";
         private const string FailingUnitMarker = "fail";
 
-        // The no fill code of the Google Mobile Ads SDK on Android.
         private const int NoFillCode = 3;
 
         private readonly Dictionary<string, SimulatedAd> ads = new Dictionary<string, SimulatedAd>();
@@ -87,7 +80,6 @@ namespace HDC.Ads.Infrastructure
                     ads.Remove(key);
                     return Result(true);
                 default:
-                    // updatePlacement and collapse change nothing in the simulation.
                     return Result(true);
             }
         }
@@ -261,7 +253,7 @@ namespace HDC.Ads.Infrastructure
             }
         }
 
-#pragma warning disable 0649 // Assigned by JsonUtility.
+#pragma warning disable 0649
         [Serializable]
         private sealed class Args
         {

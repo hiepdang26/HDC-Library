@@ -2,29 +2,24 @@ using UnityEngine;
 
 namespace HDC.Ads.Diagnostics
 {
-    /// <summary>One ad unit of a group, for the debug panel: what the configs say, and what it did so far.</summary>
     internal sealed class HDCDebugUnit
     {
         internal int Index;
 
-        /// <summary>What serves it and in which format, such as "AdMob Interstitial".</summary>
         internal string Name;
 
         internal string Format;
         internal string Id;
         internal string AdUnitId;
 
-        /// <summary>The channel made the unit's group.</summary>
         internal bool Created;
 
-        /// <summary>The group started the unit: backups start only after the units before them failed.</summary>
         internal bool Started;
 
         internal bool Ready;
         internal bool OnScreen;
         internal HDCAdRecord Record;
 
-        /// <summary>A state only the native side knows, such as a popup's.</summary>
         internal string NativeState;
 
         internal string Status(out HDCUnitTone tone)

@@ -1,6 +1,5 @@
 namespace HDC.Ads.Diagnostics
 {
-    /// <summary>Something the config check found, in Vietnamese, with what to fix.</summary>
     internal sealed class HDCConfigFinding
     {
         internal HDCConfigFinding(HDCConfigLevel level, string text)

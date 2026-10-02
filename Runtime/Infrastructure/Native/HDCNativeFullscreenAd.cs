@@ -3,7 +3,6 @@ using HDC.Ads.Ports;
 
 namespace HDC.Ads.Infrastructure
 {
-    /// <summary>A native full-screen ad; each show picks a layout from the unit's layout group.</summary>
     internal sealed class HDCNativeFullscreenAd : HDCSdkAd, IFullscreenAd
     {
         private readonly bool reloadAfterShow;
@@ -20,7 +19,6 @@ namespace HDC.Ads.Infrastructure
 
         public string AdUnitId { get; }
 
-        // Tracked from events: asking the native side every frame would cost a thread hop on Android.
         public bool IsReady => loaded;
 
         public void Load() => HDCAdsSdk.LoadFullscreen(Id, new[] { AdUnitId }, reloadAfterShow);

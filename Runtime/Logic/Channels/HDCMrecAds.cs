@@ -4,7 +4,6 @@ using UnityEngine;
 
 namespace HDC.Ads.Logic
 {
-    /// <summary>The MREC channel behind <see cref="IMrecAds"/>.</summary>
     internal sealed partial class HDCMrecAds : IMrecAds, IAdChannel
     {
         private readonly HDCAdsContext context;
@@ -21,10 +20,8 @@ namespace HDC.Ads.Logic
 
         public bool CanShow => IsEnabled && Group().IsLoaded;
 
-        /// <summary>The view's size in screen pixels, zero until it exists.</summary>
         public Vector2 SizeInPixels => group != null && group.Sources.Count > 0 ? group.Sources[0].SizeInPixels : Vector2.zero;
 
-        /// <summary>Shows the MREC now, or as soon as it loads. False when the channel is off.</summary>
         public bool Show()
         {
             if (!IsEnabled || Group().IsEmpty)
@@ -43,7 +40,6 @@ namespace HDC.Ads.Logic
                 source.Move(position);
         }
 
-        /// <summary>Centers the MREC on a point in Unity screen pixels.</summary>
         public void Move(Vector2 screenPoint)
         {
             if (!IsEnabled)
@@ -52,7 +48,6 @@ namespace HDC.Ads.Logic
                 source.Move(screenPoint);
         }
 
-        /// <summary>Centers the MREC on a scene or UI object.</summary>
         public void Move(GameObject target, Camera camera = null)
         {
             if (target == null)
@@ -61,7 +56,6 @@ namespace HDC.Ads.Logic
             Move(camera != null ? (Vector2)camera.WorldToScreenPoint(position) : RectTransformUtility.WorldToScreenPoint(null, position));
         }
 
-        /// <summary>Starts loading when the channel does not load on its own (autoInit off).</summary>
         public void Initialize()
         {
             if (IsEnabled && !Channel.autoInit)

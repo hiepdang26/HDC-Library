@@ -4,11 +4,6 @@ using HDC.Ads.Diagnostics;
 
 namespace HDC.Ads.DebugUI
 {
-    /// <summary>
-    /// Names and explains the error codes ads report: the Google Mobile Ads codes of the platform, for loads and
-    /// for shows, and -1, which HDC and the native library use for errors without an SDK code. The explanations
-    /// are in Vietnamese, for the team reading the panel.
-    /// </summary>
     internal static class HDCAdErrorGuide
     {
         internal const int NoCode = -1;
@@ -33,7 +28,6 @@ namespace HDC.Ads.DebugUI
         private const string NetworkHint = "Kiểm tra kết nối mạng của máy, VPN, hoặc DNS chặn quảng cáo.";
         private const string MediationHint = "Xem mediation group của ad unit trên AdMob, adapter và cấu hình của từng mạng (Meta, Pangle...).";
 
-        // Google Mobile Ads for Android: AdRequest.ERROR_CODE_*.
         private static readonly Dictionary<int, Entry> AndroidLoad = new Dictionary<int, Entry>
         {
             { 0, new Entry("INTERNAL_ERROR", "Lỗi nội bộ: SDK gặp sự cố hoặc server quảng cáo trả về phản hồi không hợp lệ.", RetryHint) },
@@ -46,7 +40,6 @@ namespace HDC.Ads.DebugUI
             { 11, new Entry("INVALID_AD_STRING", "Ad string không hợp lệ.", "Chỉ gặp khi load bằng ad string; báo lại nếu lặp lại.") },
         };
 
-        // Google Mobile Ads for Android: FullScreenContentCallback errors.
         private static readonly Dictionary<int, Entry> AndroidShow = new Dictionary<int, Entry>
         {
             { 0, new Entry("INTERNAL_ERROR", "Lỗi nội bộ của SDK khi hiển thị quảng cáo.", RetryHint) },
@@ -56,7 +49,6 @@ namespace HDC.Ads.DebugUI
             { 4, new Entry("MEDIATION_SHOW_ERROR", "Adapter của mạng mediation không hiển thị được quảng cáo.", "Xem thông điệp để biết mạng nào lỗi; kiểm tra adapter của mạng đó.") },
         };
 
-        // Google Mobile Ads for iOS: GADErrorCode.
         private static readonly Dictionary<int, Entry> IosLoad = new Dictionary<int, Entry>
         {
             { 0, new Entry("InvalidRequest", "Request không hợp lệ: ad unit ID sai hoặc không đúng loại quảng cáo.", UnitHint) },
@@ -76,7 +68,6 @@ namespace HDC.Ads.DebugUI
             { 20, new Entry("ApplicationIdentifierMissing", "Thiếu GADApplicationIdentifier (App ID) trong Info.plist.", "Điền iOS App ID trong Assets > Google Mobile Ads > Settings rồi export lại.") },
         };
 
-        // Google Mobile Ads for iOS: GADPresentationErrorCode.
         private static readonly Dictionary<int, Entry> IosShow = new Dictionary<int, Entry>
         {
             { 15, new Entry("AdNotReady", "Quảng cáo chưa sẵn sàng để hiển thị.", "Chờ trạng thái READY rồi mới show.") },
@@ -87,7 +78,6 @@ namespace HDC.Ads.DebugUI
             { 22, new Entry("Mediation", "Adapter của mạng mediation không hiển thị được quảng cáo.", "Xem thông điệp để biết mạng nào lỗi.") },
         };
 
-        /// <summary>"3 · NO_FILL"; for an error without an SDK code, "-1 · HDC".</summary>
         internal static string Title(HDCAdError error, bool show)
         {
             if (error == null)
@@ -98,7 +88,6 @@ namespace HDC.Ads.DebugUI
             return entry != null ? error.Code + " · " + entry.Name : error.Code + " · UNKNOWN";
         }
 
-        /// <summary>What the error means, then what to check.</summary>
         internal static string Explain(HDCAdError error, bool show)
         {
             if (error == null)
@@ -114,7 +103,6 @@ namespace HDC.Ads.DebugUI
 
         private static string Platform => IsIos ? "Google Mobile Ads iOS" : "Google Mobile Ads Android";
 
-        // The Editor runs the simulation, which uses the Android codes.
         private static bool IsIos
         {
             get
@@ -132,7 +120,6 @@ namespace HDC.Ads.DebugUI
             Dictionary<int, Entry> table = show ? (IsIos ? IosShow : AndroidShow) : (IsIos ? IosLoad : AndroidLoad);
             if (table.TryGetValue(code, out Entry entry))
                 return entry;
-            // A show can also fail with a load error code, as when the ad expired.
             Dictionary<int, Entry> other = show ? (IsIos ? IosLoad : AndroidLoad) : null;
             return other != null && other.TryGetValue(code, out entry) ? entry : null;
         }

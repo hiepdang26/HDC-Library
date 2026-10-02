@@ -4,7 +4,6 @@ using UnityEngine.UI;
 
 namespace HDC.Ads.DebugUI
 {
-    /// <summary>A full-screen view of one long text, such as the events or a config, refreshed while it stays open.</summary>
     public sealed class HDCAdsDebugViewer : MonoBehaviour
     {
         private const float CopiedSeconds = 1.5f;
@@ -34,7 +33,6 @@ namespace HDC.Ads.DebugUI
             modalRoot.SetActive(false);
         }
 
-        /// <summary>Shows <paramref name="bodyBuilder"/>'s rich text under <paramref name="title"/>, refreshed every second.</summary>
         public void Open(string title, Func<string> bodyBuilder, bool large = false)
         {
             titleText.text = string.IsNullOrEmpty(title) ? "Viewer" : title;

@@ -4,15 +4,10 @@ using UnityEngine;
 
 namespace HDC.Ads.Editor
 {
-    /// <summary>
-    /// The HDC menu of the Unity menu bar: turning HDC ads on and off, editing the default configs and adding the
-    /// setup prefab to a scene.
-    /// </summary>
     internal static class HDCAdsMenu
     {
         private const string Root = "HDC/";
 
-        // Setup/HDCAdsSetup.prefab, found by its GUID wherever HDCLib is installed.
         private const string SetupPrefabGuid = "10e1a444d69fc4f72a856e51d2def004";
 
         [MenuItem(Root + "Ads/Enable", false, 1)]

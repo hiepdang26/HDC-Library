@@ -10,8 +10,6 @@ namespace HDC.Ads.Tests
     {
         private const BindingFlags Statics = BindingFlags.NonPublic | BindingFlags.Static;
 
-        // A build must not resolve the native versions an older HDCLib wrote into the dependencies file: in batch
-        // mode it starts before the refresh that follows a script reload.
         [Test]
         public void ABuildBringsAStaleDependenciesFileUpToDate()
         {

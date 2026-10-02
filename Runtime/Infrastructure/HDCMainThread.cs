@@ -5,20 +5,16 @@ using UnityEngine;
 
 namespace HDC.Ads.Infrastructure
 {
-    /// <summary>Runs work handed over from native threads, or delayed work, on the Unity main thread.</summary>
     internal sealed class HDCMainThread : MonoBehaviour
     {
         private static readonly ConcurrentQueue<Action> Queued = new ConcurrentQueue<Action>();
         private static readonly List<KeyValuePair<float, Action>> Delayed = new List<KeyValuePair<float, Action>>();
         private static HDCMainThread instance;
 
-        /// <summary>Runs every frame after the queued work.</summary>
         internal static event Action Ticked;
 
-        /// <summary>Unity's OnApplicationPause: true when the app goes to the background.</summary>
         internal static event Action<bool> ApplicationPaused;
 
-        /// <summary>Creates the host object. Call it from the main thread.</summary>
         internal static void EnsureCreated()
         {
             if (instance != null)
@@ -30,7 +26,6 @@ namespace HDC.Ads.Infrastructure
             instance = host.AddComponent<HDCMainThread>();
         }
 
-        /// <summary>Drops the work and subscribers of the last Play Mode session; see HDCAdsRuntime.</summary>
         internal static void ResetStatics()
         {
             while (Queued.TryDequeue(out _))
@@ -40,16 +35,13 @@ namespace HDC.Ads.Infrastructure
             Delayed.Clear();
             Ticked = null;
             ApplicationPaused = null;
-            // Leaving Play Mode destroys the host; one still alive would tick twice per frame.
             if (instance != null)
                 Destroy(instance.gameObject);
             instance = null;
         }
 
-        /// <summary>Runs <paramref name="action"/> on the main thread next frame. Safe from any thread.</summary>
         internal static void Post(Action action) => Queued.Enqueue(action);
 
-        /// <summary>Runs <paramref name="action"/> after <paramref name="seconds"/> of real time. Safe from any thread.</summary>
         internal static void PostDelayed(float seconds, Action action) =>
             Post(() => Delayed.Add(new KeyValuePair<float, Action>(Time.unscaledTime + seconds, action)));
 

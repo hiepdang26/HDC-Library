@@ -4,14 +4,10 @@ using System.Text;
 
 namespace HDC.Ads.DebugUI
 {
-    /// <summary>
-    /// JSON for reading: indented, with top-level keys that fold to one line, and colored as rich text.
-    /// </summary>
     internal static class HDCJsonText
     {
         private const string Indent = "  ";
 
-        /// <summary>A top-level key whose value is an object or an array, by its lines in the indented JSON.</summary>
         internal sealed class Section
         {
             internal string Key;
@@ -21,7 +17,6 @@ namespace HDC.Ads.DebugUI
             internal bool Comma;
         }
 
-        /// <summary>Indents JSON two spaces per level. Text that is not an object or an array comes back trimmed.</summary>
         internal static string Pretty(string json)
         {
             if (string.IsNullOrWhiteSpace(json))
@@ -60,7 +55,6 @@ namespace HDC.Ads.DebugUI
                         int next = NextNonSpace(source, i + 1);
                         if (next < source.Length && (source[next] == '}' || source[next] == ']'))
                         {
-                            // An empty object or array stays on its line.
                             text.Append(c).Append(source[next]);
                             i = next;
                             break;
@@ -92,7 +86,6 @@ namespace HDC.Ads.DebugUI
             return text.ToString();
         }
 
-        /// <summary>The top-level keys of indented JSON whose values span several lines.</summary>
         internal static List<Section> Sections(string prettyJson)
         {
             var sections = new List<Section>();
@@ -132,7 +125,6 @@ namespace HDC.Ads.DebugUI
             return sections;
         }
 
-        /// <summary>Indented JSON with the <paramref name="folded"/> top-level keys on one line each.</summary>
         internal static string Fold(string prettyJson, List<Section> sections, ICollection<string> folded)
         {
             if (string.IsNullOrEmpty(prettyJson) || sections.Count == 0 || folded.Count == 0)
@@ -157,7 +149,6 @@ namespace HDC.Ads.DebugUI
             return text.ToString().TrimEnd('\n');
         }
 
-        /// <summary>Rich text of indented JSON: keys, strings, numbers and literals each in a color.</summary>
         internal static string Colored(string json)
         {
             if (string.IsNullOrEmpty(json))
@@ -218,7 +209,6 @@ namespace HDC.Ads.DebugUI
             return i;
         }
 
-        // The index of the quote closing the string that opens at start, or the last index if it never closes.
         private static int StringEnd(string text, int start)
         {
             bool escaped = false;
@@ -260,7 +250,6 @@ namespace HDC.Ads.DebugUI
             return depth;
         }
 
-        // A line like  "key": {  or  "key": [
         private static bool TryKey(string line, out string key, out char kind)
         {
             key = string.Empty;

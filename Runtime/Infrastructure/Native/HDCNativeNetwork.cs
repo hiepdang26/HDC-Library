@@ -5,17 +5,12 @@ using HDC.Ads.Ports;
 
 namespace HDC.Ads.Infrastructure
 {
-    /// <summary>
-    /// The native library, serving the "androidUnit" units on Android and iOS alike: native full-screen ads, or
-    /// interstitials, for force ads, rewarded and resume ads, the bottom banner and popups.
-    /// </summary>
     internal sealed class HDCNativeNetwork : IAdNetwork
     {
         public string UnitKey => HDCAdUnitKeys.Native;
 
         public string Name => "Native";
 
-        // The native library loads its ads through Google Mobile Ads too.
         public string RevenueNetwork => HDCAdRevenue.AdMob;
 
         public HDCAdPlan Plan(HDCAdUse use, HDCAdUnitSpec spec)
@@ -24,7 +19,6 @@ namespace HDC.Ads.Infrastructure
                 return null;
             if (use == HDCAdUse.Banner)
             {
-                // Only the bottom slot has the native banner, which loads from all of the unit's ids.
                 bool hasUnit = !string.IsNullOrEmpty(unit.id) || (unit.ids != null && unit.ids.Length > 0);
                 return spec.BannerSlot == HDCBannerSlot.FullBottom && hasUnit
                     ? new HDCAdPlan(this, use, HDCAdNames.NativeBanner, HDCAdFormat.Banner, string.Join(", ", BannerUnitIds(unit)), spec)
@@ -77,7 +71,6 @@ namespace HDC.Ads.Infrastructure
         private static bool SwitchesToInterstitial(HDCAdCoreConfig.NativeUnit unit) =>
             unit.androidInterstitials != null && unit.androidInterstitials.switchToInterstitialAndroid;
 
-        // The banner's ids: id first, then ids, trimmed and without repeats.
         private static string[] BannerUnitIds(HDCAdCoreConfig.NativeUnit unit)
         {
             var ids = new List<string>();

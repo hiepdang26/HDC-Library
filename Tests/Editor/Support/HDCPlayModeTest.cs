@@ -6,10 +6,6 @@ using UnityEngine;
 
 namespace HDC.Ads.Tests
 {
-    /// <summary>
-    /// Base for tests that enter Play Mode. Domain and scene reloads are off while they run: the library must
-    /// work without them (the default of new Unity 6.6 projects), and Play Mode starts faster.
-    /// </summary>
     public abstract class HDCPlayModeTest
     {
         private bool savedOptionsEnabled;

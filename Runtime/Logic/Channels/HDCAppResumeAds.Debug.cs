@@ -14,7 +14,6 @@ namespace HDC.Ads.Logic
 
         IConfigRule IAdChannel.ConfigRule => Rules;
 
-        // The debug panel's view of the channel: one native full-screen ad.
         private sealed class DebugModule : HDCChannelDiagnostics
         {
             private readonly HDCAppResumeAds channel;

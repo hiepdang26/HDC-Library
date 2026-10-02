@@ -6,11 +6,6 @@ using UnityEngine;
 
 namespace HDC.Ads.DebugUI
 {
-    /// <summary>
-    /// Reads the Adjust SDK's state when the game has the SDK: version, whether it is on, the device's Adjust id
-    /// and the attribution. HDC Ads does not use Adjust, so it reads the SDK through reflection; the Unity SDK 5
-    /// answers through callbacks, the older SDK 4 at once.
-    /// </summary>
     internal static class HDCAdjustProbe
     {
         private static readonly string[] TypeNames = { "AdjustSdk.Adjust", "com.adjust.sdk.Adjust" };
@@ -20,7 +15,6 @@ namespace HDC.Ads.DebugUI
         };
 
         private static readonly Dictionary<string, string> values = new Dictionary<string, string>();
-        // The SDK holds the questions until the game initializes it, so no answer for a while means it is not.
         private const float AnswerSeconds = 3f;
 
         private static Type adjust;
@@ -29,7 +23,6 @@ namespace HDC.Ads.DebugUI
         private static bool answered;
         private static float askedAt;
 
-        /// <summary>What the last <see cref="Ask"/> found, or why it found nothing.</summary>
         internal static string State =>
             state == "OK" && !answered && Time.realtimeSinceStartup - askedAt > AnswerSeconds
                 ? "Không có phản hồi: game chưa khởi tạo Adjust (Adjust.InitSdk)"
@@ -39,7 +32,6 @@ namespace HDC.Ads.DebugUI
 
         internal static IEnumerable<KeyValuePair<string, string>> Values => values;
 
-        /// <summary>Asks the SDK again; the answers arrive in <see cref="Values"/>.</summary>
         internal static void Ask()
         {
             if (!searched)
@@ -153,7 +145,6 @@ namespace HDC.Ads.DebugUI
             }
         }
 
-        // The attribution's fields, as properties in SDK 5 and in lower camel case in SDK 4.
         private static void OnAttribution(object attribution)
         {
             if (attribution == null)
@@ -180,7 +171,6 @@ namespace HDC.Ads.DebugUI
             values[label] = string.IsNullOrEmpty(value) ? "-" : value;
         }
 
-        /// <summary>The answers in a fixed order: the SDK first, then the attribution fields.</summary>
         internal static IEnumerable<KeyValuePair<string, string>> Ordered()
         {
             string[] order = new[] { "SDK Version", "Enabled", "Adjust ID (adid)", "Attribution" }.Concat(AttributionFields).ToArray();

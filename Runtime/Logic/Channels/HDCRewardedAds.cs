@@ -3,7 +3,6 @@ using HDC.Ads.Domain;
 
 namespace HDC.Ads.Logic
 {
-    /// <summary>The rewarded channel behind <see cref="IRewardedAds"/>.</summary>
     internal sealed partial class HDCRewardedAds : IRewardedAds, IAdChannel
     {
         private readonly HDCAdsContext context;
@@ -13,7 +12,6 @@ namespace HDC.Ads.Logic
             this.context = context;
         }
 
-        /// <summary>While true, shows skip the ad and grant the reward at once.</summary>
         public bool IgnoreAds { get; set; }
 
         public bool CanShow => IsEnabled && context.Groups.RewardedGroup().IsReady;
@@ -24,10 +22,6 @@ namespace HDC.Ads.Logic
 
         private bool AutoInit => context.Config.rewardedChannel?.autoInit ?? false;
 
-        /// <summary>
-        /// Shows a rewarded ad. Once it closes, <paramref name="onRewarded"/> runs if the player earned the
-        /// reward, then <paramref name="onClosed"/>. False, with neither callback, when no ad shows.
-        /// </summary>
         public bool Show(string position, Action onRewarded, Action onClosed = null)
         {
             if (!IsEnabled)
@@ -56,7 +50,6 @@ namespace HDC.Ads.Logic
                 });
         }
 
-        /// <summary>Starts loading when the channel does not load on its own (autoInit off).</summary>
         public void Initialize()
         {
             if (IsEnabled && !AutoInit)
@@ -75,7 +68,6 @@ namespace HDC.Ads.Logic
 
         void IAdChannel.InitializeAll() => Initialize();
 
-        // Ad removal leaves rewarded ads on: the player chooses to watch them.
         void IAdChannel.OnAdsRemoved()
         {
         }

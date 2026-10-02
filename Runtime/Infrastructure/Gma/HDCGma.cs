@@ -9,7 +9,6 @@ using UnityEngine;
 
 namespace HDC.Ads.Infrastructure
 {
-    /// <summary>Shared setup and event helpers for the formats served through the Google Mobile Ads Unity plugin.</summary>
     internal static class HDCGma
     {
         private static bool initializeCalled;
@@ -20,12 +19,10 @@ namespace HDC.Ads.Infrastructure
                 return;
             initializeCalled = true;
 
-            // Pauses Unity while a full-screen ad covers it on iOS, like the native formats do.
             MobileAds.SetiOSAppPauseOnBackground(true);
             MobileAds.Initialize(status => HDCMainThread.Post(() => HDCMediationReport.AdaptersStarted(Adapters(status))));
         }
 
-        // How each mediation adapter started; the Editor's plugin reports none.
         private static IEnumerable<HDCAdapterStatus> Adapters(InitializationStatus status)
         {
             Dictionary<string, AdapterStatus> map = status?.getAdapterStatusMap();
@@ -38,10 +35,8 @@ namespace HDC.Ads.Infrastructure
             }
         }
 
-        /// <summary>Lets the next Play Mode session initialize the plugin again; see HDCAdsRuntime.</summary>
         internal static void ResetStatics() => initializeCalled = false;
 
-        /// <summary>Adds this device's ids to the SDK's test devices, so every format serves test ads here.</summary>
         internal static void EnableTestDevice()
         {
             RequestConfiguration configuration = MobileAds.GetRequestConfiguration() ?? new RequestConfiguration();
@@ -52,8 +47,6 @@ namespace HDC.Ads.Infrastructure
             MobileAds.SetRequestConfiguration(configuration);
         }
 
-        // Android hashes ANDROID_ID; iOS hashes the advertising id or, without one, the vendor id that Unity
-        // reports as deviceUniqueIdentifier. Both cases are added because the platforms print them differently.
         private static IEnumerable<string> DeviceIds()
         {
 #if UNITY_ANDROID && !UNITY_EDITOR
@@ -115,7 +108,6 @@ namespace HDC.Ads.Infrastructure
             }
             catch (Exception exception)
             {
-                // Mediated responses are read over JNI or from native objects; a missing field must not drop the event.
                 Debug.LogWarning("[HDCAds] cannot read the ad response: " + exception.Message);
             }
 

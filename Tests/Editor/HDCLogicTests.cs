@@ -7,10 +7,6 @@ using NUnit.Framework;
 
 namespace HDC.Ads.Tests
 {
-    /// <summary>
-    /// The channels' rules on fake ports: a clock, a store and an SDK the test drives, and fake networks in place
-    /// of the plugin and the native library. No Play Mode, no Unity time, no native code.
-    /// </summary>
     public class HDCLogicTests
     {
         private const string ForceAdAds = @"{ ""selectedAdCoreName"": ""core"",
@@ -56,21 +52,18 @@ namespace HDC.Ads.Tests
             HDCFakeAd ad = ads.Native.Ad(HDCAdUse.ForceAd);
             ad.Loaded();
 
-            // The first ad of a session waits for the launch capping, which is longer than the position's.
             ads.Clock.Advance(59f);
             Assert.IsFalse(ads.Channels.ForceAd.CanShow("pos"));
             ads.Clock.Advance(1f);
             Assert.IsTrue(ads.Channels.ForceAd.CanShow("pos"));
             ShowAndClose(ads, ad);
 
-            // One impression takes 10 s off the 30 s capping.
             ads.Clock.Advance(19f);
             Assert.IsFalse(ads.Channels.ForceAd.CanShow("pos"));
             ads.Clock.Advance(1f);
             Assert.IsTrue(ads.Channels.ForceAd.CanShow("pos"));
             ShowAndClose(ads, ad);
 
-            // Two would take 20 s off, but the capping stops at the minimum of 15 s.
             ads.Clock.Advance(14f);
             Assert.IsFalse(ads.Channels.ForceAd.CanShow("pos"));
             ads.Clock.Advance(1f);
@@ -88,7 +81,6 @@ namespace HDC.Ads.Tests
             HDCFakeAd native = ads.Native.Ad(HDCAdUse.ForceAd);
             HDCFakeAd admob = ads.AdMob.Ad(HDCAdUse.ForceAd);
 
-            // Priority 1 puts the native unit first; the AdMob backup waits.
             Assert.AreEqual(1, native.Loads);
             Assert.AreEqual(0, admob.Loads);
             native.FailedToLoad();

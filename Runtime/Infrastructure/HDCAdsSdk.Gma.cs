@@ -5,50 +5,26 @@ using UnityEngine;
 
 namespace HDC.Ads.Infrastructure
 {
-    // Formats served through the Google Mobile Ads Unity plugin: rewarded, app open, banner and MREC views.
     internal static partial class HDCAdsSdk
     {
         private static readonly Dictionary<string, HDCGmaFullscreenAd> rewardedAds = new Dictionary<string, HDCGmaFullscreenAd>();
         private static readonly Dictionary<string, HDCGmaFullscreenAd> appOpenAds = new Dictionary<string, HDCGmaFullscreenAd>();
         private static readonly Dictionary<string, HDCGmaBannerView> bannerViews = new Dictionary<string, HDCGmaBannerView>();
 
-        /// <summary>
-        /// Serves Google test ads to this device, in every format including the native ones. Call it before
-        /// ads load: ads loaded earlier are live ads.
-        /// </summary>
         public static void EnableTestDevice()
         {
             HDCGma.EnableTestDevice();
             IsTestDevice = true;
         }
 
-        /// <summary>True once <see cref="EnableTestDevice"/> made this device a Google test device.</summary>
         public static bool IsTestDevice { get; private set; }
 
-        /// <summary>
-        /// Loads every format from Google's sample ad units in place of the given ones, so all of them serve test
-        /// ads. Unlike <see cref="EnableTestDevice"/>, which keeps the real ad units, this checks the ad flows
-        /// without them. Set it before ads load: ads already loaded keep their ad units. Off for release.
-        /// </summary>
         public static bool UseTestAdUnits { get; set; }
 
-        // Rewarded
-
-        /// <summary>
-        /// Loads rewarded ads for <paramref name="id"/> from one ad unit. By default one ad is kept, loaded
-        /// again after each show, and failed loads are retried after 2, 4, 8, … up to 64 seconds. With
-        /// <paramref name="preload"/>, the plugin's preloader keeps <paramref name="bufferSize"/> ads ready
-        /// (1 to 5; 0 means 2).
-        /// </summary>
         public static bool LoadRewarded(string id, string adUnitId, bool preload = false, int bufferSize = 0) =>
             LoadPluginAd(rewardedAds, "LoadRewarded", id, HDCTestAdUnits.Pick(HDCAdFormat.Rewarded, adUnitId), preload, bufferSize,
                 () => new HDCGmaRewardedAd(id, adUnitId, preload, bufferSize));
 
-        /// <summary>
-        /// Shows a ready rewarded ad. <paramref name="onClosed"/> runs once it closes or fails to show, with
-        /// whether the player earned the reward. False when no ad is ready; a
-        /// <see cref="HDCAdEventType.ShowFailed"/> event is also sent then, and a load starts.
-        /// </summary>
         public static bool ShowRewarded(string id, Action<bool> onClosed = null) =>
             ShowPluginAd(rewardedAds, HDCAdFormat.Rewarded, id, onClosed);
 
@@ -56,17 +32,10 @@ namespace HDC.Ads.Infrastructure
 
         public static void DestroyRewarded(string id) => DestroyPluginAd(rewardedAds, id);
 
-        // App open
-
-        /// <summary>Loads app open ads for <paramref name="id"/>; the options work as in <see cref="LoadRewarded"/>.</summary>
         public static bool LoadAppOpen(string id, string adUnitId, bool preload = false, int bufferSize = 0) =>
             LoadPluginAd(appOpenAds, "LoadAppOpen", id, HDCTestAdUnits.Pick(HDCAdFormat.AppOpen, adUnitId), preload, bufferSize,
                 () => new HDCGmaAppOpenAd(id, adUnitId, preload, bufferSize));
 
-        /// <summary>
-        /// Shows a ready app open ad; <paramref name="onClosed"/> runs once it closes or fails to show. Ads
-        /// older than four hours count as not ready.
-        /// </summary>
         public static bool ShowAppOpen(string id, Action onClosed = null) =>
             ShowPluginAd(appOpenAds, HDCAdFormat.AppOpen, id, onClosed == null ? (Action<bool>)null : _ => onClosed());
 
@@ -74,13 +43,6 @@ namespace HDC.Ads.Infrastructure
 
         public static void DestroyAppOpen(string id) => DestroyPluginAd(appOpenAds, id);
 
-        // Banner and MREC views
-
-        /// <summary>
-        /// Loads a banner or MREC view for <paramref name="id"/> from one ad unit. The view stays hidden until
-        /// <see cref="ShowBannerView"/> and refreshes on the ad unit's schedule once loaded. Loading again with
-        /// another ad unit or placement replaces the view.
-        /// </summary>
         public static bool LoadBannerView(string id, string adUnitId, HDCBannerViewPlacement placement)
         {
             adUnitId = HDCTestAdUnits.PickBanner(placement, adUnitId);
@@ -99,21 +61,17 @@ namespace HDC.Ads.Infrastructure
             return true;
         }
 
-        /// <summary>Shows the view now, or as soon as its first ad loads.</summary>
         public static void ShowBannerView(string id) => WithBannerView(id, view => view.Show());
 
         public static void HideBannerView(string id) => WithBannerView(id, view => view.Hide());
 
-        /// <summary>The view's size in screen pixels; zero until it has been created.</summary>
         public static Vector2 GetBannerViewSizeInPixels(string id) =>
             bannerViews.TryGetValue(id ?? string.Empty, out HDCGmaBannerView view) ? view.SizeInPixels : Vector2.zero;
 
-        /// <summary>True once the view has loaded an ad; it keeps an ad from then on.</summary>
         public static bool IsBannerViewLoaded(string id) => bannerViews.TryGetValue(id ?? string.Empty, out HDCGmaBannerView view) && view.IsLoaded;
 
         public static void MoveBannerView(string id, HDCAdPosition position) => WithBannerView(id, view => view.Move(position));
 
-        /// <summary>Centers the view on a point in Unity screen pixels, such as a UI element's screen position.</summary>
         public static void MoveBannerView(string id, Vector2 screenPoint) => WithBannerView(id, view => view.Move(screenPoint));
 
         public static void DestroyBannerView(string id)
@@ -130,7 +88,6 @@ namespace HDC.Ads.Infrastructure
             if (!CheckPluginArgs(method, id, adUnitId))
                 return false;
 
-            // Same settings: load again, which does nothing while an ad is ready or loading. New settings: start over.
             if (ads.TryGetValue(id, out HDCGmaFullscreenAd ad) && (ad.AdUnitId != adUnitId || ad.Preload != preload
                 || ad.BufferSize != HDCGmaFullscreenAd.PreloadBufferSize(bufferSize)))
             {

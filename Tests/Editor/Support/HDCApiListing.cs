@@ -8,10 +8,6 @@ using System.Text;
 
 namespace HDC.Ads.Tests
 {
-    /// <summary>
-    /// Writes what other assemblies can use of an assembly, one line per type and per member, sorted, so two
-    /// listings compare line by line. Members sit under their type, indented by two spaces.
-    /// </summary>
     internal static class HDCApiListing
     {
         internal const string Indent = "  ";
@@ -140,7 +136,6 @@ namespace HDC.Ads.Tests
         private static string Modifiers(MethodInfo method)
         {
             string modifiers = Static(method);
-            // Every interface member is abstract; saying so on each line adds nothing.
             if (method.DeclaringType != null && method.DeclaringType.IsInterface)
                 return modifiers;
             if (method.IsAbstract)

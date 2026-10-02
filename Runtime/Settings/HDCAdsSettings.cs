@@ -4,16 +4,10 @@ using UnityEngine;
 
 namespace HDC.Ads
 {
-    /// <summary>
-    /// The project's default ads configs: the JSON values used until Firebase Remote Config has its own.
-    /// One asset in a Resources folder, edited from HDC > Edit configs. iOS uses the Android values while its
-    /// own are empty. This assembly always compiles, so the configs stay editable while HDC ads are off.
-    /// </summary>
     public sealed class HDCAdsSettings : ScriptableObject
     {
         public const string ResourceName = "HDCAdsSettings";
 
-        /// <summary>Remote Config keys of the ad core config; ads_config picks one through selectedAdCoreName.</summary>
         public static readonly string[] CoreConfigKeys = { "adcore_main_android", "adcore_main_ios" };
 
         [SerializeField, TextArea(5, 30)] private string adsConfigAndroid = "{}";
@@ -21,13 +15,10 @@ namespace HDC.Ads
         [SerializeField, TextArea(5, 30)] private string coreConfigAndroid = "{}";
         [SerializeField, TextArea(5, 30)] private string coreConfigIos = "";
 
-        /// <summary>This platform's default ads_config.</summary>
         public string AdsConfig => ForPlatform(adsConfigAndroid, adsConfigIos);
 
-        /// <summary>This platform's default ad core config.</summary>
         public string CoreConfig => ForPlatform(coreConfigAndroid, coreConfigIos);
 
-        /// <summary>The project's settings, or empty ones, with a warning, when the project has none.</summary>
         public static HDCAdsSettings Load()
         {
             var settings = Resources.Load<HDCAdsSettings>(ResourceName);
@@ -38,10 +29,6 @@ namespace HDC.Ads
             return CreateInstance<HDCAdsSettings>();
         }
 
-        /// <summary>
-        /// The default ad core config under every key the ads config may pick: the standard keys, and the one the
-        /// default ads config names.
-        /// </summary>
         public Dictionary<string, string> CoreConfigsByKey()
         {
             var configs = new Dictionary<string, string>();
@@ -75,7 +62,7 @@ namespace HDC.Ads
             }
         }
 
-#pragma warning disable 0649 // Assigned by JsonUtility.
+#pragma warning disable 0649
         [Serializable]
         private sealed class AdsConfigHeader
         {

@@ -3,7 +3,6 @@ using UnityEngine;
 
 namespace HDC.Ads.Infrastructure
 {
-    /// <summary>Unity's <see cref="Time"/>.</summary>
     internal sealed class HDCUnityClock : IClock
     {
         public float RealTime => Time.realtimeSinceStartup;

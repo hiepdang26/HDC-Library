@@ -4,10 +4,6 @@ using HDC.Ads.Domain;
 
 namespace HDC.Ads.Infrastructure
 {
-    /// <summary>
-    /// Picks the layout of each native full-screen show: layouts come out of a shuffled bag, so every layout
-    /// of the group shows once before any repeats.
-    /// </summary>
     internal sealed class HDCLayoutPicker
     {
         private readonly HDCAdCoreConfig.LayoutGroup group;

@@ -16,8 +16,6 @@ namespace HDC.Ads.Logic
 
         IConfigRule IAdChannel.ConfigRule => Rules;
 
-        // The debug panel's view of the channel: its groups, and the positions of each. Popups show over the
-        // panel's popup area. It reads the popups without making them.
         private sealed class DebugModule : HDCChannelDiagnostics
         {
             private readonly HDCPopupAds channel;
@@ -132,7 +130,6 @@ namespace HDC.Ads.Logic
 
             public override bool Owns(string instanceId) => instanceId.StartsWith(HDCAdNames.PopupPrefix, StringComparison.Ordinal);
 
-            // Places the position's popup over the panel's popup area.
             private void Place(HDCDebugSelection selection)
             {
                 if (selection.Area == null || selection.Position.Length == 0)

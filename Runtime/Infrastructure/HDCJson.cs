@@ -3,7 +3,6 @@ using UnityEngine;
 
 namespace HDC.Ads.Infrastructure
 {
-    /// <summary>Builds command arguments: an id, ad unit ids and the fields of a serializable object.</summary>
     internal static class HDCJson
     {
         internal static string Args(string id, object fields = null, string[] adUnitIds = null)

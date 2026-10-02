@@ -3,14 +3,9 @@ using UnityEngine;
 
 namespace HDC.Ads.Domain
 {
-    /// <summary>
-    /// How each ad channel behaves: the "ads_config" Remote Config value. Field names are the JSON keys;
-    /// missing keys keep the defaults below.
-    /// </summary>
     [Serializable]
     internal sealed class HDCAdsConfig
     {
-        /// <summary>Remote Config key that holds the <see cref="HDCAdCoreConfig"/>.</summary>
         public string selectedAdCoreName = "";
 
         public AppLaunchChannel appLaunchChannel = new AppLaunchChannel();
@@ -36,21 +31,17 @@ namespace HDC.Ads.Domain
             }
         }
 
-        /// <summary>The ad shown while the app starts: a force ad group or app open, see <see cref="HDCAdCoreConfig.comebackChannel"/>.</summary>
         [Serializable]
         public sealed class AppLaunchChannel
         {
             public bool isEnabled;
             public bool autoInit = true;
 
-            /// <summary>Seconds the launch waits at least before an ad can show; 0 means 5.</summary>
             public int minWaitSeconds;
 
-            /// <summary>Seconds after which the launch goes on without an ad; 0 or less than the minimum wait means minimum + 5.</summary>
             public int timeoutSeconds;
         }
 
-        /// <summary>A native full-screen ad loaded when the app goes to the background and shown on return.</summary>
         [Serializable]
         public sealed class AppResumeChannel
         {
@@ -58,10 +49,8 @@ namespace HDC.Ads.Domain
             public bool autoInit = true;
             public string adUnitId = "";
 
-            /// <summary>Layout group, from <see cref="HDCAdCoreConfig.forceAdLayoutConfig"/>, the ad shows with.</summary>
             public string layoutGroup = "";
 
-            /// <summary>The resume ad's unit for a network, by the network's key: a native full-screen unit.</summary>
             internal object UnitFor(string networkKey) =>
                 networkKey == HDCAdUnitKeys.Native ? new HDCAdCoreConfig.NativeUnit { id = adUnitId, layoutGroupName = layoutGroup } : null;
         }
@@ -71,13 +60,10 @@ namespace HDC.Ads.Domain
         {
             public bool isEnabled;
 
-            /// <summary>Minimum seconds before the first force ad of a session.</summary>
             public float launchCappingTime;
 
-            /// <summary>Lowest capping once impressions have reduced it; positions can override it.</summary>
             public float minimumCappingTime;
 
-            /// <summary>Seconds of capping removed per impression at a position; positions can override it.</summary>
             public float cappingDecreasePerImpression;
 
             public ForceAdPosition[] positionConfigs = new ForceAdPosition[0];
@@ -91,24 +77,19 @@ namespace HDC.Ads.Domain
             public bool canShow = true;
             public bool autoInit;
 
-            /// <summary>Seconds since the last full-screen ad before one can show here.</summary>
             public float cappingTime = 10;
 
-            /// <summary>Overrides the channel's value when not 0.</summary>
             public float minimumCappingTime;
 
-            /// <summary>Overrides the channel's value when not 0.</summary>
             public float cappingDecreasePerImpression;
         }
 
-        /// <summary>A force ad shown on a timer at one position while the break ad runs.</summary>
         [Serializable]
         public sealed class BreakAd
         {
             public bool isEnabled;
             public string positionName = "";
 
-            /// <summary>Seconds before the ad at which the notice event fires; 0 sends none.</summary>
             public int notificationLeadTimeSeconds;
         }
 
@@ -150,7 +131,6 @@ namespace HDC.Ads.Domain
             public bool isEnabled;
             public bool autoInit = true;
 
-            /// <summary>Shows the banner as soon as its first ad loads.</summary>
             public bool autoShowOnLoad;
         }
 

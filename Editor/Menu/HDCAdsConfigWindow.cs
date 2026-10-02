@@ -3,10 +3,6 @@ using UnityEngine;
 
 namespace HDC.Ads.Editor
 {
-    /// <summary>
-    /// Edits the default ads configs kept in HDCAdsSettings: ads_config and the ad core config, for Android and
-    /// iOS. A page saves only JSON that parses; unsaved pages are marked with an asterisk.
-    /// </summary>
     internal sealed class HDCAdsConfigWindow : EditorWindow
     {
         internal const int AdsAndroidPage = 0;
@@ -26,7 +22,6 @@ namespace HDC.Ads.Editor
         };
 
         [SerializeField] private int page;
-        // Edits not saved yet, per page; null when the page shows the saved text.
         private readonly string[] drafts = new string[Pages.Length];
         private Vector2 scroll;
         private SerializedObject settings;
@@ -101,7 +96,6 @@ namespace HDC.Ads.Editor
 
         private string Saved(Page page) => settings.FindProperty(page.Property).stringValue;
 
-        // Text being edited keeps its own copy until it loses focus.
         private void Replace(string draft)
         {
             GUI.FocusControl(null);

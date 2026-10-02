@@ -5,10 +5,6 @@ using UnityEngine;
 
 namespace HDC.Ads.Diagnostics
 {
-    /// <summary>
-    /// Keeps what every ad instance did: load requests, results with their error codes, shows, retries and
-    /// revenue, and the latest events. HDCAdsSdk reports every command and event to it; the debug panel reads it.
-    /// </summary>
     internal static class HDCAdsTracker
     {
         internal const int EventCapacity = 300;
@@ -16,10 +12,8 @@ namespace HDC.Ads.Diagnostics
         private static readonly Dictionary<string, HDCAdRecord> records = new Dictionary<string, HDCAdRecord>();
         private static readonly List<HDCTrackedEvent> events = new List<HDCTrackedEvent>(EventCapacity);
 
-        /// <summary>The latest events, oldest first.</summary>
         internal static IReadOnlyList<HDCTrackedEvent> Events => events;
 
-        /// <summary>Events seen since the start or the last <see cref="ClearEvents"/>, including the ones no longer kept.</summary>
         internal static long TotalEvents { get; private set; }
 
         internal static IEnumerable<HDCAdRecord> Records => records.Values;
@@ -121,13 +115,11 @@ namespace HDC.Ads.Diagnostics
                     record.Currency = adEvent.currency;
                     break;
                 case HDCAdEventType.Closed:
-                    // A hidden banner keeps its ad; a closed full-screen ad or popup is used up.
                     record.State = IsView(record.Format) ? HDCAdState.Loaded : HDCAdState.Closed;
                     break;
             }
         }
 
-        /// <summary>Forgets the events; the ad instances keep their state and counts.</summary>
         internal static void ClearEvents()
         {
             events.Clear();
@@ -143,7 +135,6 @@ namespace HDC.Ads.Diagnostics
         private static bool IsView(string format) =>
             format == HDCAdFormat.Banner || format == HDCAdFormat.BannerView || format == HDCAdFormat.Mrec;
 
-        // The time from the load request to its result. Loads the native side starts on its own have no request.
         private static void TakeLoadTime(HDCAdRecord record)
         {
             if (!record.AwaitingResult)

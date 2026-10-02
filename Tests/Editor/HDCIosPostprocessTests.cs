@@ -10,7 +10,6 @@ namespace HDC.Ads.Tests
     {
         private const string FrameRateKey = "CADisableMinimumFrameDurationOnPhone";
 
-        // What Unity exports with ProMotion off, cut down to the keys the test reads.
         private const string ExportedPlist = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <!DOCTYPE plist PUBLIC ""-//Apple//DTD PLIST 1.0//EN"" ""http://www.apple.com/DTDs/PropertyList-1.0.dtd"">
 <plist version=""1.0"">
@@ -60,7 +59,6 @@ namespace HDC.Ads.Tests
             StringAssert.IsMatch($@"<key>{FrameRateKey}</key>\s*<true\s*/>", File.ReadAllText(plist));
         }
 
-        // The postprocess is internal to HDC.Ads.Editor and compiles only while iOS is the build target.
         private static void AllowHighFrameRates(string buildPath)
         {
             Type type = Type.GetType("HDC.Ads.Editor.HDCAdsIosPostprocess, HDC.Ads.Editor");

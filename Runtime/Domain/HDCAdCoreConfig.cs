@@ -3,11 +3,6 @@ using UnityEngine;
 
 namespace HDC.Ads.Domain
 {
-    /// <summary>
-    /// Which ad units serve each channel: the Remote Config value named by
-    /// <see cref="HDCAdsConfig.selectedAdCoreName"/>. Field names are the JSON keys. "admobUnit" units are
-    /// served by the Google Mobile Ads plugin, "androidUnit" units by the native library on both platforms.
-    /// </summary>
     [Serializable]
     internal sealed class HDCAdCoreConfig
     {
@@ -59,7 +54,6 @@ namespace HDC.Ads.Domain
         private static bool Contains(string[] values, string value) =>
             !string.IsNullOrEmpty(value) && values != null && Array.IndexOf(values, value) >= 0;
 
-        /// <summary>Which ad the launch and resume comeback slots use; ad types are 0 = force ad group, 1 = app open.</summary>
         [Serializable]
         public sealed class Comeback
         {
@@ -69,7 +63,6 @@ namespace HDC.Ads.Domain
             public string resumeForceAdGroupName = "";
         }
 
-        /// <summary>Which native ad assets show.</summary>
         [Serializable]
         public sealed class AssetConfig
         {
@@ -94,7 +87,6 @@ namespace HDC.Ads.Domain
             public LayoutGroup[] layoutGroups = new LayoutGroup[0];
         }
 
-        /// <summary>Layouts a native full-screen ad shows with, one picked at random per show.</summary>
         [Serializable]
         public sealed class LayoutGroup
         {
@@ -108,10 +100,8 @@ namespace HDC.Ads.Domain
             public string layout = "";
             public string assetConfigName = "";
 
-            /// <summary>Countdown seconds before the ad can be closed.</summary>
             public float layoutTime = 5;
 
-            /// <summary>Extra seconds after the countdown before the ad can be closed.</summary>
             public float delay;
 
             public int timeUpC;
@@ -120,34 +110,27 @@ namespace HDC.Ads.Domain
             public bool disableAdComeback;
         }
 
-        /// <summary>A force ad group serving positions, with its ad units in priority order.</summary>
         [Serializable]
         public sealed class ForceAdGroup
         {
-            /// <summary>0 = Google Mobile Ads unit first, 1 = native unit first.</summary>
             public int mediationPriority;
 
-            /// <summary>Falls back to the other unit when the first one fails.</summary>
             public bool useBackup;
 
             public string groupName = "";
             public string[] positionNames = new string[0];
 
-            /// <summary>Shows per session before the group stops; 0 is unlimited.</summary>
             public int maxShowCount;
 
-            /// <summary>Loads once: no reload after a show or a failed load.</summary>
             public bool disablePostInitReload;
 
             public AdmobUnit admobUnit = new AdmobUnit();
             public NativeUnit androidUnit = new NativeUnit();
 
-            /// <summary>This slot's unit for a network, by the network's key; null when it has none.</summary>
             internal object UnitFor(string networkKey) =>
                 networkKey == HDCAdUnitKeys.AdMob ? admobUnit : networkKey == HDCAdUnitKeys.Native ? (object)androidUnit : null;
         }
 
-        /// <summary>Rewarded, app open or MREC ad units in priority order, as in <see cref="ForceAdGroup"/>.</summary>
         [Serializable]
         public sealed class FullscreenUnit
         {
@@ -156,7 +139,6 @@ namespace HDC.Ads.Domain
             public AdmobUnit admobUnit = new AdmobUnit();
             public NativeUnit androidUnit = new NativeUnit();
 
-            /// <summary>This slot's unit for a network, by the network's key; null when it has none.</summary>
             internal object UnitFor(string networkKey) =>
                 networkKey == HDCAdUnitKeys.AdMob ? admobUnit : networkKey == HDCAdUnitKeys.Native ? (object)androidUnit : null;
         }
@@ -193,11 +175,9 @@ namespace HDC.Ads.Domain
             public bool disablePostInitReload;
             public NativeUnit androidUnit = new NativeUnit();
 
-            /// <summary>This group's unit for a network, by the network's key; popups are native only.</summary>
             internal object UnitFor(string networkKey) => networkKey == HDCAdUnitKeys.Native ? androidUnit : null;
         }
 
-        /// <summary>A Google Mobile Ads plugin unit. Preloading applies to full-screen formats.</summary>
         [Serializable]
         public sealed class AdmobUnit
         {
@@ -206,11 +186,6 @@ namespace HDC.Ads.Domain
             public int adBufferSize;
         }
 
-        /// <summary>
-        /// A native library unit. Full-screen units use <see cref="layoutGroupName"/>; the banner uses
-        /// <see cref="ids"/>, <see cref="layouts"/> and <see cref="reloadTime"/>; popups use
-        /// <see cref="layout"/>, <see cref="timeShow"/> and <see cref="reloadTime"/>.
-        /// </summary>
         [Serializable]
         public sealed class NativeUnit
         {
@@ -224,7 +199,6 @@ namespace HDC.Ads.Domain
             public int timeShow;
         }
 
-        /// <summary>Serves a force ad group's native unit as an interstitial instead of a native ad.</summary>
         [Serializable]
         public sealed class Interstitials
         {

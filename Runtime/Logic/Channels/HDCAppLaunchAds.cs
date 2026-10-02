@@ -4,10 +4,8 @@ using UnityEngine;
 
 namespace HDC.Ads.Logic
 {
-    /// <summary>The app launch channel behind <see cref="IAppLaunchAds"/>.</summary>
     internal sealed partial class HDCAppLaunchAds : IAppLaunchAds, IAdChannel
     {
-        // Completes anyway if the ad never reports closing.
         private const float CloseFallbackSeconds = 15f;
         private const float ReadyCheckInterval = 0.25f;
 
@@ -28,10 +26,8 @@ namespace HDC.Ads.Logic
             this.forceAds = forceAds;
         }
 
-        /// <summary>Right before the launch ad shows, or right before completing without one.</summary>
         public event Action BeforeShow;
 
-        /// <summary>The launch is done: the ad closed, failed, timed out, or could not show.</summary>
         public event Action Completed;
 
         public bool IgnoreAds { get; set; }
@@ -57,10 +53,6 @@ namespace HDC.Ads.Logic
 
         private bool TimedOut => clockStarted && Elapsed >= Timeout;
 
-        /// <summary>
-        /// Starts the launch clock and loading, when the channel does not on its own (autoInit off). Called
-        /// before the SDK is ready, it starts once the SDK is.
-        /// </summary>
         public void Initialize()
         {
             if (!context.IsInitialized)
@@ -85,7 +77,6 @@ namespace HDC.Ads.Logic
 
         void IAdChannel.InitializeAll() => Initialize();
 
-        // The launch ad shows once, at launch: nothing stays on screen to hide.
         void IAdChannel.OnAdsRemoved()
         {
         }
@@ -118,7 +109,6 @@ namespace HDC.Ads.Logic
                 return;
             }
 
-            // Nothing to wait for.
             if (IsDisabled || IgnoreAds || Group() == null || Group().IsEmpty)
             {
                 Complete("no launch ad");

@@ -14,10 +14,8 @@ namespace HDC.Ads.Logic
 
         IConfigRule IAdChannel.ConfigRule => Rules;
 
-        // The debug panel's view of the channel. It reads the rewarded group without making it.
         private sealed class DebugModule : HDCChannelDiagnostics
         {
-            // The position the panel's Show button reports.
             private const string DebugPosition = "debug_rw";
 
             private readonly HDCRewardedAds channel;
@@ -62,7 +60,6 @@ namespace HDC.Ads.Logic
                     .Line("Priority", Priority(config.mediationPriority))
                     .Line("Backup", config.useBackup));
                 rewarded.Kind = "Channel";
-                // Ads of other formats serve as rewarded too, such as native full-screen ones.
                 foreach (HDCDebugUnit unit in rewarded.Units)
                 {
                     if (unit.Format != HDCAdFormat.Rewarded)

@@ -5,7 +5,6 @@ using UnityEngine.UI;
 
 namespace HDC.Ads.DebugUI
 {
-    /// <summary>A modal list for picking one option, such as a group or a position from the ads configs.</summary>
     public sealed class HDCOptionPicker : MonoBehaviour
     {
         private static readonly Color OptionColor = new Color(0.2f, 0.255f, 0.333f, 1f);
@@ -27,7 +26,6 @@ namespace HDC.Ads.DebugUI
             Close();
         }
 
-        /// <summary>Shows <paramref name="values"/>; picking one closes the list and hands it to <paramref name="onPicked"/>.</summary>
         public void Open(string title, string subtitle, IEnumerable<string> values, string selected, Action<string> onPicked)
         {
             titleText.text = title;

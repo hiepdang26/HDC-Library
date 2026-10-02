@@ -6,11 +6,6 @@ using HDC.Ads.Ports;
 
 namespace HDC.Ads.Logic
 {
-    /// <summary>
-    /// What each slot of the configs loads, and the full-screen groups made from it. A slot's plans list its ads in
-    /// show order: for each network the order policy picks, the ad that network makes of its unit, if it serves the
-    /// slot. The debug panel reads the same plans before the channels make anything.
-    /// </summary>
     internal sealed class HDCAdGroups
     {
         private readonly HDCAdsContext context;
@@ -23,7 +18,6 @@ namespace HDC.Ads.Logic
             this.context = context;
         }
 
-        /// <summary>The rewarded group once a channel made it, for the debug panel, which must not make any.</summary>
         internal HDCFullscreenGroup ExistingRewardedGroup => rewardedGroup;
 
         private HDCAdCoreConfig CoreConfig => context.CoreConfig;
@@ -60,18 +54,15 @@ namespace HDC.Ads.Logic
             return Plans(HDCAdUse.Mrec, "", config.mediationPriority, config.useBackup, config.UnitFor, true);
         }
 
-        /// <summary>A popup group's ad, from the first network that serves it; null without one.</summary>
         internal HDCAdPlan PopupPlan(string groupName)
         {
             HDCAdCoreConfig.PopupGroup config = CoreConfig.PopupGroupNamed(groupName);
             return config == null ? null : FirstPlan(HDCAdUse.Popup, groupName, config.UnitFor, !config.disablePostInitReload);
         }
 
-        /// <summary>The resume ad of the ads config's app resume channel, from the first network that serves it.</summary>
         internal HDCAdPlan ResumePlan() =>
             FirstPlan(HDCAdUse.AppResume, "", (context.Config.appResumeChannel ?? new HDCAdsConfig.AppResumeChannel()).UnitFor, false);
 
-        /// <summary>A force ad group once a channel made it, for the debug panel, which must not make any.</summary>
         internal HDCFullscreenGroup ExistingForceAdGroup(string groupName) =>
             !string.IsNullOrEmpty(groupName) && forceAdGroups.TryGetValue(groupName, out HDCFullscreenGroup group) ? group : null;
 
@@ -91,7 +82,6 @@ namespace HDC.Ads.Logic
             return group;
         }
 
-        /// <summary>Drops a force ad group, with its ads and show count, and loads it again. False while it shows.</summary>
         internal bool ReinitializeForceAdGroup(string groupName)
         {
             if (string.IsNullOrEmpty(groupName))
@@ -116,7 +106,6 @@ namespace HDC.Ads.Logic
 
             HDCAdCoreConfig.FullscreenUnit config = CoreConfig.rewardedUnit ?? new HDCAdCoreConfig.FullscreenUnit();
             List<HDCFullscreenSource> sources = FullscreenSources(RewardedPlans());
-            // Ads served as rewarded that report no reward, such as native full-screen ones, reward when they close.
             foreach (HDCFullscreenSource source in sources)
                 source.RewardsOnClose = source.Format != HDCAdFormat.Rewarded;
             rewardedGroup = new HDCFullscreenGroup(context, "rewarded", sources, config.useBackup, 0);
@@ -133,11 +122,9 @@ namespace HDC.Ads.Logic
             return appOpenGroup;
         }
 
-        /// <summary>Makes the full-screen ads of plans, in order.</summary>
         internal static List<HDCFullscreenSource> FullscreenSources(IEnumerable<HDCAdPlan> plans) =>
             plans.Select(plan => new HDCFullscreenSource(plan.Network.CreateFullscreen(plan), plan.Network)).ToList();
 
-        /// <summary>Makes the banner or MREC views of plans, in order.</summary>
         internal static List<HDCRectSource> ViewSources(IEnumerable<HDCAdPlan> plans) =>
             plans.Select(plan => new HDCRectSource(plan.Network.CreateView(plan), plan.Network)).ToList();
 
@@ -155,7 +142,6 @@ namespace HDC.Ads.Logic
             return plans;
         }
 
-        // Slots without a priority have one unit, which the first network that serves it makes.
         private HDCAdPlan FirstPlan(HDCAdUse use, string slotName, Func<string, object> unitFor, bool reloadAfterShow) =>
             context.Networks.Select(network => Plan(network, use, slotName, unitFor, reloadAfterShow, HDCBannerSlot.FullBottom))
                 .FirstOrDefault(plan => plan != null);

@@ -3,7 +3,6 @@ using HDC.Ads.Ports;
 
 namespace HDC.Ads.Tests
 {
-    /// <summary>A store in memory, which a test can hand to the next session.</summary>
     internal sealed class HDCFakeStore : IKeyValueStore
     {
         internal Dictionary<string, int> Values { get; } = new Dictionary<string, int>();

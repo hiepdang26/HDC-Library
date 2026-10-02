@@ -4,7 +4,6 @@ using UnityEngine;
 
 namespace HDC.Ads.Logic
 {
-    /// <summary>The app resume channel behind <see cref="IAppResumeAds"/>.</summary>
     internal sealed partial class HDCAppResumeAds : IAppResumeAds, IAdChannel
     {
         private readonly HDCAdsContext context;
@@ -29,14 +28,12 @@ namespace HDC.Ads.Logic
 
         private bool IsDisabled => !Channel.isEnabled || context.IsAdsRemoved;
 
-        /// <summary>Starts the channel when it does not start on its own (autoInit off).</summary>
         public void Initialize()
         {
             if (!Channel.autoInit)
                 Start();
         }
 
-        /// <summary>Skips the next resume ad, before the game sends the player out of the app.</summary>
         public void Block()
         {
             if (source == null)
@@ -59,7 +56,6 @@ namespace HDC.Ads.Logic
 
         void IAdChannel.InitializeAll() => Initialize();
 
-        // Resume ads show only after the app comes back, and ad removal stops the next ones.
         void IAdChannel.OnAdsRemoved()
         {
         }
@@ -81,8 +77,6 @@ namespace HDC.Ads.Logic
             if (blocked)
             {
 #if UNITY_IOS
-                // iOS pauses Unity while its own full-screen ads show; the block lasts until the player comes
-                // back from a real trip out of the app.
                 if (paused)
                 {
                     pauseSeenWhileBlocked = true;
@@ -128,7 +122,6 @@ namespace HDC.Ads.Logic
 #if UNITY_IOS
         private bool pauseSeenWhileBlocked;
 
-        // A full-screen ad closed without the app leaving: nothing to skip anymore.
         private void UnblockIfStayed(HDCAdEvent adEvent)
         {
             bool fullscreen = adEvent.format == HDCAdFormat.Interstitial || adEvent.format == HDCAdFormat.Fullscreen

@@ -2,7 +2,6 @@ using HDC.Ads.Ports;
 
 namespace HDC.Ads.Infrastructure
 {
-    /// <summary>A rewarded, app open or interstitial ad of the Google Mobile Ads plugin.</summary>
     internal sealed class HDCGmaFullscreenAdapter : HDCSdkAd, IFullscreenAd
     {
         private readonly HDCGmaFullscreenAd ad;

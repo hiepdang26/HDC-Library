@@ -5,11 +5,6 @@ using HDC.Ads.Diagnostics;
 
 namespace HDC.Ads.Logic
 {
-    /// <summary>
-    /// A banner or MREC slot backed by ad units in priority order. The first unit loads at first; if it fails
-    /// before ever loading and backups are allowed, the next one starts. A shown slot displays the first
-    /// loaded unit, or the first unit until one loads.
-    /// </summary>
     internal sealed class HDCRectGroup
     {
         private readonly List<HDCRectSource> sources;
@@ -29,19 +24,16 @@ namespace HDC.Ads.Logic
             }
         }
 
-        /// <summary>Raised whenever a unit loads an ad.</summary>
         internal event Action Loaded;
 
         internal bool IsEmpty => sources.Count == 0;
         internal bool IsLoaded => LoadedSource() != null;
         internal IReadOnlyList<HDCRectSource> Sources => sources;
 
-        /// <summary>Units started so far, in order: a unit starts once the ones before it failed.</summary>
         internal int StartedCount => started;
 
         internal bool IsShowing => showing;
 
-        /// <summary>The unit on screen while the slot shows.</summary>
         internal HDCRectSource Visible => visible;
 
         internal bool UsesBackup => useBackup;
@@ -81,7 +73,6 @@ namespace HDC.Ads.Logic
             return null;
         }
 
-        /// <summary>The slot's state, for the debug panel, which shows its units on their own.</summary>
         internal void DescribeTo(HDCDebugInfo info) =>
             info.Line("Loaded", IsLoaded)
                 .Line("Showing", showing)
@@ -109,7 +100,6 @@ namespace HDC.Ads.Logic
 
         private void OnSourceLoaded(HDCRectSource source)
         {
-            // A higher priority unit that loads takes the place of the one on screen.
             if (showing)
                 Display(LoadedSource() ?? source);
             HDCCallbacks.Run(Loaded);

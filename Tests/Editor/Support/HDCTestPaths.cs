@@ -6,10 +6,8 @@ using UnityEngine;
 
 namespace HDC.Ads.Tests
 {
-    /// <summary>Finds the library's files through its assemblies, wherever the project keeps HDCLib.</summary>
     internal static class HDCTestPaths
     {
-        /// <summary>The asset folder holding an assembly's .asmdef, such as "Assets/HDCLib/Runtime".</summary>
         internal static string AssemblyFolder(string assembly)
         {
             string asmdef = CompilationPipeline.GetAssemblyDefinitionFilePathFromAssemblyName(assembly);
@@ -17,10 +15,8 @@ namespace HDC.Ads.Tests
             return Path.GetDirectoryName(asmdef).Replace('\\', '/');
         }
 
-        /// <summary>The library's root folder, the one holding Runtime.</summary>
         internal static string Root => Path.GetDirectoryName(AssemblyFolder("HDC.Ads")).Replace('\\', '/');
 
-        /// <summary>This assembly's folder, which holds the approved public API.</summary>
         internal static string Tests => AssemblyFolder("HDC.Ads.Tests");
 
         internal static GameObject DebugPanelPrefab()

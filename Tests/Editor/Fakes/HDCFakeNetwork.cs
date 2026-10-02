@@ -5,7 +5,6 @@ using HDC.Ads.Ports;
 
 namespace HDC.Ads.Tests
 {
-    /// <summary>A network that serves every use from its unit's id, with ads the test drives.</summary>
     internal sealed class HDCFakeNetwork : IAdNetwork
     {
         private readonly HDCFakeSdk sdk;
@@ -22,7 +21,6 @@ namespace HDC.Ads.Tests
 
         public string RevenueNetwork => "Fake";
 
-        /// <summary>Every ad this network made, in order.</summary>
         internal List<HDCFakeAd> Ads { get; } = new List<HDCFakeAd>();
 
         public HDCAdPlan Plan(HDCAdUse use, HDCAdUnitSpec spec)
@@ -40,7 +38,6 @@ namespace HDC.Ads.Tests
 
         public IPopupAd CreatePopup(HDCAdPlan plan) => null;
 
-        /// <summary>The one ad this network made for a use.</summary>
         internal HDCFakeAd Ad(HDCAdUse use) => Ads.Single(ad => ad.Use == use);
 
         private HDCFakeAd Made(HDCFakeAd ad)
@@ -49,7 +46,6 @@ namespace HDC.Ads.Tests
             return ad;
         }
 
-        // The formats real ads have, which the context's bookkeeping goes by.
         private static string Format(HDCAdUse use)
         {
             switch (use)

@@ -6,7 +6,6 @@ namespace HDC.Ads.Infrastructure
 {
     internal sealed class HDCGmaAppOpenAd : HDCGmaFullscreenAd
     {
-        // Google expires app open ads four hours after they load.
         private const float ExpirySeconds = 4 * 3600;
 
         private AppOpenAd ad;

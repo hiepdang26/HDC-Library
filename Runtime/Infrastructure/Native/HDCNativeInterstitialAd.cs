@@ -3,7 +3,6 @@ using HDC.Ads.Ports;
 
 namespace HDC.Ads.Infrastructure
 {
-    /// <summary>A native unit served as an interstitial.</summary>
     internal sealed class HDCNativeInterstitialAd : HDCSdkAd, IFullscreenAd
     {
         private readonly int bufferSize;

@@ -5,10 +5,6 @@ using UnityEngine;
 
 namespace HDC.Ads.Tests
 {
-    /// <summary>
-    /// A full-screen ad or a view of <see cref="HDCFakeNetwork"/>. It counts what the channels ask of it, and the
-    /// test plays the SDK: loaded, failed, shown, closed and paid go out through the fake SDK like real events.
-    /// </summary>
     internal sealed class HDCFakeAd : IFullscreenAd, IViewAd
     {
         private readonly HDCFakeSdk sdk;

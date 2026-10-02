@@ -3,7 +3,6 @@ using HDC.Ads.Ports;
 
 namespace HDC.Ads.Infrastructure
 {
-    /// <summary>The <see cref="HDCMainThread"/> host, made the first time something subscribes.</summary>
     internal sealed class HDCUnityMainThread : IMainThread
     {
         public event Action Ticked

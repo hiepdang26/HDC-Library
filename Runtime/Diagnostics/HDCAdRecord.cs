@@ -2,7 +2,6 @@ using System;
 
 namespace HDC.Ads.Diagnostics
 {
-    /// <summary>What one ad instance did so far.</summary>
     internal sealed class HDCAdRecord
     {
         internal HDCAdRecord(string format, string id)
@@ -28,10 +27,8 @@ namespace HDC.Ads.Diagnostics
         internal double Revenue { get; set; }
         internal string Currency { get; set; }
 
-        /// <summary>Seconds the last requested load took to succeed or fail; below zero until one did.</summary>
         internal float LoadSeconds { get; set; } = -1f;
 
-        /// <summary>Real time of the scheduled retry of a failed load; below zero when none waits.</summary>
         internal float RetryAt { get; set; } = -1f;
 
         internal int RetryAttempt { get; set; }

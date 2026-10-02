@@ -3,12 +3,6 @@ using UnityEngine;
 
 namespace HDC.Ads.Demo
 {
-    /// <summary>
-    /// On-screen buttons that call the HDCAds API the way game code does: a row per channel, then the testing
-    /// switches. Add it to a GameObject in a scene without HDCAdsSetup: it starts HDCAds with the small configs
-    /// below. Their ad unit ids are placeholders that Google's test ad units replace
-    /// (<see cref="HDCAds.Testing.UseTestAdUnits"/>).
-    /// </summary>
     public sealed class HDCAdsDemo : MonoBehaviour
     {
         private const int MaxLogLines = 80;
@@ -16,7 +10,6 @@ namespace HDC.Ads.Demo
         private const string ForceAdGroup = "demo_force";
         private const string PopupGroup = "demo_popup";
 
-        // Every channel on, none loading on its own: the buttons start them.
         private const string AdsConfig = @"{ ""selectedAdCoreName"": ""demo"",
   ""appLaunchChannel"": { ""isEnabled"": true, ""minWaitSeconds"": 1, ""timeoutSeconds"": 15 },
   ""appResumeChannel"": { ""isEnabled"": true, ""adUnitId"": ""demo-native"", ""layoutGroup"": ""demo"" },
@@ -26,7 +19,6 @@ namespace HDC.Ads.Demo
   ""mrecChannel"": { ""isEnabled"": true },
   ""popupChannel"": { ""isEnabled"": true, ""positionConfigs"": [ { ""positionName"": ""demo"", ""isEnabled"": true } ] } }";
 
-        // Native units first with AdMob plugin units as backups; the app launch shows the app open ad.
         private const string CoreConfig = @"{
   ""comebackChannel"": { ""launchAdType"": 1 },
   ""forceAdLayoutConfig"": { ""layoutGroups"": [ { ""groupName"": ""demo"", ""layouts"": [ { ""layout"": ""fs_single_cls_01"", ""layoutTime"": 5 } ] } ] },
@@ -180,7 +172,6 @@ namespace HDC.Ads.Demo
                 HDCAds.Popup.Initialize(PopupGroup);
             if (Button("Place"))
             {
-                // A popup shows only once placed: here over the middle of the screen, in screen pixels.
                 HDCAds.Popup.Move(Position, new Rect(Screen.width * 0.1f, Screen.height * 0.3f, Screen.width * 0.8f, Screen.height * 0.4f));
             }
 

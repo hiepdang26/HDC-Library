@@ -10,15 +10,10 @@ using UnityEngine.UI;
 
 namespace HDC.Ads.DebugUI
 {
-    /// <summary>
-    /// The events page: every ad event of every channel, newest first or counted by kind, filtered by channel and
-    /// event type, optionally with what each one means. Copy takes the list; Clear forgets it.
-    /// </summary>
     public sealed class HDCEventsPage : HDCDebugPage
     {
         private const float CopiedSeconds = 1.5f;
 
-        // A Text draws at most about 16,000 characters, so the list on screen keeps to the newest events.
         private const int ShownEvents = 80;
         private const int ShownExplainedEvents = 40;
 
@@ -76,7 +71,6 @@ namespace HDC.Ads.DebugUI
 
         private void OnAdEvent(HDCAdEvent adEvent) => MarkDirty();
 
-        /// <summary>Opens the events full screen, filtered to one channel.</summary>
         internal void OpenFullScreen(string channelFilter)
         {
             channel = channelFilter;

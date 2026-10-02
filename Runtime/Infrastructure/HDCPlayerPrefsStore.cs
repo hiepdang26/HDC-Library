@@ -4,10 +4,6 @@ using UnityEngine;
 
 namespace HDC.Ads.Infrastructure
 {
-    /// <summary>
-    /// <see cref="PlayerPrefs"/>, which refuses calls from constructors and field initializers: a read then
-    /// fails, so the caller can try again later, and a write logs a warning.
-    /// </summary>
     internal sealed class HDCPlayerPrefsStore : IKeyValueStore
     {
         public bool TryGetInt(string key, out int value)

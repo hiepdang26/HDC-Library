@@ -4,7 +4,6 @@ using UnityEngine;
 
 namespace HDC.Ads.Infrastructure
 {
-    /// <summary>Calls the Android library's HdcUnityBridge through JNI.</summary>
     internal sealed class HDCAndroidBridge : IHDCNativeBridge
     {
         private const string BridgeClassName = "com.hdc.adsmultiplatform.unity.HdcUnityBridge";
@@ -12,7 +11,6 @@ namespace HDC.Ads.Infrastructure
 
         private readonly AndroidJavaClass bridgeClass = new AndroidJavaClass(BridgeClassName);
 
-        // Kept so the proxy lives as long as the Java side holds it.
         private EventListener listener;
 
         public string Call(string method, string argsJson) =>
@@ -34,9 +32,6 @@ namespace HDC.Ads.Infrastructure
                 this.handler = handler;
             }
 
-            // HdcUnityListener.onEvent(String). It runs on the Android UI thread, so the event is handed
-            // to the Unity main thread.
-            // ReSharper disable once InconsistentNaming
             public void onEvent(string eventJson)
             {
                 HDCMainThread.Post(() => handler(eventJson));

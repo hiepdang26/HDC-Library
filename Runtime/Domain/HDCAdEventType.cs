@@ -1,6 +1,5 @@
 namespace HDC.Ads.Domain
 {
-    /// <summary>Values of <see cref="HDCAdEvent.type"/>.</summary>
     internal static class HDCAdEventType
     {
         public const string Initialized = "Initialized";
@@ -12,10 +11,8 @@ namespace HDC.Ads.Domain
         public const string Clicked = "Clicked";
         public const string Paid = "Paid";
 
-        /// <summary>The player earned a rewarded ad's reward.</summary>
         public const string Rewarded = "Rewarded";
 
-        /// <summary>A full-screen ad or popup closed, or a banner was hidden.</summary>
         public const string Closed = "Closed";
     }
 }

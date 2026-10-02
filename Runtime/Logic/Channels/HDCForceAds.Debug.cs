@@ -15,8 +15,6 @@ namespace HDC.Ads.Logic
 
         IConfigRule IAdChannel.ConfigRule => Rules;
 
-        // The debug panel's view of the channel: its groups, and the positions of each. It reads the groups without
-        // making them.
         private sealed class DebugModule : HDCChannelDiagnostics
         {
             private readonly HDCForceAds channel;

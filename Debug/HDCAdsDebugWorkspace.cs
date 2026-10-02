@@ -12,17 +12,8 @@ using UnityEngine.UI;
 
 namespace HDC.Ads.DebugUI
 {
-    /// <summary>
-    /// The ads page of the debug panel. Pick a channel, then a group and a position from the configs HDCAds runs
-    /// on, and call the HDCAds API with the channel's buttons. Detail Information shows only the selected group:
-    /// its settings, then each of its ad units with its state, its last errors explained, and its counts. The
-    /// group's recent events and the channel's system state open on demand. Everything refreshes every second and
-    /// on every ad event. The page draws what each channel's debug module gives it, a tab per channel and its
-    /// buttons, groups and state, and has no code of its own for any channel.
-    /// </summary>
     public sealed class HDCAdsDebugWorkspace : HDCDebugPage
     {
-        // The tab the page opens on, when there is one: the channel with the most to see.
         private const string FirstChannel = "FA";
         private const int EventRows = 15;
         private const int FullScreenEvents = 40;
@@ -133,11 +124,8 @@ namespace HDC.Ads.DebugUI
             ShowPopupArea(Diagnostics.UsesArea && isActiveAndEnabled);
         }
 
-        // A channel's groups once HDCAds runs on its configs.
         private static List<HDCDebugGroup> UnitGroups(IAdChannel of, string group, string position, bool askNative) =>
             HDCAds.IsInitialized ? of.Diagnostics.UnitGroups(group, position, askNative) : new List<HDCDebugGroup>();
-
-        // Selection: the group first, then the positions of that group.
 
         private void NormalizeSelection()
         {
@@ -168,8 +156,6 @@ namespace HDC.Ads.DebugUI
                 Refresh();
             });
         }
-
-        // Tabs and actions: one tab per channel, and the selected channel's buttons.
 
         private void RedrawTabs(IReadOnlyList<IAdChannel> all)
         {
@@ -240,7 +226,6 @@ namespace HDC.Ads.DebugUI
             lastCallText.text = "Last call: " + (lastCall.Length > 0 ? lastCall : "-");
         }
 
-        // Calls the channel's API with the selected group and position.
         private void Run(HDCDebugAction action)
         {
             if (Diagnostics.UsesArea)
@@ -251,7 +236,6 @@ namespace HDC.Ads.DebugUI
             Refresh();
         }
 
-        /// <summary>A channel's overall tone: live or ready if any unit is, then loading, then failing.</summary>
         private static HDCUnitTone Tone(IEnumerable<HDCDebugGroup> of)
         {
             var tones = new List<HDCUnitTone>();
@@ -269,8 +253,6 @@ namespace HDC.Ads.DebugUI
                 return HDCUnitTone.Busy;
             return tones.Contains(HDCUnitTone.Bad) ? HDCUnitTone.Bad : HDCUnitTone.Idle;
         }
-
-        // Detail information: the selected group and its ad units.
 
         private void RedrawDetail()
         {
@@ -355,7 +337,6 @@ namespace HDC.Ads.DebugUI
             list.End();
         }
 
-        // An error on lines of its own: code and name, what it means, what to check, then the SDK's message.
         private static void AddError(HDCKeyValueList list, string label, HDCAdError error, bool show)
         {
             if (error == null)
@@ -377,8 +358,6 @@ namespace HDC.Ads.DebugUI
         }
 
         private static string Count(int value) => value.ToString(CultureInfo.InvariantCulture);
-
-        // Recent events of the selected group
 
         private void RedrawEvents()
         {
@@ -424,8 +403,6 @@ namespace HDC.Ads.DebugUI
 
         private string Scope() => selected != null ? $"{selected.Kind.ToLowerInvariant()} {selected.Name}" : "kênh " + channel.Key;
 
-        // System: only the selected channel's configs, runtime state and gates, and its API.
-
         private void RedrawSystem()
         {
             systemTitleText.text = "System · " + channel.Title;
@@ -443,8 +420,6 @@ namespace HDC.Ads.DebugUI
                 systemList.Row(label, call, HDCDebugStyle.MutedColor);
             systemList.End();
         }
-
-        // Copy report: the selected group's units, events and system state, as plain text.
 
         private void CopyReport()
         {
@@ -493,8 +468,6 @@ namespace HDC.Ads.DebugUI
             if (!string.IsNullOrEmpty(error.Message))
                 text.Append("Message: ").AppendLine(error.Message);
         }
-
-        // Helpers
 
         private void Record(string call)
         {

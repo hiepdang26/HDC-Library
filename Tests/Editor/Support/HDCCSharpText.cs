@@ -2,14 +2,8 @@ using System.Text;
 
 namespace HDC.Ads.Tests
 {
-    /// <summary>Reads C# source as code only, for rules that search it.</summary>
     internal static class HDCCSharpText
     {
-        /// <summary>
-        /// The source with comments, strings and character literals blanked out. Every other character, line
-        /// breaks included, stays where it was, so line numbers still match the file. Holes in interpolated
-        /// strings are blanked too.
-        /// </summary>
         internal static string CodeOnly(string source)
         {
             var code = new StringBuilder(source.Length);
@@ -31,7 +25,6 @@ namespace HDC.Ads.Tests
             return code.ToString();
         }
 
-        // Where the comment or literal starting at start ends, or start when none starts there.
         private static int LiteralOrCommentEnd(string source, int start)
         {
             char c = source[start];
@@ -51,7 +44,6 @@ namespace HDC.Ads.Tests
             if (c == '\'')
                 return QuotedEnd(source, start + 1, '\'', false);
 
-            // "...", @"...", $"...", $@"..." and @$"...".
             int quote = start;
             bool verbatim = false;
             while (quote < source.Length && quote - start < 2 && (source[quote] == '@' || source[quote] == '$'))

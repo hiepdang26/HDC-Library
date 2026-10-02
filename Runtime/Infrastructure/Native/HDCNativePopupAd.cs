@@ -5,7 +5,6 @@ using UnityEngine;
 
 namespace HDC.Ads.Infrastructure
 {
-    /// <summary>A native popup, placed by its center on the screen and its size in dp.</summary>
     internal sealed class HDCNativePopupAd : IPopupAd
     {
         private readonly HDCPopupOptions options;
@@ -55,7 +54,6 @@ namespace HDC.Ads.Infrastructure
             return IsRequested;
         }
 
-        // The native side takes the popup's center relative to the screen (y from the bottom) and its size in dp.
         public void Place(Rect screenRect)
         {
             if (Screen.width <= 0 || Screen.height <= 0 || screenRect.width <= 0f || screenRect.height <= 0f)

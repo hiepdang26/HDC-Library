@@ -3,10 +3,6 @@ using HDC.Ads.Ports;
 
 namespace HDC.Ads.Infrastructure
 {
-    /// <summary>
-    /// The Google Mobile Ads plugin, serving the "admobUnit" units: interstitials for force ads, rewarded and app
-    /// open ads, banner views in every slot and the MREC.
-    /// </summary>
     internal sealed class HDCAdMobNetwork : IAdNetwork
     {
         public string UnitKey => HDCAdUnitKeys.AdMob;
@@ -42,7 +38,6 @@ namespace HDC.Ads.Infrastructure
             switch (plan.Use)
             {
                 case HDCAdUse.ForceAd:
-                    // A group that loads once loads no new ad after a show, unless the plugin keeps it preloaded.
                     var interstitial = new HDCGmaInterstitialAd(plan.InstanceId, unit.id, unit.preloadAd, unit.adBufferSize)
                     {
                         LoadOnce = !plan.Spec.ReloadAfterShow && !unit.preloadAd,

@@ -6,15 +6,10 @@ using HDC.Ads.Logic;
 
 namespace HDC.Ads.Tests
 {
-    /// <summary>
-    /// A channel the library does not have, with a group of one unit, one button and one config rule: the debug
-    /// panel and the config check must show it without code of their own for it.
-    /// </summary>
     internal sealed class HDCFakeChannel : IAdChannel
     {
         internal const string InstanceId = "fake_unit";
 
-        /// <summary>A position the fake channel shows at, which the force ads of the test configs show at too.</summary>
         internal const string SharedPosition = "gameplay";
 
         private readonly Module module;

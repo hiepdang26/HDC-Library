@@ -9,12 +9,6 @@ using HDC.Ads.Logic;
 
 namespace HDC.Ads
 {
-    /// <summary>
-    /// Starts the ads from the first scene: put the HDCAdsSetup prefab in it. The setup fetches the ads configs
-    /// from Remote Config, where the defaults from HDC > Edit configs stand in for missing values, initializes
-    /// HDCAds, starts the ad channels and lets the app launch ad run. Then it opens <see cref="nextScene"/>,
-    /// which loads in the background meanwhile. With HDC ads off, it only opens the next scene.
-    /// </summary>
     [DisallowMultipleComponent]
     [AddComponentMenu("HDC/HDC Ads Setup")]
     public sealed class HDCAdsSetup : MonoBehaviour
@@ -22,7 +16,6 @@ namespace HDC.Ads
         [Tooltip("Scene opened once the ads are started. It must be in Build Settings. Leave it empty to stay in this scene.")]
         [SerializeField] private string nextScene = "";
 
-        // Only the next scene matters while HDC ads are off.
 #pragma warning disable CS0169, CS0414
         [Tooltip("Opens the next scene after this many seconds even if the ads are not done.")]
         [SerializeField] private float maxWaitSeconds = 30f;
@@ -49,10 +42,6 @@ namespace HDC.Ads
         [SerializeField] private UnityEvent onFinished = new UnityEvent();
 
 #if HDC_ADS
-        /// <summary>
-        /// Initializes HDCAds the way the setup does: with the configs from Remote Config, and the defaults from
-        /// HDC > Edit configs where it has none. For scenes that start without the setup, such as a test scene.
-        /// </summary>
         public static void InitializeAds(Action onReady = null)
         {
             HDCAdsSettings defaults = HDCAdsSettings.Load();
@@ -117,14 +106,12 @@ namespace HDC.Ads
 #if HDC_ADS
         private void OnAdsReady()
         {
-            // The splash waits for the app launch, so it starts even when its autoInit is off.
             HDCAds.AppLaunch.Initialize();
             if (startAllChannels)
                 StartChannels();
             onAdsReady.Invoke();
         }
 
-        // Channels that are off, and what started on its own, ignore these calls.
         private static void StartChannels()
         {
             foreach (IAdChannel channel in HDCAds.Channels.All)

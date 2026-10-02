@@ -15,7 +15,6 @@ namespace HDC.Ads.Logic
 
         IConfigRule IAdChannel.ConfigRule => Rules;
 
-        // The debug panel's view of the channel. It reads the launch group without making it.
         private sealed class DebugModule : HDCChannelDiagnostics
         {
             private readonly HDCAppLaunchAds channel;
@@ -96,7 +95,6 @@ namespace HDC.Ads.Logic
                     map.Line("App Open Unit", Dash(Context.CoreConfig.appOpenUnit?.admobUnit?.id));
             }
 
-            // A launch that shows a force ad group loads that group's ads, whose events count as the force ads'.
             public override bool Owns(string instanceId) => instanceId.StartsWith(HDCAdNames.AppOpenPrefix, StringComparison.Ordinal);
         }
 

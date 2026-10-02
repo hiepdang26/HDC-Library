@@ -7,12 +7,10 @@ using HDC.Ads.Domain;
 
 namespace HDC.Ads.DebugUI
 {
-    /// <summary>How the panel writes ad events: the channel each belongs to, one line each, and what it means.</summary>
     internal static class HDCEventText
     {
         internal const string AllOption = "All";
 
-        // The SDK's own events, which belong to no channel.
         private const string Sdk = "SDK";
         private const string Other = "OTHER";
 
@@ -23,10 +21,8 @@ namespace HDC.Ads.DebugUI
             HDCAdEventType.Closed, HDCAdEventType.Initialized,
         };
 
-        /// <summary>The channels to filter events by: each channel's key, then the SDK's own events.</summary>
         internal static IEnumerable<string> Channels() => HDCAds.Channels.All.Select(channel => channel.Key).Append(Sdk);
 
-        /// <summary>The channel of an event's ad: the channel whose debug module owns its instance id.</summary>
         internal static string Channel(HDCAdEvent adEvent)
         {
             if (adEvent.format == HDCAdFormat.Sdk)
@@ -38,7 +34,6 @@ namespace HDC.Ads.DebugUI
         internal static bool Matches(HDCAdEvent adEvent, string channel, string type) =>
             (channel == AllOption || Channel(adEvent) == channel) && (type == AllOption || adEvent.type == type);
 
-        /// <summary>One event: time, type, channel, instance id and its detail, then optionally what it means.</summary>
         internal static string Line(HDCTrackedEvent tracked, bool withChannel, bool explain)
         {
             HDCAdEvent adEvent = tracked.Event;
@@ -77,7 +72,6 @@ namespace HDC.Ads.DebugUI
             }
         }
 
-        /// <summary>What an event means, in Vietnamese.</summary>
         internal static string Explain(HDCAdEvent adEvent)
         {
             switch (adEvent.type)
@@ -109,7 +103,6 @@ namespace HDC.Ads.DebugUI
             }
         }
 
-        // The detail line: the error, the revenue, the reward or the ad source.
         private static string Detail(HDCAdEvent adEvent)
         {
             if (adEvent.type == HDCAdEventType.LoadFailed || adEvent.type == HDCAdEventType.ShowFailed)
@@ -124,7 +117,6 @@ namespace HDC.Ads.DebugUI
 
         private static HDCAdError Error(HDCAdEvent adEvent) => new HDCAdError { Code = adEvent.code, Message = adEvent.message ?? string.Empty };
 
-        // The first line of the error guide's explanation, without its hint.
         private static string Meaning(HDCAdEvent adEvent, bool show)
         {
             string explanation = HDCAdErrorGuide.Explain(Error(adEvent), show);

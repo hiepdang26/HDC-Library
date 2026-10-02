@@ -6,14 +6,6 @@ using UnityEngine;
 
 namespace HDC.Ads.Infrastructure
 {
-    /// <summary>
-    /// A full-screen ad from the Google Mobile Ads Unity plugin, kept ready for one instance id.
-    /// <para>
-    /// Normal mode holds one ad: it loads again after every show, retries failed loads with a growing
-    /// delay, and loads when a show finds no ad. Preload mode hands loading to the plugin's preloader, which
-    /// keeps a buffer of ads and reloads by itself.
-    /// </para>
-    /// </summary>
     internal abstract class HDCGmaFullscreenAd
     {
         private readonly string format;
@@ -32,7 +24,6 @@ namespace HDC.Ads.Infrastructure
             BufferSize = PreloadBufferSize(bufferSize);
         }
 
-        /// <summary>The preloader keeps 1 to 5 ads; 0 or less picks the plugin's default of 2.</summary>
         internal static uint PreloadBufferSize(int bufferSize) => (uint)Mathf.Clamp(bufferSize <= 0 ? 2 : bufferSize, 1, 5);
 
         internal string Id { get; }
@@ -40,7 +31,6 @@ namespace HDC.Ads.Infrastructure
         internal bool Preload { get; }
         internal uint BufferSize { get; }
 
-        /// <summary>Loads once: no reload after a show and no retry after a failed load.</summary>
         internal bool LoadOnce { get; set; }
         protected bool IsDestroyed { get; private set; }
         protected string PreloadId => format + "_" + Id;
@@ -76,10 +66,6 @@ namespace HDC.Ads.Infrastructure
             }
         }
 
-        /// <summary>
-        /// Shows the ready ad. <paramref name="closed"/> runs once it closes or fails to show, with whether the
-        /// player earned a reward.
-        /// </summary>
         internal bool Show(Action<bool> closed)
         {
             if (!IsReady)
@@ -118,8 +104,6 @@ namespace HDC.Ads.Infrastructure
             Finish(false);
         }
 
-        // Plugin calls, one set per ad class.
-
         protected abstract bool HasLoadedAd { get; }
         protected abstract bool HasPreloadedAd { get; }
         protected abstract void RequestAd();
@@ -128,9 +112,6 @@ namespace HDC.Ads.Infrastructure
         protected abstract void DestroyLoadedAd();
         protected abstract void StartPreload(PreloadConfiguration configuration);
         protected abstract void DestroyPreloadedAds();
-
-        // Callbacks from the ad classes, already on the main thread. Each ad's response is read once, when it
-        // loads, so late callbacks from a closed ad still report the ad that raised them.
 
         protected void OnLoaded(ResponseInfo response)
         {
@@ -171,7 +152,6 @@ namespace HDC.Ads.Infrastructure
 
         protected void OnClosed(ResponseInfo response)
         {
-            // The plugin can report both a failure and a close for one show; only the first one counts.
             if (!showing)
                 return;
 

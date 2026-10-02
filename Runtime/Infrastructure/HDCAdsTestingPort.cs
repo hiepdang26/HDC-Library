@@ -2,7 +2,6 @@ using HDC.Ads.Ports;
 
 namespace HDC.Ads.Infrastructure
 {
-    /// <summary>The test switches of <see cref="HDCAdsSdk"/>, with Meta's test mode through its partner.</summary>
     internal sealed class HDCAdsTestingPort : IAdsTesting
     {
         private readonly HDCMetaPartner meta;

@@ -52,7 +52,6 @@ namespace HDC.Ads.Tests
             Transform page = window.Find("Pages/Ads Page");
             Transform content = page.Find("Body/Viewport/Content");
 
-            // A tab per channel; selection lives in the Actions card, with FA's own buttons only.
             CollectionAssert.AreEqual(new[] { "AL", "AR", "RW", "FA", "BN", "MREC", "PU" }, Rows(page.Find("Channel Tabs"), "").Select(tab => tab.name).ToArray());
             Transform actions = content.Find("Actions Card");
             Assert.IsTrue(actions.Find("Selection Row/Group Button").gameObject.activeSelf);
@@ -61,7 +60,6 @@ namespace HDC.Ads.Tests
             Assert.IsFalse(AllText(actions).Contains("BreakAd"), "no break ad in FA");
             CollectionAssert.AreEqual(new[] { "Init", "Show" }, Rows(actions.Find("Action Buttons"), "").Select(ButtonText).ToArray());
 
-            // Only the selected group: the two units of native_gameplay.
             Transform detail = content.Find("Detail Card");
             StringAssert.Contains("Detail Information Ad", AllText(detail.Find("Header Row")));
             Assert.AreEqual("Group: native_gameplay", TextOf(detail.Find("Group Title")));
@@ -76,7 +74,6 @@ namespace HDC.Ads.Tests
             StringAssert.Contains("AdMob Interstitial", TextOf(units[1].Find("Top/Title")));
             Assert.AreNotEqual("BACKUP · NOT STARTED", Badge(units[1]), "the backup unit starts after the first one failed");
 
-            // Recent events and system start folded.
             Transform events = content.Find("Events Card");
             Transform system = content.Find("System Card");
             Assert.IsFalse(events.Find("Events Body").gameObject.activeSelf);
@@ -105,7 +102,6 @@ namespace HDC.Ads.Tests
             Capture(panelObject, "hdc-debug-events-full.png");
             Click(viewer.Find("Card/Header/Close Button"));
 
-            // Picking another group shows only that group.
             Click(actions.Find("Selection Row/Group Button"));
             yield return null;
             Click(Option(panelObject.transform.Find("Safe Area/Option Picker/Modal/Sheet/Options Scroll/Viewport/Content"), "native_ui"));
@@ -118,7 +114,6 @@ namespace HDC.Ads.Tests
             Click(detail.Find("Header Row/Copy Report Button"));
             StringAssert.Contains("native_ui", GUIUtility.systemCopyBuffer);
 
-            // Popup channel: one popup group with its error, and its own buttons.
             Click(window.Find("Pages/Ads Page/Channel Tabs/PU"));
             yield return null;
             units = Rows(detail.Find("Units List"), "Unit ");
@@ -130,14 +125,12 @@ namespace HDC.Ads.Tests
             Click(actions.Find("Action Buttons/Update Position Button"));
             StringAssert.Contains("Popup.Move(\"popup\", popup area)", TextOf(actions.Find("Last Call")));
 
-            // Banner channel: only the selected placement.
             Click(window.Find("Pages/Ads Page/Channel Tabs/BN"));
             yield return null;
             Assert.AreEqual("Placement: FullBottom", TextOf(detail.Find("Group Title")));
             Assert.AreEqual("Activate", ButtonText(actions.Find("Action Buttons/Show Button")));
             Capture(panelObject, "hdc-debug-ads-bn.png");
 
-            // Remote Config page, with configs given to HDCAds.Initialize directly.
             Click(window.Find("Page Bar/Remote Config Tab"));
             yield return null;
             Assert.IsFalse(page.gameObject.activeSelf);
@@ -163,7 +156,6 @@ namespace HDC.Ads.Tests
             StringAssert.Contains("FORCE AD · NATIVE_UI", AllText(configContent.Find("Map Card")));
             Capture(panelObject, "hdc-debug-config.png");
 
-            // Events page
             Click(window.Find("Page Bar/Events Tab"));
             yield return null;
             Transform eventsContent = window.Find("Pages/Events Page/Body/Viewport/Content");
@@ -173,7 +165,6 @@ namespace HDC.Ads.Tests
             StringAssert.Contains("Load lỗi", TextOf(eventsContent.Find("List Card/List")));
             Capture(panelObject, "hdc-debug-events.png");
 
-            // Device page
             Click(window.Find("Page Bar/Device Tab"));
             yield return null;
             Transform deviceContent = window.Find("Pages/Device Page/Body/Viewport/Content");
@@ -190,10 +181,6 @@ namespace HDC.Ads.Tests
             yield return new ExitPlayMode();
         }
 
-        /// <summary>
-        /// A channel registered from a test gets its tab, buttons, groups, state, events, config check and ad units
-        /// map, with no code of the panel's own for it.
-        /// </summary>
         [UnityTest]
         public IEnumerator AChannelFromATestShowsOnThePanel()
         {
@@ -299,10 +286,6 @@ namespace HDC.Ads.Tests
             yield return new ExitPlayMode();
         }
 
-        /// <summary>
-        /// Fetches the project's real Remote Config in the Editor and logs what the page shows, to check a
-        /// project's setup by eye. Needs the network and the project's Firebase files, so it only runs when picked.
-        /// </summary>
         [UnityTest, Explicit("Needs the network and the project's Firebase files"), Category("Network")]
         public IEnumerator RemoteConfigPageShowsTheFetchedValues()
         {

@@ -9,11 +9,6 @@ using UnityEngine.UI;
 
 namespace HDC.Ads.DebugUI
 {
-    /// <summary>
-    /// The Remote Config page: how the ads configs were loaded, what is wrong in them, and the configs themselves.
-    /// The viewer shows ads_config and the ad core config as Remote Config has them, as the last run saved them,
-    /// as the project defaults are, and as HDCAds applied them, plus every key Remote Config holds.
-    /// </summary>
     public sealed class HDCRemoteConfigPage : HDCDebugPage
     {
         private const string FoldAllOption = "__all__";
@@ -98,8 +93,6 @@ namespace HDC.Ads.DebugUI
             RedrawMap();
         }
 
-        // Status
-
         private void RedrawStatus()
         {
             statusList.Begin();
@@ -159,8 +152,6 @@ namespace HDC.Ads.DebugUI
             return from + " · " + HDCConfigReport.Outcome;
         }
 
-        // Which source the config HDCAds runs on came from: Remote, Saved, Default, or Direct when HDCAds.Initialize
-        // got it from elsewhere; with why.
         private static string AppliedFrom(Part target, out string reason, out HDCDebugTone tone)
         {
             string applied = AppliedJson(target);
@@ -220,8 +211,6 @@ namespace HDC.Ads.DebugUI
 
         private static string Compact(string json) => new string((json ?? string.Empty).Where(c => !char.IsWhiteSpace(c)).ToArray());
 
-        // Check
-
         private void RedrawCheck()
         {
             List<HDCConfigFinding> findings = HDCConfigCheck.Run();
@@ -244,8 +233,6 @@ namespace HDC.Ads.DebugUI
                 default: return HDCDebugStyle.Colored(HDCDebugStyle.InfoHex, "<b>INFO</b>");
             }
         }
-
-        // Viewer
 
         private void SetMode(Mode value)
         {
@@ -280,7 +267,6 @@ namespace HDC.Ads.DebugUI
             HDCDebugStyle.SetLabel(copyButton, copiedUntil > 0f ? "Copied" : "Copy");
         }
 
-        // The source of the config in use, on its button and in a note above the JSON.
         private void RedrawAppliedSource()
         {
             if (part == Part.Keys)
@@ -366,7 +352,6 @@ namespace HDC.Ads.DebugUI
             return Show(value, FoldedKeys());
         }
 
-        // The JSON indented, colored, and folded at the chosen top-level keys.
         private static string Show(string value, HashSet<string> foldedKeys)
         {
             if (string.IsNullOrEmpty(value))
@@ -430,7 +415,6 @@ namespace HDC.Ads.DebugUI
             }
         }
 
-        // Folded top-level keys per key and mode; every key starts folded.
         private HashSet<string> FoldedKeys()
         {
             string state = CurrentKey() + "/" + mode;
@@ -515,8 +499,6 @@ namespace HDC.Ads.DebugUI
             Refresh();
         }
 
-        // Ad units map: which ad units and positions each channel uses.
-
         private void RedrawMap()
         {
             HDCDebugStyle.SetLabel(mapToggleButton, mapBody.activeSelf ? "Collapse" : "Expand");
@@ -538,8 +520,6 @@ namespace HDC.Ads.DebugUI
             mapList.End();
         }
 
-        // Helpers
-
         private static string Size(string value) =>
             string.IsNullOrEmpty(value) ? "empty" : value.Length.ToString("#,0", CultureInfo.InvariantCulture) + " chars";
 
@@ -548,7 +528,6 @@ namespace HDC.Ads.DebugUI
         private static string Dash(string value) => string.IsNullOrEmpty(value) ? "-" : value;
     }
 
-    /// <summary>The Remote Config key of the ads config, as HDCRemoteConfig reads it.</summary>
     internal static class HDCRemoteConfigKeys
     {
         internal const string Ads = "ads_config";

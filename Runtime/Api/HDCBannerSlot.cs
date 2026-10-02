@@ -1,6 +1,5 @@
 namespace HDC.Ads
 {
-    /// <summary>The six banner slots of <see cref="IBannerAds"/>.</summary>
     public enum HDCBannerSlot
     {
         FullBottom = 0,

@@ -2,7 +2,6 @@ using System;
 
 namespace HDC.Ads.Domain
 {
-    /// <summary>A switch per native ad asset. Price, store and star rating only apply to visibility.</summary>
     [Serializable]
     internal sealed class HDCNativeAssets
     {

@@ -4,7 +4,6 @@ using UnityEngine;
 
 namespace HDC.Ads.Infrastructure
 {
-    /// <summary>A banner or MREC view of the Google Mobile Ads plugin.</summary>
     internal sealed class HDCGmaViewAd : HDCSdkAd, IViewAd
     {
         private readonly HDCBannerViewPlacement placement;

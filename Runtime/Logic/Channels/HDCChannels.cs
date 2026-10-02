@@ -3,16 +3,10 @@ using System.Collections.Generic;
 
 namespace HDC.Ads.Logic
 {
-    /// <summary>
-    /// The channel objects behind <see cref="HDCAds"/>' interfaces. Game code sees the interfaces; the library
-    /// and its debug panel reach the rest of each channel here.
-    /// </summary>
     internal sealed class HDCChannels
     {
-        /// <param name="extraChannels">Channels beyond the seven, made with the context after them, such as a test's.</param>
         internal HDCChannels(HDCAdsContext context, IEnumerable<Func<HDCAdsContext, IAdChannel>> extraChannels = null)
         {
-            // The order they were always made in, which sets the order their handlers of shared events run.
             ForceAd = new HDCForceAds(context);
             Rewarded = new HDCRewardedAds(context);
             AppLaunch = new HDCAppLaunchAds(context, ForceAd);
@@ -37,10 +31,6 @@ namespace HDC.Ads.Logic
         internal HDCMrecAds Mrec { get; }
         internal HDCPopupAds Popup { get; }
 
-        /// <summary>
-        /// Every channel, in the order they start once the SDK is ready, the launch ad first, and the order the
-        /// debug panel lists them in.
-        /// </summary>
         internal IReadOnlyList<IAdChannel> All { get; }
 
         private void Start()

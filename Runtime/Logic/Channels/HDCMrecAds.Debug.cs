@@ -15,8 +15,6 @@ namespace HDC.Ads.Logic
 
         IConfigRule IAdChannel.ConfigRule => Rules;
 
-        // The debug panel's view of the channel: one MREC, moved between preset positions. It reads the group
-        // without making it.
         private sealed class DebugModule : HDCChannelDiagnostics
         {
             private static readonly string[] ScreenPositions = { "TopLeft", "Top", "TopRight", "Center", "BottomLeft", "Bottom", "BottomRight" };

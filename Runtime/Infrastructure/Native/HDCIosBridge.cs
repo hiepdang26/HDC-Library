@@ -7,19 +7,16 @@ using UnityEngine;
 
 namespace HDC.Ads.Infrastructure
 {
-    /// <summary>Calls the HDCAds framework through HDCAdsBridge.mm.</summary>
     internal sealed class HDCIosBridge : IHDCNativeBridge
     {
         private delegate void EventCallback(IntPtr eventJson);
 
-        // The returned string is heap allocated by the plugin, and the marshaler frees it.
         [DllImport("__Internal")]
         private static extern string HDCAds_Call(string method, string argsJson);
 
         [DllImport("__Internal")]
         private static extern void HDCAds_SetEventCallback(EventCallback callback);
 
-        // Held in a static field so the function pointer given to native code stays valid.
         private static readonly EventCallback Callback = OnEvent;
         private static Action<string> handler;
 
@@ -31,8 +28,6 @@ namespace HDC.Ads.Infrastructure
             HDCAds_SetEventCallback(Callback);
         }
 
-        // Called directly on the main thread, which is Unity's player thread on iOS. This also works
-        // while a fullscreen ad pauses Unity, when a UnitySendMessage would wait until the ad closes.
         [MonoPInvokeCallback(typeof(EventCallback))]
         private static void OnEvent(IntPtr eventJson)
         {
@@ -42,7 +37,6 @@ namespace HDC.Ads.Infrastructure
             }
             catch (Exception exception)
             {
-                // Never let a managed exception unwind into native code.
                 Debug.LogException(exception);
             }
         }

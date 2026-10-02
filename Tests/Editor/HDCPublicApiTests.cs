@@ -8,19 +8,12 @@ using NUnit.Framework;
 
 namespace HDC.Ads.Tests
 {
-    /// <summary>
-    /// Everything public in the runtime assemblies is what game code can compile against. PublicApi.txt is the
-    /// approved list: a public type or member the list does not have fails this test, and so does one it lists
-    /// that is gone. Change the list in the same commit as the API, by hand or by running the tests once with
-    /// HDC_ACCEPT_API=1, which writes the current API into it.
-    /// </summary>
     public class HDCPublicApiTests
     {
         private const string ApprovedFile = "PublicApi.txt";
         private const string AcceptVariable = "HDC_ACCEPT_API";
         private const int ListedChanges = 40;
 
-        // The runtime assemblies, in the order the file lists them. Editor, demo and test code is not API.
         private static readonly string[] AssemblyNames = { "HDC.Ads", "HDC.Ads.Settings", "HDC.Ads.Firebase", "HDC.Ads.Setup", "HDC.Ads.Debug" };
 
         private const string FileHeader =
@@ -42,7 +35,6 @@ namespace HDC.Ads.Tests
                 .ToDictionary(assembly => assembly.GetName().Name);
             Assert.IsTrue(loaded.ContainsKey("HDC.Ads"), "HDC.Ads is not loaded");
 
-            // An assembly this project does not build (HDC.Ads.Firebase without Firebase) keeps its approved list.
             var current = new Dictionary<string, List<string>>();
             foreach (string name in AssemblyNames)
             {
@@ -128,7 +120,6 @@ namespace HDC.Ads.Tests
             return sections;
         }
 
-        // A member's key carries its type, so the same member in two types makes two keys.
         private static HashSet<string> Keys(IEnumerable<string> lines)
         {
             var keys = new HashSet<string>(StringComparer.Ordinal);

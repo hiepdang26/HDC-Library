@@ -1,6 +1,5 @@
 namespace HDC.Ads.Diagnostics
 {
-    /// <summary>How one mediation adapter started, as Google Mobile Ads reported it.</summary>
     internal sealed class HDCAdapterStatus
     {
         internal HDCAdapterStatus(string adapterClass, bool ready, string description, int latencyMillis)

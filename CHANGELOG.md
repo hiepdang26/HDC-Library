@@ -56,6 +56,7 @@ Những thứ sau đã đổi so với 0.5.0:
 - Khi SDK sẵn sàng, các kênh khởi động theo thứ tự AL, AR, RW, FA, BN, MREC, PU. Trước đây FA khởi động trước RW.
 - Bảng debug bỏ tab CL (collapsible banner), vì HDCLib chưa có kênh này.
 - Bảng debug không còn hỏi phía native mỗi giây.
+- Mã nguồn C# của HDCLib không còn comment. Tài liệu nằm trong `README.md`, `ARCHITECTURE.md` và `CHANGELOG.md`.
 
 ### Sửa
 

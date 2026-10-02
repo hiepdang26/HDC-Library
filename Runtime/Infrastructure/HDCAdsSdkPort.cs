@@ -4,7 +4,6 @@ using HDC.Ads.Ports;
 
 namespace HDC.Ads.Infrastructure
 {
-    /// <summary><see cref="HDCAdsSdk"/>: the native library and the Google Mobile Ads plugin.</summary>
     internal sealed class HDCAdsSdkPort : IAdsSdk
     {
         public void Initialize(Action onReady) => HDCAdsSdk.Initialize(onReady);

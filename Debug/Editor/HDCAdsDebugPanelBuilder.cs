@@ -7,11 +7,6 @@ using UnityEngine.UI;
 
 namespace HDC.Ads.DebugUI.Editor
 {
-    /// <summary>
-    /// Builds the HDCAdsDebugPanel prefab that ships with HDCLib, and adds it to scenes (HDC > Debug panel).
-    /// After changing the layout here, rebuild the prefab with
-    /// Unity -batchmode -executeMethod HDC.Ads.DebugUI.Editor.HDCAdsDebugPanelBuilder.Build
-    /// </summary>
     public static class HDCAdsDebugPanelBuilder
     {
         private const string PrefabName = "HDCAdsDebugPanel.prefab";
@@ -95,7 +90,6 @@ namespace HDC.Ads.DebugUI.Editor
             GameObject safeArea = Element(root.transform, "Safe Area");
             Stretch(safeArea.transform, Vector2.zero, Vector2.zero);
 
-            // Window: header, page bar, then the pages.
             GameObject window = Box(safeArea.transform, "Window", WindowColor, true, true);
             Stretch(window.transform, new Vector2(16f, 16f), new Vector2(-16f, -16f));
 
@@ -124,7 +118,6 @@ namespace HDC.Ads.DebugUI.Editor
             GameObject pagesRoot = Element(window.transform, "Pages");
             Stretch(pagesRoot.transform, Vector2.zero, new Vector2(0f, -270f));
 
-            // Popup area, picker and viewer sit above the window.
             GameObject popupArea = Box(safeArea.transform, "Popup Area", PopupAreaColor, true, false);
             Place(popupArea.transform, new Vector2(0.5f, 0f), new Vector2(0f, 40f), new Vector2(900f, 560f));
             Text popupLabel = Label(popupArea.transform, "Label", "Popup area", 26, FontStyle.Italic, SoftTextColor, TextAnchor.MiddleCenter);
@@ -160,8 +153,6 @@ namespace HDC.Ads.DebugUI.Editor
             Debug.Log($"[HDCAds] Built {path}.");
         }
 
-        // Ads page: channel tabs, then Actions, Detail Information, Recent Events and System. The page makes a tab
-        // per channel and a button per action from the templates.
         private static HDCAdsDebugWorkspace AdsPage(Transform parent, HDCOptionPicker picker, HDCAdsDebugViewer viewer, GameObject popupArea)
         {
             GameObject page = Page(parent, "Ads Page");
@@ -181,7 +172,6 @@ namespace HDC.Ads.DebugUI.Editor
 
             RectTransform content = Body(page.transform, -224f);
 
-            // Actions: the channel, the group and position to act on, and the API calls.
             GameObject actions = Card(content, "Actions Card");
             Text channelTitle = Label(actions.transform, "Channel Title", "ForceAd · FA", 34, FontStyle.Bold, TextColor, TextAnchor.MiddleLeft);
             Text hint = Label(actions.transform, "Hint", "", 22, FontStyle.Italic, MutedTextColor, TextAnchor.UpperLeft);
@@ -198,7 +188,6 @@ namespace HDC.Ads.DebugUI.Editor
             actionTemplate.gameObject.SetActive(false);
             Text lastCall = Label(actions.transform, "Last Call", "Last call: -", 22, FontStyle.Normal, MutedTextColor, TextAnchor.UpperLeft);
 
-            // Detail information: the selected group and its ad units.
             GameObject detail = Card(content, "Detail Card");
             Button[] detailButtons = HeaderRow(detail.transform, "Detail Information Ad", out _, ("Copy Report", 230f));
             Text groupTitle = Label(detail.transform, "Group Title", "", 30, FontStyle.Bold, AccentColor, TextAnchor.MiddleLeft);
@@ -208,7 +197,6 @@ namespace HDC.Ads.DebugUI.Editor
             Vertical(unitsList, new RectOffset(0, 0, 0, 0), 14f);
             GameObject unitTemplate = UnitTemplate(unitsList.transform);
 
-            // Recent events, folded until opened.
             GameObject eventsCard = Card(content, "Events Card");
             Button[] eventButtons = HeaderRow(eventsCard.transform, "Recent Events", out _, ("Expand", 190f), ("Full Screen", 230f));
             GameObject eventsBody = Element(eventsCard.transform, "Events Body");
@@ -220,7 +208,6 @@ namespace HDC.Ads.DebugUI.Editor
             eventTemplate.gameObject.SetActive(false);
             eventsBody.SetActive(false);
 
-            // System: the selected channel only, folded until opened.
             GameObject systemCard = Card(content, "System Card");
             Button[] systemButtons = HeaderRow(systemCard.transform, "System", out Text systemTitle, ("Expand", 190f));
             GameObject systemBody = Element(systemCard.transform, "System Body");
@@ -255,7 +242,6 @@ namespace HDC.Ads.DebugUI.Editor
             return workspace;
         }
 
-        // Remote Config page: load status, config check, the config viewer and the ad units map.
         private static HDCRemoteConfigPage RemoteConfigPage(Transform parent, HDCAdsDebugViewer viewer)
         {
             GameObject page = Page(parent, "Remote Config Page");
@@ -320,7 +306,6 @@ namespace HDC.Ads.DebugUI.Editor
             return config;
         }
 
-        // Events page: counts, filters and the list of every channel's ad events.
         private static HDCEventsPage EventsPage(Transform parent, HDCOptionPicker picker, HDCAdsDebugViewer viewer)
         {
             GameObject page = Page(parent, "Events Page");
@@ -366,7 +351,6 @@ namespace HDC.Ads.DebugUI.Editor
             return events;
         }
 
-        // Device page: build, the ads library's switches, mediation, device, network and Adjust.
         private static HDCDevicePage DevicePage(Transform parent)
         {
             GameObject page = Page(parent, "Device Page");
@@ -418,7 +402,6 @@ namespace HDC.Ads.DebugUI.Editor
             return device;
         }
 
-        // A channel tab: its key, its name under it and a dot with the state of its ads.
         private static Button Tab(Transform parent, string name)
         {
             GameObject tab = Box(parent, name, ButtonColor, true, true);
@@ -456,7 +439,6 @@ namespace HDC.Ads.DebugUI.Editor
             return template;
         }
 
-        // Two columns of labeled values, with section headers and notes; see HDCKeyValueList.
         private static HDCKeyValueList KeyValueList(Transform parent, string name)
         {
             GameObject list = Element(parent, name);
@@ -518,7 +500,6 @@ namespace HDC.Ads.DebugUI.Editor
             return picker;
         }
 
-        // A full-screen reader for long texts, such as the events or a config.
         private static HDCAdsDebugViewer Viewer(Transform parent)
         {
             GameObject root = Element(parent, "Detail Viewer");
@@ -554,8 +535,6 @@ namespace HDC.Ads.DebugUI.Editor
             return viewer;
         }
 
-        // Building blocks
-
         private static GameObject Element(Transform parent, string name)
         {
             var element = new GameObject(name, typeof(RectTransform)) { layer = UiLayer };
@@ -579,7 +558,6 @@ namespace HDC.Ads.DebugUI.Editor
             return element;
         }
 
-        // A page fills the area under the page bar; the panel shows one at a time.
         private static GameObject Page(Transform parent, string name)
         {
             GameObject page = Element(parent, name);
@@ -587,7 +565,6 @@ namespace HDC.Ads.DebugUI.Editor
             return page;
         }
 
-        // The page's scrolling column of cards, from <paramref name="top"/> below the page's top edge.
         private static RectTransform Body(Transform page, float top)
         {
             RectTransform content = ScrollView(page, "Body", out GameObject body);
@@ -604,7 +581,6 @@ namespace HDC.Ads.DebugUI.Editor
             return card;
         }
 
-        // A card's title row, with buttons on the right.
         private static Button[] HeaderRow(Transform parent, string title, out Text titleText, params (string label, float width)[] buttons)
         {
             GameObject row = Element(parent, "Header Row");
@@ -641,14 +617,12 @@ namespace HDC.Ads.DebugUI.Editor
             button.targetGraphic = element.GetComponent<Image>();
             Text text = Label(element.transform, "Label", label, labelSize, FontStyle.Bold, Color.white, TextAnchor.MiddleCenter);
             Stretch(text.transform, new Vector2(10f, 4f), new Vector2(-10f, -4f));
-            // Long group and position names shrink instead of spilling out of the button.
             text.resizeTextForBestFit = true;
             text.resizeTextMinSize = MinLabelSize;
             text.resizeTextMaxSize = labelSize;
             return button;
         }
 
-        // A button in a layout row; a width of 0 lets the row stretch it.
         private static Button Bar(Transform parent, string name, string label, Color color, float width, float height = ButtonHeight)
         {
             Button button = ButtonWithLabel(parent, name, label, color, 26);
@@ -733,7 +707,6 @@ namespace HDC.Ads.DebugUI.Editor
             layout.childForceExpandHeight = false;
         }
 
-        // A row whose children share its height and split its width by their flexible widths.
         private static void HorizontalStretch(GameObject element, RectOffset padding, float spacing)
         {
             Horizontal(element, padding, spacing, TextAnchor.MiddleCenter);
@@ -760,7 +733,6 @@ namespace HDC.Ads.DebugUI.Editor
             rect.offsetMax = offsetMax;
         }
 
-        // Spans the width at <paramref name="top"/> below the top edge, with a fixed height.
         private static void Top(Transform element, float top, float height)
         {
             var rect = (RectTransform)element;

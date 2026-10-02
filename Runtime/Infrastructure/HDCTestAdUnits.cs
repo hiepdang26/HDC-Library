@@ -2,10 +2,6 @@ using HDC.Ads.Domain;
 
 namespace HDC.Ads.Infrastructure
 {
-    /// <summary>
-    /// Google's sample ad units, which always serve test ads. While <see cref="HDCAdsSdk.UseTestAdUnits"/> is on,
-    /// every load uses the sample unit of its format in place of the configured one.
-    /// </summary>
     internal static class HDCTestAdUnits
     {
 #if UNITY_IOS
@@ -24,7 +20,6 @@ namespace HDC.Ads.Infrastructure
         private const string Native = "ca-app-pub-3940256099942544/2247696110";
 #endif
 
-        /// <summary>The ad unit a load of <paramref name="format"/> uses: the sample one while test units are on.</summary>
         internal static string Pick(string format, string adUnitId)
         {
             if (!HDCAdsSdk.UseTestAdUnits || string.IsNullOrWhiteSpace(adUnitId))
@@ -37,12 +32,10 @@ namespace HDC.Ads.Infrastructure
                 case HDCAdFormat.AppOpen: return AppOpen;
                 case HDCAdFormat.Mrec: return FixedBanner;
                 case HDCAdFormat.BannerView: return AdaptiveBanner;
-                // Native full-screen ads, popups and the native banner.
                 default: return Native;
             }
         }
 
-        /// <summary>The ad units a native load tries: the one sample unit of its format while test units are on.</summary>
         internal static string[] Pick(string format, string[] adUnitIds)
         {
             if (!HDCAdsSdk.UseTestAdUnits || adUnitIds == null || adUnitIds.Length == 0)
@@ -50,7 +43,6 @@ namespace HDC.Ads.Infrastructure
             return new[] { Pick(format, "test") };
         }
 
-        /// <summary>The ad unit of a banner view: adaptive across the screen, fixed size in the corners and for MREC.</summary>
         internal static string PickBanner(HDCBannerViewPlacement placement, string adUnitId)
         {
             if (!HDCAdsSdk.UseTestAdUnits || string.IsNullOrWhiteSpace(adUnitId))

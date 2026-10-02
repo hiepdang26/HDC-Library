@@ -3,7 +3,6 @@ using UnityEngine;
 
 namespace HDC.Ads.Logic
 {
-    /// <summary>Runs the game's callbacks: an exception is logged instead of breaking the ad flow.</summary>
     internal static class HDCCallbacks
     {
         internal static void Run(Action action)

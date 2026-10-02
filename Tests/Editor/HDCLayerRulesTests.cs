@@ -8,20 +8,6 @@ using NUnit.Framework;
 
 namespace HDC.Ads.Tests
 {
-    /// <summary>
-    /// A folder under Runtime is a layer, with the namespace of its name:
-    /// <list type="bullet">
-    /// <item>Api (HDC.Ads): what game code calls.</item>
-    /// <item>Logic: the channels and their groups, which decide when ads load and show.</item>
-    /// <item>Domain: the configs, options and events everything else passes around.</item>
-    /// <item>Diagnostics: what the debug panel reads.</item>
-    /// <item>Ports: the interfaces Logic calls and Infrastructure implements.</item>
-    /// <item>Infrastructure: the SDK, the native bridges and the Google Mobile Ads plugin.</item>
-    /// <item>Composition: puts the others together.</item>
-    /// </list>
-    /// Only Infrastructure names ad networks, Firebase, storage and native code, and nothing depends on a layer
-    /// above it. Each line of <see cref="Layers"/> says what a layer may not name.
-    /// </summary>
     public class HDCLayerRulesTests
     {
         private static readonly Rule[] Sdks =
@@ -44,10 +30,6 @@ namespace HDC.Ads.Tests
             ("Runtime/Composition", Sdks),
         };
 
-        /// <summary>
-        /// Uses that break a rule but are known, as "file: rule", for a rule that comes before the code meets it.
-        /// The test fails once one is fixed, so the list only shrinks: take the entry out in the same commit.
-        /// </summary>
         private static readonly string[] KnownDebt =
         {
         };
@@ -112,7 +94,6 @@ namespace HDC.Ads.Tests
             StringAssert.StartsWith("PlayerPrefs.Save();", lines[3]);
         }
 
-        // A layer's namespace, in a using directive or a full name.
         private static Rule Uses(string layer) => new Rule("uses " + layer, $@"\bHDC\.Ads\.{layer}\b");
 
         private sealed class Rule

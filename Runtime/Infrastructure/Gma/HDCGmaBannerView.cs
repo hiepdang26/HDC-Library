@@ -6,10 +6,6 @@ using UnityEngine;
 
 namespace HDC.Ads.Infrastructure
 {
-    /// <summary>
-    /// A banner or MREC view from the Google Mobile Ads Unity plugin. The view is created hidden and refreshes
-    /// itself once loaded; until the first ad loads, failed loads are retried with a growing delay.
-    /// </summary>
     internal sealed class HDCGmaBannerView
     {
         private readonly string format;
@@ -40,14 +36,12 @@ namespace HDC.Ads.Infrastructure
                 return;
 
             view = new BannerView(AdUnitId, Size(), Position());
-            // A new view shows itself; keep it hidden until the game asks for it.
             view.Hide();
             Attach(view);
             HDCAdsTracker.Requested(format, Id, AdUnitId);
             view.LoadAd(new AdRequest());
         }
 
-        /// <summary>Shows the view now, or as soon as its first ad loads.</summary>
         internal void Show()
         {
             if (view == null || IsShowing)
@@ -108,13 +102,11 @@ namespace HDC.Ads.Infrastructure
             }
         }
 
-        /// <summary>Centers the view on a point in Unity screen pixels (origin at the bottom left).</summary>
         internal void Move(Vector2 screenPoint)
         {
             if (view == null)
                 return;
 
-            // The plugin places views in density-independent points from the top left.
             float scale = MobileAds.Utils.GetDeviceScale();
             if (scale <= 0f)
                 scale = 1f;
@@ -179,7 +171,6 @@ namespace HDC.Ads.Infrastructure
             if (banner != view)
                 return;
 
-            // Every refresh loads a new ad, with its own response.
             response = banner.GetResponseInfo();
             retry.Reset();
             bool firstAd = !IsLoaded;
@@ -195,7 +186,6 @@ namespace HDC.Ads.Infrastructure
                 return;
 
             HDCAdsSdk.Emit(HDCGma.Event(Id, format, HDCAdEventType.LoadFailed, AdUnitId, null).WithError(error, "Load failed"));
-            // After the first ad, the view keeps its ad and refreshes on its own schedule.
             if (IsLoaded)
                 return;
             retry.Schedule(() =>

@@ -1,4 +1,3 @@
-// Unity entry points for the HDCAds framework: one command call and one event callback.
 #import <Foundation/Foundation.h>
 #import <HDCAds/HDCAds.h>
 #include <stdlib.h>
@@ -20,7 +19,6 @@ static void HDCAdsDeliverEvent(NSString *eventJson) {
 }
 
 extern "C" {
-    // Returns a heap copy of the result JSON, which the Mono/IL2CPP string marshaler frees.
     const char *HDCAds_Call(const char *method, const char *argsJson) {
         NSString *nativeMethod = HDCAdsString(method);
         NSString *nativeArgs = HDCAdsString(argsJson);
@@ -37,8 +35,6 @@ extern "C" {
         return strdup(utf8 != NULL ? utf8 : "");
     }
 
-    // Events are delivered on the main thread, Unity's player thread on iOS, so the callback runs managed
-    // code directly, even while a fullscreen ad pauses Unity.
     void HDCAds_SetEventCallback(HDCAdsEventCallback callback) {
         HDCAdsEventCallbackPointer = callback;
         if (callback == NULL) {

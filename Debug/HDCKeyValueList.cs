@@ -4,10 +4,6 @@ using UnityEngine.UI;
 
 namespace HDC.Ads.DebugUI
 {
-    /// <summary>
-    /// Labeled values in two columns, with section headers and full-width notes, drawn from pooled rows in the
-    /// order they are added. Fill it between <see cref="Begin"/> and <see cref="End"/>; End hides what is left.
-    /// </summary>
     public sealed class HDCKeyValueList : MonoBehaviour
     {
         [Tooltip("A row with a \"Label\" and a \"Value\" text.")]
@@ -30,7 +26,6 @@ namespace HDC.Ads.DebugUI
             usedRows = usedHeaders = usedNotes = 0;
         }
 
-        /// <summary>A section title, shown in capitals.</summary>
         public void Header(string title) =>
             HDCDebugStyle.Take(headers, headerTemplate, ref usedHeaders).GetComponent<Text>().text = (title ?? string.Empty).ToUpperInvariant();
 
@@ -45,7 +40,6 @@ namespace HDC.Ads.DebugUI
 
         public void Row(string label, string value) => Row(label, value, HDCDebugStyle.TextColor);
 
-        /// <summary>A line across both columns; rich text.</summary>
         public void Note(string text) => HDCDebugStyle.Take(notes, noteTemplate, ref usedNotes).GetComponent<Text>().text = text;
 
         public void End()

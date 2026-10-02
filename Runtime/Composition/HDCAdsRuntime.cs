@@ -8,14 +8,8 @@ using UnityEngine;
 
 namespace HDC.Ads.Composition
 {
-    /// <summary>
-    /// Puts the library together: the infrastructure behind each port, the context the channels share and the
-    /// channels. The one class that knows both the logic and the infrastructure under it; tests build runtimes
-    /// with ports of their own.
-    /// </summary>
     internal sealed class HDCAdsRuntime
     {
-        /// <param name="extraChannels">Channels beyond the seven, each made with the runtime's context.</param>
         internal HDCAdsRuntime(IClock clock, IKeyValueStore store, IMainThread mainThread, IAdsLog log, IAdsSdk sdk, IAdsTesting testing,
             IReadOnlyList<IAdNetwork> networks, IUnitOrderPolicy order, IReadOnlyList<IMediationPartner> partners = null,
             IEnumerable<Func<HDCAdsContext, IAdChannel>> extraChannels = null)
@@ -26,21 +20,14 @@ namespace HDC.Ads.Composition
             Partners = partners ?? new IMediationPartner[0];
         }
 
-        /// <summary>The runtime <see cref="HDCAds"/> runs on.</summary>
         internal static HDCAdsRuntime Current { get; private set; } = CreateDefault();
 
         internal HDCAdsContext Context { get; }
         internal HDCChannels Channels { get; }
         internal IAdsTesting Testing { get; }
 
-        /// <summary>The mediation partners with setup of their own.</summary>
         internal IReadOnlyList<IMediationPartner> Partners { get; }
 
-        /// <summary>
-        /// A runtime on Unity, with two ad networks, the Google Mobile Ads plugin and the native library, and the
-        /// mediation partners with setup of their own. A new network is one more entry here, and its unit key in
-        /// the order policy; a new partner is one more entry in the partners.
-        /// </summary>
         internal static HDCAdsRuntime CreateDefault()
         {
             var meta = new HDCMetaPartner();
@@ -49,19 +36,12 @@ namespace HDC.Ads.Composition
                 new HDCPriorityOrder(), new IMediationPartner[] { meta });
         }
 
-        /// <summary>Runs <see cref="HDCAds"/> on another runtime, such as one with fake ports in a test.</summary>
         internal static void Use(HDCAdsRuntime runtime) => Current = runtime;
 
 #if UNITY_EDITOR
-        /// <summary>
-        /// Puts every static of the library back to its start state when Play Mode starts. Without a domain
-        /// reload (Enter Play Mode Options, the default of new Unity 6.6 projects), statics keep the last
-        /// session's ads, callbacks and subscribers. Players always start fresh, so this is Editor only.
-        /// </summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetForPlayMode()
         {
-            // The last runtime's channels subscribed to these statics' events: clear them, then start over.
             HDCMainThread.ResetStatics();
             HDCGma.ResetStatics();
             HDCAdsSdk.ResetStatics();

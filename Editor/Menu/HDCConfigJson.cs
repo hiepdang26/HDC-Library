@@ -4,7 +4,6 @@ using UnityEngine;
 
 namespace HDC.Ads.Editor
 {
-    /// <summary>Checks and formats the JSON of the ads configs for the config window.</summary>
     internal static class HDCConfigJson
     {
         internal enum Kind
@@ -25,7 +24,6 @@ namespace HDC.Ads.Editor
             internal string Message { get; }
         }
 
-        /// <summary>Parses <paramref name="json"/> and sums up what it configures.</summary>
         internal static Result Check(string json, Kind kind, bool mayBeEmpty)
         {
             if (string.IsNullOrWhiteSpace(json))
@@ -45,7 +43,6 @@ namespace HDC.Ads.Editor
             }
         }
 
-        /// <summary>Indents the JSON by two spaces per level; strings are kept as they are.</summary>
         internal static string Format(string json)
         {
             var text = new StringBuilder();
@@ -133,7 +130,7 @@ namespace HDC.Ads.Editor
         private static void NewLine(StringBuilder text, int indent) =>
             text.Append('\n').Append(' ', Math.Max(indent, 0) * 2);
 
-#pragma warning disable 0649 // Assigned by JsonUtility.
+#pragma warning disable 0649
         [Serializable]
         private sealed class AdsSummary
         {

@@ -5,7 +5,6 @@ using UnityEngine;
 
 namespace HDC.Ads.Logic
 {
-    /// <summary>One ad unit of a full-screen group: it follows its ad's events through each show.</summary>
     internal sealed class HDCFullscreenSource
     {
         private readonly IFullscreenAd ad;
@@ -24,7 +23,6 @@ namespace HDC.Ads.Logic
             ad.Event += OnAdEvent;
         }
 
-        /// <summary>The network the ad comes from.</summary>
         internal IAdNetwork Network { get; }
 
         internal string Id => ad.Id;
@@ -34,7 +32,6 @@ namespace HDC.Ads.Logic
         internal bool IsReady => ad.IsReady;
         internal bool IsShowing => showing;
 
-        /// <summary>Ads that report no reward, such as native full-screen ads, reward the player when they close.</summary>
         internal bool RewardsOnClose { get; set; }
 
         internal void Load() => ad.Load();

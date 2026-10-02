@@ -15,8 +15,6 @@ namespace HDC.Ads.Logic
 
         IConfigRule IAdChannel.ConfigRule => Rules;
 
-        // The debug panel's view of the channel: one placement per banner slot. It reads the slots' groups without
-        // making them.
         private sealed class DebugModule : HDCChannelDiagnostics
         {
             private static readonly string[] SlotNames = Enum.GetNames(typeof(HDCBannerSlot));

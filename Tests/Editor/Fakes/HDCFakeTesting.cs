@@ -2,7 +2,6 @@ using HDC.Ads.Ports;
 
 namespace HDC.Ads.Tests
 {
-    /// <summary>Test switches that only remember what they were set to.</summary>
     internal sealed class HDCFakeTesting : IAdsTesting
     {
         public bool DebugLog { get; set; }

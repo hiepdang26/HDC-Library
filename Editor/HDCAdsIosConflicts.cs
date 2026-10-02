@@ -10,20 +10,10 @@ using UnityEngine;
 
 namespace HDC.Ads.Editor
 {
-    /// <summary>
-    /// Keeps the iOS build linking when the project also ships another framework built from the AdsMultiplatform
-    /// KMP project, such as the one of an older ads library. Two such static frameworks hold the same Compose
-    /// UIKit classes and native bridge, so linking both fails on duplicate symbols. While HDC ads are on, the other
-    /// framework is left out of the Xcode project, with the native sources that import it, and its copy is deleted
-    /// from the export, so no build script copies its resources over those of HDCAds. The C functions of those
-    /// sources that the IL2CPP code calls get stand-ins that do nothing, so the scripts calling them still link.
-    /// The build log names what was left out.
-    /// </summary>
     internal static class HDCAdsIosConflicts
     {
         internal const string StandInsPath = "Libraries/HDCAds/HDCAdsStandIns.mm";
 
-        // A function of the KMP project's native bridge: every framework built from the project defines it.
         private static readonly byte[] BridgeSymbol = Encoding.ASCII.GetBytes("AdsMultiplatformUnityPause");
         private static readonly string[] SourceExtensions = { ".m", ".mm", ".c", ".cpp", ".swift" };
         private static readonly string[] Il2CppOutputFolders = { "Il2CppOutputProject/Source/il2cppOutput", "Classes/Native" };
@@ -35,11 +25,9 @@ namespace HDC.Ads.Editor
             "intptr_t", "uintptr_t", "float", "double",
         };
 
-        /// <summary>Leaves the conflicting frameworks and the sources importing them out, and writes the stand-ins.</summary>
         internal static void LeaveOut(PBXProject project, string targetGuid, string buildPath, string ownFrameworkPath)
         {
             var frameworks = new List<string>();
-            // Unity puts plugin frameworks in Frameworks, or in Libraries in some versions.
             foreach (string bundle in Bundles(Path.Combine(buildPath, "Frameworks")).Concat(Bundles(Path.Combine(buildPath, "Libraries"))).ToList())
             {
                 string projectPath = ProjectPath(buildPath, bundle);
@@ -83,7 +71,6 @@ namespace HDC.Ads.Editor
                 Debug.LogError($"[HDCAds] No stand-in for {string.Join(", ", missing)}: the iOS link will miss them.");
         }
 
-        /// <summary>Takes the stand-ins out of the project. Returns whether they were in it.</summary>
         internal static bool RemoveStandIns(PBXProject project, string buildPath)
         {
             string guid = project.FindFileGuidByProjectPath(StandInsPath);
@@ -95,7 +82,6 @@ namespace HDC.Ads.Editor
             return guid != null;
         }
 
-        // The .xcframework and .framework bundles in a folder, without looking inside them.
         private static IEnumerable<string> Bundles(string folder)
         {
             if (!Directory.Exists(folder))
@@ -138,7 +124,6 @@ namespace HDC.Ads.Editor
                 project.RemoveFile(guid);
         }
 
-        // Stand-ins for the functions that the IL2CPP code declares and the left-out sources define.
         private static List<string> StandIns(string buildPath, List<string> sources, List<string> missing)
         {
             var standIns = new List<string>();
@@ -178,7 +163,6 @@ namespace HDC.Ads.Editor
         private static bool Defines(string source, string name) =>
             source.Contains(name) && Regex.IsMatch(source, @"\b" + Regex.Escape(name) + @"\s*\([^;{}]*\)\s*\{");
 
-        // A function that takes any arguments and returns zero: the callers' argument types do not matter.
         private static string StandIn(string returnType, string name)
         {
             string type = Regex.Replace(returnType.Trim(), @"\s+", " ");
@@ -230,7 +214,6 @@ namespace HDC.Ads.Editor
                     if (IndexOf(buffer, length, pattern) >= 0)
                         return true;
 
-                    // Keep the tail, in case the pattern spans two reads.
                     kept = Math.Min(pattern.Length - 1, length);
                     Buffer.BlockCopy(buffer, length - kept, buffer, 0, kept);
                 }

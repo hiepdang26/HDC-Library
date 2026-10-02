@@ -8,11 +8,6 @@ using UnityEngine;
 
 namespace HDC.Ads.DebugUI
 {
-    /// <summary>
-    /// Checks the configs HDCAds runs on: how the load went, the JSON, then each channel's rules, which say whether
-    /// the channel has its ad units, groups, positions and layouts, and last the positions listed twice. Each
-    /// finding is in Vietnamese, with what to fix.
-    /// </summary>
     internal static class HDCConfigCheck
     {
         internal static List<HDCConfigFinding> Run()
@@ -68,7 +63,6 @@ namespace HDC.Ads.DebugUI
             else if (HDCConfigReport.Outcome == "timeout")
                 findings.Add(Warning("Remote Config chưa xong sau 10 giây: dùng giá trị đã lưu, hoặc mặc định."));
 
-            // Without Firebase every key falls back; the error above already says why.
             if (HDCConfigReport.DefaultsOnly || HDCConfigReport.Firebase != "Available")
                 return;
             foreach (HDCConfigEntry entry in HDCConfigReport.Entries)
@@ -86,7 +80,6 @@ namespace HDC.Ads.DebugUI
             foreach (IAdChannel channel in channels)
                 findings.AddRange(channel.ConfigRule.Check(ads, core));
 
-            // Positions named twice, in a channel or by two of them.
             string[][] positions = channels.Select(channel => channel.ConfigRule.Positions(ads).ToArray()).ToArray();
             for (int i = 0; i < channels.Count; i++)
             {

@@ -6,7 +6,6 @@ using UnityEngine.UI;
 
 namespace HDC.Ads.DebugUI
 {
-    /// <summary>The panel's colors, and small helpers its pages share.</summary>
     internal static class HDCDebugStyle
     {
         internal static readonly Color TextColor = new Color(0.945f, 0.961f, 0.976f, 1f);
@@ -20,7 +19,6 @@ namespace HDC.Ads.DebugUI
         internal static readonly Color SelectedColor = new Color(0.31f, 0.275f, 0.898f, 1f);
         internal static readonly Color PrimaryColor = new Color(0.31f, 0.275f, 0.898f, 1f);
 
-        // Badge colors of the ad states.
         internal static readonly Color IdleBadge = new Color(0.278f, 0.333f, 0.412f, 1f);
         internal static readonly Color BusyBadge = new Color(0.851f, 0.467f, 0.024f, 1f);
         internal static readonly Color GoodBadge = new Color(0.086f, 0.639f, 0.290f, 1f);
@@ -60,7 +58,6 @@ namespace HDC.Ads.DebugUI
             }
         }
 
-        /// <summary>Fills a list from a channel's or group's state: a header per section, a row per value.</summary>
         internal static void Fill(HDCKeyValueList list, HDCDebugInfo info)
         {
             foreach (HDCDebugInfo.Part part in info.Parts)
@@ -86,7 +83,6 @@ namespace HDC.Ads.DebugUI
 
         internal static void Highlight(Button button, bool selected) => button.image.color = selected ? SelectedColor : ButtonColor;
 
-        /// <summary>Takes the next pooled copy of <paramref name="template"/>, making one when the pool runs out.</summary>
         internal static GameObject Take(List<GameObject> pool, GameObject template, ref int used)
         {
             if (pool.Count <= used)
@@ -103,7 +99,6 @@ namespace HDC.Ads.DebugUI
             return picked;
         }
 
-        /// <summary>Hides the pooled copies past the first <paramref name="used"/>.</summary>
         internal static void HideRest(List<GameObject> pool, int used)
         {
             for (int i = used; i < pool.Count; i++)
