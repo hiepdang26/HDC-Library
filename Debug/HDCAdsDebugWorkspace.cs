@@ -456,13 +456,13 @@ namespace HDC.Ads.DebugUI
         {
             switch (channel)
             {
-                case "AL": return HDCAds.AppLaunch.Describe();
-                case "AR": return HDCAds.AppResume.Describe();
-                case "RW": return HDCAds.Rewarded.Describe();
-                case "FA": return HDCAds.ForceAd.Describe(position, group);
-                case "BN": return HDCAds.Banner.Describe(Slot());
-                case "MREC": return HDCAds.Mrec.Describe();
-                default: return HDCAds.Popup.Describe(group, position);
+                case "AL": return HDCAds.Channels.AppLaunch.Describe();
+                case "AR": return HDCAds.Channels.AppResume.Describe();
+                case "RW": return HDCAds.Channels.Rewarded.Describe();
+                case "FA": return HDCAds.Channels.ForceAd.Describe(position, group);
+                case "BN": return HDCAds.Channels.Banner.Describe(Slot());
+                case "MREC": return HDCAds.Channels.Mrec.Describe();
+                default: return HDCAds.Channels.Popup.Describe(group, position);
             }
         }
 

@@ -9,7 +9,7 @@ namespace HDC.Ads
     /// served by the Google Mobile Ads plugin, "androidUnit" units by the native library on both platforms.
     /// </summary>
     [Serializable]
-    public sealed class HDCAdCoreConfig
+    internal sealed class HDCAdCoreConfig
     {
         public Comeback comebackChannel = new Comeback();
         public AssetConfig[] assetConfigs = new AssetConfig[0];

@@ -6,7 +6,7 @@ using UnityEngine;
 namespace HDC.Ads
 {
     // Formats served through the Google Mobile Ads Unity plugin: rewarded, app open, banner and MREC views.
-    public static partial class HDCAdsSdk
+    internal static partial class HDCAdsSdk
     {
         private static readonly Dictionary<string, HDCGmaFullscreenAd> rewardedAds = new Dictionary<string, HDCGmaFullscreenAd>();
         private static readonly Dictionary<string, HDCGmaFullscreenAd> appOpenAds = new Dictionary<string, HDCGmaFullscreenAd>();

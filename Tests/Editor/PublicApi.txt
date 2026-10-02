@@ -5,136 +5,15 @@
 # One section per assembly; members sit under their type, indented.
 
 [HDC.Ads]
-sealed class HDC.Ads.HDCAdCoreConfig
-  ctor()
-  field HDC.Ads.HDCAdCoreConfig.AssetConfig[] assetConfigs
-  field HDC.Ads.HDCAdCoreConfig.BannerUnits bannerUnit
-  field HDC.Ads.HDCAdCoreConfig.Comeback comebackChannel
-  field HDC.Ads.HDCAdCoreConfig.ForceAdGroup[] forceAdGroups
-  field HDC.Ads.HDCAdCoreConfig.FullscreenUnit appOpenUnit
-  field HDC.Ads.HDCAdCoreConfig.FullscreenUnit mrecUnit
-  field HDC.Ads.HDCAdCoreConfig.FullscreenUnit rewardedUnit
-  field HDC.Ads.HDCAdCoreConfig.LayoutConfigs forceAdLayoutConfig
-  field HDC.Ads.HDCAdCoreConfig.PopupGroup[] popupGroups
-  static HDC.Ads.HDCAdCoreConfig Parse(string json)
-sealed class HDC.Ads.HDCAdCoreConfig.AdmobUnit
-  ctor()
-  field bool preloadAd
-  field int adBufferSize
-  field string id
-sealed class HDC.Ads.HDCAdCoreConfig.AssetConfig
-  ctor()
-  field bool show_advertiser
-  field bool show_body
-  field bool show_cta
-  field bool show_description
-  field bool show_headline
-  field bool show_icon
-  field bool show_media
-  field bool show_media_image
-  field bool show_media_video
-  field bool show_price
-  field bool show_star_rating
-  field bool show_store
-  field string assetConfigName
-sealed class HDC.Ads.HDCAdCoreConfig.BannerUnits
-  ctor()
-  field HDC.Ads.HDCAdCoreConfig.FullscreenUnit bottomLeft
-  field HDC.Ads.HDCAdCoreConfig.FullscreenUnit bottomRight
-  field HDC.Ads.HDCAdCoreConfig.FullscreenUnit fullBottom
-  field HDC.Ads.HDCAdCoreConfig.FullscreenUnit fullTop
-  field HDC.Ads.HDCAdCoreConfig.FullscreenUnit topLeft
-  field HDC.Ads.HDCAdCoreConfig.FullscreenUnit topRight
-sealed class HDC.Ads.HDCAdCoreConfig.Comeback
-  ctor()
-  field int launchAdType
-  field int resumeAdType
-  field string launchForceAdGroupName
-  field string resumeForceAdGroupName
-sealed class HDC.Ads.HDCAdCoreConfig.ForceAdGroup
-  ctor()
-  field HDC.Ads.HDCAdCoreConfig.AdmobUnit admobUnit
-  field HDC.Ads.HDCAdCoreConfig.NativeUnit androidUnit
-  field bool disablePostInitReload
-  field bool useBackup
-  field int maxShowCount
-  field int mediationPriority
-  field string groupName
-  field string[] positionNames
-sealed class HDC.Ads.HDCAdCoreConfig.FullscreenUnit
-  ctor()
-  field HDC.Ads.HDCAdCoreConfig.AdmobUnit admobUnit
-  field HDC.Ads.HDCAdCoreConfig.NativeUnit androidUnit
-  field bool useBackup
-  field int mediationPriority
-sealed class HDC.Ads.HDCAdCoreConfig.Interstitials
-  ctor()
-  field bool isPreloadAd
-  field bool switchToInterstitialAndroid
-  field int bufferSize
-sealed class HDC.Ads.HDCAdCoreConfig.Layout
-  ctor()
-  field bool disableAdComeback
-  field bool pauseGameplay
-  field bool showTCD
-  field float delay
-  field float layoutTime
-  field int timeUpC
-  field string assetConfigName
-  field string layout
-sealed class HDC.Ads.HDCAdCoreConfig.LayoutConfigs
-  ctor()
-  field HDC.Ads.HDCAdCoreConfig.LayoutGroup[] layoutGroups
-sealed class HDC.Ads.HDCAdCoreConfig.LayoutGroup
-  ctor()
-  field HDC.Ads.HDCAdCoreConfig.Layout[] layouts
-  field string groupName
-sealed class HDC.Ads.HDCAdCoreConfig.NativeUnit
-  ctor()
-  field HDC.Ads.HDCAdCoreConfig.Interstitials androidInterstitials
-  field int reloadTime
-  field int timeShow
-  field string id
-  field string layout
-  field string layoutGroupName
-  field string[] ids
-  field string[] layouts
-sealed class HDC.Ads.HDCAdCoreConfig.PopupGroup
-  ctor()
-  field HDC.Ads.HDCAdCoreConfig.NativeUnit androidUnit
-  field bool disablePostInitReload
-  field string groupName
-  field string[] positionNames
-sealed class HDC.Ads.HDCAdEvent
-  ctor()
-  field double rewardAmount
-  field int code
-  field int precision
-  field long valueMicros
-  field string adSource
-  field string adUnitId
-  field string adapter
-  field string currency
-  field string format
-  field string id
-  field string layout
-  field string message
-  field string responseId
-  field string rewardType
-  field string type
-  override string ToString()
-  property double Revenue { get; }
-static class HDC.Ads.HDCAdEventType
-  const field string Clicked = "Clicked"
-  const field string Closed = "Closed"
-  const field string Impression = "Impression"
-  const field string Initialized = "Initialized"
-  const field string LoadFailed = "LoadFailed"
-  const field string Loaded = "Loaded"
-  const field string Paid = "Paid"
-  const field string Rewarded = "Rewarded"
-  const field string ShowFailed = "ShowFailed"
-  const field string Shown = "Shown"
+enum HDC.Ads.HDCAdChannel
+  AppLaunch = 3
+  AppResume = 4
+  Banner = 5
+  ForceAd = 1
+  Mrec = 6
+  Popup = 7
+  Rewarded = 2
+  Unknown = 0
 static class HDC.Ads.HDCAdFormat
   const field string AppOpen = "appOpen"
   const field string Banner = "banner"
@@ -153,175 +32,41 @@ enum HDC.Ads.HDCAdPosition
   Top = 0
   TopLeft = 2
   TopRight = 3
+sealed class HDC.Ads.HDCAdRevenue
+  const field string AdMob = "AdMob"
+  override string ToString()
+  property HDC.Ads.HDCAdChannel Channel { get; }
+  property double Value { get; }
+  property int Precision { get; }
+  property string AdSource { get; }
+  property string AdUnitId { get; }
+  property string Currency { get; }
+  property string Format { get; }
+  property string Network { get; }
+  property string Position { get; }
 static class HDC.Ads.HDCAds
   static event System.Action Initialized
-  static property HDC.Ads.HDCAdCoreConfig CoreConfig { get; }
-  static property HDC.Ads.HDCAdsConfig Config { get; }
-  static property HDC.Ads.HDCAppLaunchAds AppLaunch { get; }
-  static property HDC.Ads.HDCAppResumeAds AppResume { get; }
-  static property HDC.Ads.HDCBannerAds Banner { get; }
-  static property HDC.Ads.HDCForceAds ForceAd { get; }
-  static property HDC.Ads.HDCMrecAds Mrec { get; }
-  static property HDC.Ads.HDCPopupAds Popup { get; }
-  static property HDC.Ads.HDCRewardedAds Rewarded { get; }
+  static event System.Action<HDC.Ads.HDCAdRevenue> Revenue
+  static property HDC.Ads.IAppLaunchAds AppLaunch { get; }
+  static property HDC.Ads.IAppResumeAds AppResume { get; }
+  static property HDC.Ads.IBannerAds Banner { get; }
+  static property HDC.Ads.IForceAds ForceAd { get; }
+  static property HDC.Ads.IMrecAds Mrec { get; }
+  static property HDC.Ads.IPopupAds Popup { get; }
+  static property HDC.Ads.IRewardedAds Rewarded { get; }
   static property bool IsAdsRemoved { get; }
   static property bool IsInitialized { get; }
-  static property float LastFullscreenAdTime { get; }
   static void Initialize(string adsConfigJson, string coreConfigJson, System.Action onInitialized = null)
   static void SetAdsRemoved(bool removed)
-sealed class HDC.Ads.HDCAdsConfig
-  ctor()
-  field HDC.Ads.HDCAdsConfig.AppLaunchChannel appLaunchChannel
-  field HDC.Ads.HDCAdsConfig.AppResumeChannel appResumeChannel
-  field HDC.Ads.HDCAdsConfig.BannerChannel bannerChannel
-  field HDC.Ads.HDCAdsConfig.ForceAdChannel forceAdChannel
-  field HDC.Ads.HDCAdsConfig.MrecChannel mrecChannel
-  field HDC.Ads.HDCAdsConfig.PopupChannel popupChannel
-  field HDC.Ads.HDCAdsConfig.RewardedChannel rewardedChannel
-  field string selectedAdCoreName
-  static HDC.Ads.HDCAdsConfig Parse(string json)
-sealed class HDC.Ads.HDCAdsConfig.AppLaunchChannel
-  ctor()
-  field bool autoInit
-  field bool isEnabled
-  field int minWaitSeconds
-  field int timeoutSeconds
-sealed class HDC.Ads.HDCAdsConfig.AppResumeChannel
-  ctor()
-  field bool autoInit
-  field bool isEnabled
-  field string adUnitId
-  field string layoutGroup
-sealed class HDC.Ads.HDCAdsConfig.BannerChannel
-  ctor()
-  field HDC.Ads.HDCAdsConfig.BannerSlot bottomLeft
-  field HDC.Ads.HDCAdsConfig.BannerSlot bottomRight
-  field HDC.Ads.HDCAdsConfig.BannerSlot fullBottom
-  field HDC.Ads.HDCAdsConfig.BannerSlot fullTop
-  field HDC.Ads.HDCAdsConfig.BannerSlot topLeft
-  field HDC.Ads.HDCAdsConfig.BannerSlot topRight
-  field bool isEnabled
-sealed class HDC.Ads.HDCAdsConfig.BannerSlot
-  ctor()
-  field bool autoInit
-  field bool autoShowOnLoad
-  field bool isEnabled
-sealed class HDC.Ads.HDCAdsConfig.BreakAd
-  ctor()
-  field bool isEnabled
-  field int notificationLeadTimeSeconds
-  field string positionName
-sealed class HDC.Ads.HDCAdsConfig.ForceAdChannel
-  ctor()
-  field HDC.Ads.HDCAdsConfig.BreakAd breakAdConfig
-  field HDC.Ads.HDCAdsConfig.ForceAdPosition[] positionConfigs
-  field bool isEnabled
-  field float cappingDecreasePerImpression
-  field float launchCappingTime
-  field float minimumCappingTime
-sealed class HDC.Ads.HDCAdsConfig.ForceAdPosition
-  ctor()
-  field bool autoInit
-  field bool canShow
-  field float cappingDecreasePerImpression
-  field float cappingTime
-  field float minimumCappingTime
-  field string positionName
-sealed class HDC.Ads.HDCAdsConfig.MrecChannel
-  ctor()
-  field bool autoInit
-  field bool isEnabled
-sealed class HDC.Ads.HDCAdsConfig.PopupChannel
-  ctor()
-  field HDC.Ads.HDCAdsConfig.PopupPosition[] positionConfigs
-  field bool isEnabled
-sealed class HDC.Ads.HDCAdsConfig.PopupPosition
-  ctor()
-  field bool autoInit
-  field bool isEnabled
-  field string positionName
-sealed class HDC.Ads.HDCAdsConfig.RewardedChannel
-  ctor()
-  field bool autoInit
-  field bool isEnabled
-static class HDC.Ads.HDCAdsSdk
-  static UnityEngine.Vector2 GetBannerViewSizeInPixels(string id)
+static class HDC.Ads.HDCAds.Testing
   static bool EnableMetaTestMode(string[] extraDeviceHashes = null, int testAdType = 0)
-  static bool ExpandBanner(string id, bool enableClick = true)
-  static bool IsAppOpenReady(string id)
-  static bool IsBannerViewLoaded(string id)
-  static bool IsFullscreenReady(string id)
-  static bool IsInterstitialReady(string id)
-  static bool IsMetaTestMode()
-  static bool IsPopupDisplayable(string id)
-  static bool IsPopupReady(string id)
-  static bool IsRewardedReady(string id)
-  static bool LoadAppOpen(string id, string adUnitId, bool preload = false, int bufferSize = 0)
-  static bool LoadBanner(string id, string[] adUnitIds, HDC.Ads.HDCBannerOptions options = null)
-  static bool LoadBannerView(string id, string adUnitId, HDC.Ads.HDCBannerViewPlacement placement)
-  static bool LoadFullscreen(string id, string[] adUnitIds, bool reloadAfterShow = true)
-  static bool LoadInterstitial(string id, string[] adUnitIds, int bufferSize = 1, bool autoReload = true)
-  static bool LoadPopup(string id, string[] adUnitIds, HDC.Ads.HDCPopupOptions options = null)
-  static bool LoadRewarded(string id, string adUnitId, bool preload = false, int bufferSize = 0)
-  static bool ShowAppOpen(string id, System.Action onClosed = null)
-  static bool ShowFullscreen(string id, HDC.Ads.HDCFullscreenOptions options = null)
-  static bool ShowInterstitial(string id, bool immersiveMode = true)
-  static bool ShowPopup(string id)
-  static bool ShowRewarded(string id, System.Action<bool> onClosed = null)
-  static event System.Action<HDC.Ads.HDCAdEvent> AdEvent
   static property bool DebugLog { get; set; }
-  static property bool IsInitialized { get; }
+  static property bool IsMetaTestMode { get; }
   static property bool IsTestDevice { get; }
   static property bool UseTestAdUnits { get; set; }
-  static string GetMetaTestDeviceHash()
-  static string GetPopupState(string id)
-  static void ClosePopup(string id)
-  static void CollapseBanner(string id)
-  static void DestroyAppOpen(string id)
-  static void DestroyBanner(string id)
-  static void DestroyBannerView(string id)
-  static void DestroyFullscreen(string id)
-  static void DestroyInterstitial(string id)
-  static void DestroyPopup(string id)
-  static void DestroyRewarded(string id)
+  static property string MetaTestDeviceHash { get; }
   static void DisableMetaTestMode()
   static void EnableTestDevice()
-  static void HideBanner(string id)
-  static void HideBannerView(string id)
-  static void HideFullscreen(string id)
-  static void HidePopup(string id)
-  static void Initialize(System.Action onInitialized = null)
-  static void MoveBannerView(string id, HDC.Ads.HDCAdPosition position)
-  static void MoveBannerView(string id, UnityEngine.Vector2 screenPoint)
-  static void ShowBanner(string id)
-  static void ShowBannerView(string id)
-  static void StopPopup(string id)
-  static void UpdatePopupPlacement(string id, float x, float y, float width, float height)
-sealed class HDC.Ads.HDCAppLaunchAds
-  event System.Action BeforeShow
-  event System.Action Completed
-  property bool CanShow { get; }
-  property bool IgnoreAds { get; set; }
-  property bool IsBeforeShowRaised { get; }
-  property bool IsCompleted { get; }
-  void Initialize()
-sealed class HDC.Ads.HDCAppResumeAds
-  property bool IgnoreAds { get; set; }
-  property bool IsInitialized { get; }
-  void Block()
-  void Initialize()
-sealed class HDC.Ads.HDCBannerAds
-  bool CanShow(HDC.Ads.HDCBannerSlot slot = FullBottom)
-  bool Expand(HDC.Ads.HDCBannerSlot slot = FullBottom, bool enableClick = true)
-  bool Show(HDC.Ads.HDCBannerSlot slot = FullBottom)
-  void Hide(HDC.Ads.HDCBannerSlot slot = FullBottom)
-  void Initialize(HDC.Ads.HDCBannerSlot slot = FullBottom)
-sealed class HDC.Ads.HDCBannerOptions
-  ctor()
-  field int timeCollapse
-  field int timeCountdown
-  field int timeReload
-  field string[] layoutNames
 enum HDC.Ads.HDCBannerSlot
   BottomLeft = 4
   BottomRight = 5
@@ -329,15 +74,26 @@ enum HDC.Ads.HDCBannerSlot
   FullTop = 1
   TopLeft = 2
   TopRight = 3
-enum HDC.Ads.HDCBannerViewPlacement
-  BottomLeft = 5
-  BottomRight = 6
-  FullBottom = 1
-  FullTop = 2
-  Mrec = 0
-  TopLeft = 3
-  TopRight = 4
-sealed class HDC.Ads.HDCForceAds
+interface HDC.Ads.IAppLaunchAds
+  event System.Action BeforeShow
+  event System.Action Completed
+  property bool CanShow { get; }
+  property bool IgnoreAds { get; set; }
+  property bool IsBeforeShowRaised { get; }
+  property bool IsCompleted { get; }
+  void Initialize()
+interface HDC.Ads.IAppResumeAds
+  property bool IgnoreAds { get; set; }
+  property bool IsInitialized { get; }
+  void Block()
+  void Initialize()
+interface HDC.Ads.IBannerAds
+  bool CanShow(HDC.Ads.HDCBannerSlot slot = FullBottom)
+  bool Expand(HDC.Ads.HDCBannerSlot slot = FullBottom, bool enableClick = true)
+  bool Show(HDC.Ads.HDCBannerSlot slot = FullBottom)
+  void Hide(HDC.Ads.HDCBannerSlot slot = FullBottom)
+  void Initialize(HDC.Ads.HDCBannerSlot slot = FullBottom)
+interface HDC.Ads.IForceAds
   bool CanShow(string position)
   bool IsGroupReady(string groupName)
   bool Reinitialize(string groupName)
@@ -354,22 +110,7 @@ sealed class HDC.Ads.HDCForceAds
   void ResetBreakAd()
   void StartBreakAd()
   void StopBreakAd()
-sealed class HDC.Ads.HDCFullscreenOptions
-  ctor()
-  field HDC.Ads.HDCNativeAssets assetVisibility
-  field HDC.Ads.HDCNativeAssets clickAssets
-  field bool autoClose
-  field bool enableAdComeback
-  field bool pauseGameplay
-  field bool showTCD
-  field double delay
-  field double duration
-  field double[] durations
-  field int timeUpC
-  field string mode
-  field string orientation
-  field string[] layoutNames
-sealed class HDC.Ads.HDCMrecAds
+interface HDC.Ads.IMrecAds
   bool Show()
   property UnityEngine.Vector2 SizeInPixels { get; }
   property bool CanShow { get; }
@@ -378,21 +119,7 @@ sealed class HDC.Ads.HDCMrecAds
   void Move(HDC.Ads.HDCAdPosition position)
   void Move(UnityEngine.GameObject target, UnityEngine.Camera camera = null)
   void Move(UnityEngine.Vector2 screenPoint)
-sealed class HDC.Ads.HDCNativeAssets
-  ctor()
-  field bool advertiser
-  field bool body
-  field bool cta
-  field bool description
-  field bool headline
-  field bool icon
-  field bool media
-  field bool mediaImage
-  field bool mediaVideo
-  field bool price
-  field bool starRating
-  field bool store
-sealed class HDC.Ads.HDCPopupAds
+interface HDC.Ads.IPopupAds
   bool CanShow(string position)
   bool IsGroupReady(string groupName)
   bool Reinitialize(string groupName)
@@ -401,18 +128,7 @@ sealed class HDC.Ads.HDCPopupAds
   void Initialize(string groupName)
   void Move(string position, UnityEngine.Rect screenRect)
   void Move(string position, UnityEngine.RectTransform area, UnityEngine.Camera camera = null)
-sealed class HDC.Ads.HDCPopupOptions
-  ctor()
-  field bool autoClose
-  field bool enableCtrOverlay
-  field float height
-  field float width
-  field float x
-  field float y
-  field int timeReload
-  field int timeShow
-  field string layout
-sealed class HDC.Ads.HDCRewardedAds
+interface HDC.Ads.IRewardedAds
   bool Show(string position, System.Action onRewarded, System.Action onClosed = null)
   property bool CanShow { get; }
   property bool IgnoreAds { get; set; }

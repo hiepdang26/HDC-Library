@@ -50,11 +50,11 @@ namespace HDC.Ads
         }
 
         /// <summary>
-        /// Shows the first ready unit. <paramref name="onBeforeShow"/> runs right before the ad starts,
-        /// <paramref name="onDisplayed"/> once it is on screen and <paramref name="onClosed"/> once it closes or
-        /// fails, with whether a reward was earned.
+        /// Shows the first ready unit for a channel at a position, which its revenue reports.
+        /// <paramref name="onBeforeShow"/> runs right before the ad starts, <paramref name="onDisplayed"/> once it
+        /// is on screen and <paramref name="onClosed"/> once it closes or fails, with whether a reward was earned.
         /// </summary>
-        internal bool Show(Action onBeforeShow, Action onDisplayed, Action<bool> onClosed)
+        internal bool Show(HDCAdChannel channel, string position, Action onBeforeShow, Action onDisplayed, Action<bool> onClosed)
         {
             if (IsStopped || sources.Count == 0)
                 return false;
@@ -70,6 +70,7 @@ namespace HDC.Ads
 
             onBeforeShow?.Invoke();
             HDCAds.NotifyFullscreenOpening();
+            HDCAdPlacements.Record(source.Id, channel, position);
             bool displayed = false;
             return source.Show(
                 () =>

@@ -7,24 +7,25 @@ Có hai nguồn quảng cáo:
 - **Thư viện KMP** (native): interstitial, native fullscreen, popup, native banner. Logic load, waterfall ad unit, hiển thị, pause Unity và bắn sự kiện nằm trong KMP. Phía Unity chỉ gọi một hàm lệnh và nhận một luồng sự kiện.
 - **Plugin Google Mobile Ads của Unity**: rewarded, app open, banner view (banner thường và MREC). HDCLib tự quản lý load, retry, show và sự kiện cho các định dạng này.
 
-Sự kiện của cả hai nguồn đi chung qua `HDCAdsSdk.AdEvent`.
+Game chỉ gọi `HDCAds` (thư mục `Runtime/Api`):
 
-Có hai tầng API:
+- Bảy kênh quảng cáo chạy theo config lấy từ Firebase Remote Config: force ad theo vị trí có capping, rewarded, app launch, app resume, banner, MREC, popup.
+- Sự kiện doanh thu `HDCAds.Revenue` và các công tắc test `HDCAds.Testing`.
 
-- `HDCAds` (tầng kênh): force ad theo vị trí có capping, rewarded, app launch, app resume, banner, MREC, popup. Tầng này chạy theo config lấy từ Firebase Remote Config. Game thường chỉ cần dùng tầng này.
-- `HDCAdsSdk` (tầng SDK): load/show trực tiếp theo instance id.
+Mọi thứ bên dưới (SDK, cầu nối native, config, sự kiện thô của từng quảng cáo) là internal: game không thấy và không phụ thuộc vào chúng. Xem phần [API cho game](#api-cho-game).
 
 ## Cấu trúc
 
 ```
 Runtime/                       Assembly HDC.Ads, chỉ compile khi có define HDC_ADS
-  Logic/                       Tầng kênh HDCAds: config, group fallback, các kênh
+  Api/                         API cho game: HDCAds, interface của 7 kênh, HDCAdRevenue, các enum
+  Logic/                       Các kênh (internal): config, group fallback, gắn doanh thu với kênh và vị trí
   Firebase/                    HDCRemoteConfig (assembly HDC.Ads.Firebase, cần define HDC_FIREBASE)
   Settings/                    HDCAdsSettings: config mặc định (assembly HDC.Ads.Settings, luôn được biên dịch)
-  HDCAdsSdk.cs                 API các định dạng KMP: interstitial, fullscreen, popup, banner, Meta test
-  HDCAdsSdk.Gma.cs             API các định dạng qua plugin GMA: rewarded, app open, banner view, test device
-  HDCAdOptions.cs              Tuỳ chọn fullscreen, popup, banner (tên field giống JSON config), vị trí banner view
-  HDCAdEvent.cs                Dữ liệu sự kiện, HDCAdEventType, HDCAdFormat
+  HDCAdsSdk.cs                 (internal) Các định dạng KMP: interstitial, fullscreen, popup, banner, Meta test
+  HDCAdsSdk.Gma.cs             (internal) Các định dạng qua plugin GMA: rewarded, app open, banner view, test device
+  HDCAdOptions.cs              (internal) Tuỳ chọn fullscreen, popup, banner (tên field giống JSON config)
+  HDCAdEvent.cs                (internal) Sự kiện của SDK
   Internal/                    Cầu nối iOS (DllImport), Android (JNI), Editor (giả lập), main thread, retry
   Internal/Gma/                Rewarded, app open, banner view qua plugin GMA
 Plugins/iOS/                   HDCAds.xcframework, HDCAdsBridge.mm (post-process Xcode tự thêm vào project)
@@ -32,7 +33,7 @@ Plugins/Android/Repository~/   Maven repo chứa thư viện Android hdc-ads-and
 Editor/                        Menu HDC (bật/tắt, sửa config), post-process Xcode, mẫu Dependencies.xml
 Setup/                         HDCAdsSetup.prefab: khởi động ads ở scene đầu (assembly HDC.Ads.Setup, luôn được biên dịch)
 Debug/                         Bảng debug HDCAdsDebugPanel.prefab (assembly HDC.Ads.Debug, cần define HDC_ADS)
-Demo/                          HDCAdsDemo: các nút bấm để thử từng định dạng
+Demo/                          HDCAdsDemo: mỗi kênh một hàng nút, gọi đúng API như code game
 Tests/Editor/                  Test Edit Mode (assembly HDC.Ads.Tests, chỉ có trong Editor) và PublicApi.txt
 Tools~/                        Script chạy test và biên dịch nhiều cấu hình (Unity bỏ qua thư mục có đuôi "~")
 package.json                   Để cài HDCLib như một package (UPM)
@@ -111,44 +112,48 @@ HDCRemoteConfig.FetchAndInitialize(defaults.AdsConfig, defaults.CoreConfigsByKey
 
 `CoreConfigsByKey()` đặt core config mặc định dưới mọi key mà ads_config có thể chọn: `adcore_main_android`, `adcore_main_ios` và key ghi trong `selectedAdCoreName`.
 
-## Sử dụng
+## API cho game
 
 ```csharp
 using HDC.Ads;
 
-HDCAdsSdk.AdEvent += adEvent => Debug.Log(adEvent);
-HDCAdsSdk.Initialize(() =>
-{
-    HDCAdsSdk.LoadInterstitial("inter_main", new[] { "ca-app-pub-xxx/yyy" });
-    HDCAdsSdk.LoadFullscreen("fs_main", new[] { "ca-app-pub-xxx/zzz" });
-    HDCAdsSdk.LoadPopup("popup_main", new[] { "ca-app-pub-xxx/zzz" }, new HDCPopupOptions { x = 0.5f, y = 0.5f });
-    HDCAdsSdk.LoadBanner("banner_main", new[] { "ca-app-pub-xxx/zzz" });
-    HDCAdsSdk.LoadRewarded("rw_main", "ca-app-pub-xxx/rrr");
-    HDCAdsSdk.LoadBannerView("bn_bottom", "ca-app-pub-xxx/bbb", HDCBannerViewPlacement.FullBottom);
-});
+// Prefab HDCAdsSetup ở scene đầu đã khởi tạo HDCAds và mở scene tiếp sau app launch.
+// Nếu tự làm bằng code: gọi HDCAdsSetup.InitializeAds(), HDCAds.AppLaunch.Initialize(), rồi chờ HDCAds.AppLaunch.Completed.
 
-if (HDCAdsSdk.IsFullscreenReady("fs_main"))
-    HDCAdsSdk.ShowFullscreen("fs_main", new HDCFullscreenOptions { layoutNames = new[] { "fs_single_cls_01" } });
+HDCAds.ForceAd.Show("gameplay", onDone: ResumeGame);
+HDCAds.Rewarded.Show("shop", onRewarded: GiveCoins);
+HDCAds.Banner.Show();                               // slot FullBottom
+HDCAds.Popup.Move("popup", popupArea);              // RectTransform; popup chỉ show sau khi đặt vị trí
+HDCAds.Popup.Show("popup");
+HDCAds.SetAdsRemoved(true);                         // mua gỡ quảng cáo: chặn mọi kênh trừ rewarded
 
-HDCAdsSdk.ShowRewarded("rw_main", rewarded => { if (rewarded) GiveCoins(); });
-HDCAdsSdk.ShowBannerView("bn_bottom");
+// Doanh thu của từng lượt hiển thị, kèm kênh và vị trí, để gửi lên analytics.
+HDCAds.Revenue += revenue => Debug.Log(revenue);    // "ForceAd gameplay fullscreen 0.0012 USD from AdMob Network"
+
+HDCAds.Testing.EnableTestDevice();                  // chỉ cho bản test
 ```
 
-- Gọi API từ main thread của Unity. Sự kiện cũng luôn tới trên main thread.
-- Mỗi sự kiện có `id`, `format` và `type`:
-  - `Loaded`, `LoadFailed`: `LoadFailed` chỉ báo khi đã thử hết các ad unit.
-  - `Shown`, `ShowFailed`, `Closed`.
-  - `Impression`, `Clicked`.
-  - `Paid`: có `valueMicros`, `currency`, `precision`, `adSource`.
-  - `Rewarded`: có `rewardType`, `rewardAmount`.
-- Với banner view, `Shown` báo khi view hiện và đã có ad, `Closed` báo khi ẩn.
+- `HDCAds` có:
+  - `Initialize`, `IsInitialized`, sự kiện `Initialized`, `IsAdsRemoved`, `SetAdsRemoved`.
+  - Bảy kênh: `ForceAd`, `Rewarded`, `AppLaunch`, `AppResume`, `Banner`, `Mrec`, `Popup`. Mỗi kênh là một interface (`IForceAds`, `IRewardedAds`…), game chỉ gọi hàm của interface.
+- `HDCAds.Revenue` báo mọi sự kiện paid dưới dạng `HDCAdRevenue`:
+  - `Channel` (kênh), `Position` (vị trí trong game; slot với banner; rỗng với app launch, app resume, MREC).
+  - `Format` (một giá trị của `HDCAdFormat`), `Network` (hiện luôn là `"AdMob"`), `AdSource` (nguồn mediation, ví dụ `"Meta Audience Network"`), `AdUnitId`.
+  - `Value` theo đơn vị `Currency`, và `Precision` (0 không rõ, 1 ước tính, 2 publisher cung cấp, 3 chính xác).
+  - Handler của game ném lỗi thì lỗi được log, các handler khác vẫn nhận.
+- `HDCAds.Testing`: `DebugLog`, `EnableTestDevice()` / `IsTestDevice`, `UseTestAdUnits`, Meta test mode. Chỉ dùng cho bản test.
+- Gọi API từ main thread của Unity. Callback và sự kiện cũng luôn tới trên main thread.
+- Danh sách đầy đủ của API nằm trong `Tests/Editor/PublicApi.txt`. Test hợp đồng API giữ file này luôn đúng với code.
+
+### Bên dưới API
+
 - Load lỗi được thử lại sau 2, 4, 8, 16, 32 rồi 64 giây, và reset khi load được:
   - Rewarded và app open: sau mỗi lần show sẽ load ad mới. Show lúc chưa có ad thì load ngay, trừ khi đang chờ retry.
   - Interstitial: KMP load mọi ad unit cùng lúc và dừng khi tất cả lỗi, nên HDCLib gọi load lại.
   - Banner view: chỉ retry lần load đầu. Sau khi có ad, view tự refresh theo cấu hình ad unit.
 - Rewarded và app open có chế độ `preload`: plugin tự giữ sẵn 1–5 ad và tự load lại.
 - App open quá 4 giờ kể từ lúc load thì coi là chưa sẵn sàng.
-- `HDCAdsSdk.EnableTestDevice()` đăng ký máy đang chạy là test device của Google Mobile Ads, áp dụng cho mọi định dạng.
+- `HDCAds.Testing.EnableTestDevice()` đăng ký máy đang chạy là test device của Google Mobile Ads, áp dụng cho mọi định dạng.
 - Trên iOS, sự kiện tới ngay cả khi quảng cáo fullscreen đang pause Unity. Trên Android, sự kiện phát ra trong lúc quảng cáo fullscreen che game sẽ tới khi Unity chạy lại.
 - Hỗ trợ tắt domain reload (Enter Play Mode Options, mặc định của project Unity 6.6 mới). Mọi state tĩnh của HDCLib (ad, callback, subscriber, kênh) được reset mỗi lần vào Play Mode.
 - Trong Editor, SDK được giả lập:
@@ -157,30 +162,16 @@ HDCAdsSdk.ShowBannerView("bn_bottom");
   - Interstitial và fullscreen đóng sau 1 giây, popup sau 3 giây. Banner giữ đến khi ẩn.
   - Rewarded, app open và banner view dùng quảng cáo mẫu có sẵn của plugin GMA trong Editor.
 
-## Kênh quảng cáo (HDCAds)
-
-```csharp
-using HDC.Ads;
-
-// Prefab HDCAdsSetup ở scene đầu đã khởi tạo HDCAds và mở scene tiếp sau app launch.
-// Nếu tự làm bằng code: gọi HDCAdsSetup.InitializeAds(), HDCAds.AppLaunch.Initialize(), rồi chờ HDCAds.AppLaunch.Completed.
-
-HDCAds.ForceAd.Show("native_gameplay", onDone: ResumeGame);
-HDCAds.Rewarded.Show("shop", onRewarded: GiveCoins);
-HDCAds.Banner.Show();                               // slot FullBottom
-HDCAds.Popup.Move("popup", popupArea);              // RectTransform; popup chỉ show sau khi đặt vị trí
-HDCAds.Popup.Show("popup");
-HDCAds.SetAdsRemoved(true);                         // mua gỡ quảng cáo: chặn mọi kênh trừ rewarded
-```
+## Config và hành vi các kênh
 
 Config giữ nguyên key và schema JSON của hệ thống cũ, nên dùng lại được giá trị Remote Config sẵn có:
 
-- `ads_config` (`HDCAdsConfig`) quy định từng kênh:
+- `ads_config` quy định từng kênh:
   - Có bật không, có tự load không (`autoInit`).
   - Force ad: vị trí, capping, `launchCappingTime`, mức giảm capping theo lượt hiển thị, break ad.
   - Banner: 6 slot, `autoShowOnLoad`.
   - Popup: vị trí.
-- Config core (`HDCAdCoreConfig`) nằm dưới key do `selectedAdCoreName` chỉ định:
+- Config core nằm dưới key do `selectedAdCoreName` chỉ định:
   - Group force ad theo vị trí, ad unit theo thứ tự ưu tiên (`mediationPriority`, `useBackup`), `maxShowCount`, `disablePostInitReload`.
   - Layout group của native fullscreen, asset config.
   - `comebackChannel`: launch dùng force ad hay app open.
@@ -207,7 +198,7 @@ Hành vi các kênh:
   - Load native fullscreen khi app xuống nền và hiện khi load xong.
   - Lần xuống nền kế tiếp bị bỏ qua nếu vừa có fullscreen mở, vừa bấm banner, hoặc game đã gọi `AppResume.Block()`.
 - Rewarded vẫn hiện khi đã gỡ quảng cáo. Các kênh còn lại đều bị chặn.
-- Chưa hỗ trợ: collapsible banner, tracking doanh thu lên Firebase/Adjust, config theo quốc gia.
+- Chưa hỗ trợ: collapsible banner, config theo quốc gia. HDCLib không tự gửi doanh thu lên Firebase hay Adjust; game nhận `HDCAds.Revenue` rồi tự gửi.
 
 ## Bảng debug
 
@@ -384,4 +375,5 @@ Các giới hạn sau đến từ GMA, Meta và AndroidX, không phải từ HDC
   - Remote Config: config lấy từ đâu, kiểm tra lỗi config, xem JSON theo Remote, Saved, Default, Applied và mọi key Remote Config.
   - Events: mọi sự kiện quảng cáo, lọc và giải thích. Device: build, test ads, thiết bị, mạng, Adjust.
 - Prefab `HDCAdsSetup` cho scene đầu: lấy config, khởi tạo ads, chạy app launch rồi mở scene tiếp theo.
-- Bộ test Edit Mode: bảng debug, tracker, ID test, post-process iOS, hợp đồng API, luật tầng. Kèm script chạy test và biên dịch nhiều cấu hình.
+- Bộ test Edit Mode: bảng debug, tracker, ID test, post-process iOS, hợp đồng API, luật tầng, doanh thu. Kèm script chạy test và biên dịch nhiều cấu hình.
+- Tầng API riêng: game chỉ thấy `HDCAds`, bảy kênh qua interface, `HDCAds.Revenue` và `HDCAds.Testing`. SDK, config và sự kiện thô là internal.

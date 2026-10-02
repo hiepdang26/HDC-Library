@@ -140,6 +140,9 @@ namespace HDC.Ads.Tests
         private static string Modifiers(MethodInfo method)
         {
             string modifiers = Static(method);
+            // Every interface member is abstract; saying so on each line adds nothing.
+            if (method.DeclaringType != null && method.DeclaringType.IsInterface)
+                return modifiers;
             if (method.IsAbstract)
                 return modifiers + "abstract ";
             if (!method.IsVirtual || method.IsFinal)

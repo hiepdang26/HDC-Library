@@ -68,16 +68,16 @@ namespace HDC.Ads
             AsyncOperation loading = LoadNextScene();
 #if HDC_ADS
             if (debugLog)
-                HDCAdsSdk.DebugLog = true;
+                HDCAds.Testing.DebugLog = true;
             if (googleTestAds)
             {
-                HDCAdsSdk.EnableTestDevice();
+                HDCAds.Testing.EnableTestDevice();
                 Debug.LogWarning("[HDCAds] Google test ads are on (HDCAdsSetup > Google Test Ads): turn them off before release.");
             }
 
             if (googleTestAdUnits)
             {
-                HDCAdsSdk.UseTestAdUnits = true;
+                HDCAds.Testing.UseTestAdUnits = true;
                 Debug.LogWarning("[HDCAds] Google test ad units replace the configured ones (HDCAdsSetup > Google Test Ad Units): turn them off before release.");
             }
 

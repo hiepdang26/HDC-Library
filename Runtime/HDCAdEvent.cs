@@ -7,7 +7,7 @@ namespace HDC.Ads
     /// event does not use keep their defaults.
     /// </summary>
     [Serializable]
-    public sealed class HDCAdEvent
+    internal sealed class HDCAdEvent
     {
         /// <summary>Instance id the ad was loaded with; empty for SDK events.</summary>
         public string id;
@@ -72,7 +72,7 @@ namespace HDC.Ads
     }
 
     /// <summary>Values of <see cref="HDCAdEvent.type"/>.</summary>
-    public static class HDCAdEventType
+    internal static class HDCAdEventType
     {
         public const string Initialized = "Initialized";
         public const string Loaded = "Loaded";
@@ -88,21 +88,5 @@ namespace HDC.Ads
 
         /// <summary>A full-screen ad or popup closed, or a banner was hidden.</summary>
         public const string Closed = "Closed";
-    }
-
-    /// <summary>Values of <see cref="HDCAdEvent.format"/>.</summary>
-    public static class HDCAdFormat
-    {
-        public const string Sdk = "sdk";
-        public const string Interstitial = "interstitial";
-        public const string Fullscreen = "fullscreen";
-        public const string Banner = "banner";
-        public const string Popup = "popup";
-        public const string Rewarded = "rewarded";
-        public const string AppOpen = "appOpen";
-
-        /// <summary>A banner from <see cref="HDCAdsSdk.LoadBannerView"/>; MREC views use <see cref="Mrec"/>.</summary>
-        public const string BannerView = "bannerView";
-        public const string Mrec = "mrec";
     }
 }

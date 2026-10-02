@@ -9,14 +9,14 @@ using NUnit.Framework;
 namespace HDC.Ads.Tests
 {
     /// <summary>
-    /// A folder is a layer. The logic layer (the channels, their configs and their state) decides when ads load
-    /// and show; it reaches ad networks, Firebase, storage and native code only through the classes under it, so
-    /// it never names them. Roadmap phase 2 splits Logic into Application and Domain: the rule then covers both
-    /// folders, and the known debt below must be gone.
+    /// A folder is a layer. The API (what game code calls) and the logic under it (the channels, their configs and
+    /// their state) decide when ads load and show; they reach ad networks, Firebase, storage and native code only
+    /// through the classes under them, so they never name them. Roadmap phase 2 splits Logic into Application and
+    /// Domain: the rule then covers those folders, and the known debt below must be gone.
     /// </summary>
     public class HDCLayerRulesTests
     {
-        private static readonly string[] LogicFolders = { "Runtime/Logic" };
+        private static readonly string[] LayerFolders = { "Runtime/Api", "Runtime/Logic" };
 
         private static readonly (string Name, Regex Pattern)[] Forbidden =
         {
@@ -34,17 +34,17 @@ namespace HDC.Ads.Tests
         private static readonly string[] KnownDebt =
         {
             // The ads removed flag and the impression counters: phase 3 puts them behind a key-value store.
-            "Runtime/Logic/HDCAds.cs: PlayerPrefs",
+            "Runtime/Api/HDCAds.cs: PlayerPrefs",
             "Runtime/Logic/HDCAdsLog.cs: PlayerPrefs",
             // MobileAds.Utils.GetDeviceScale, which turns a popup's pixels into dp: phase 3 asks the adapter.
             "Runtime/Logic/HDCPopupAds.cs: Google Mobile Ads",
         };
 
         [Test]
-        public void LogicNamesNoAdSdkFirebaseStorageOrNativeCode()
+        public void ApiAndLogicNameNoAdSdkFirebaseStorageOrNativeCode()
         {
             var found = new Dictionary<string, string>(StringComparer.Ordinal);
-            foreach (string folder in LogicFolders)
+            foreach (string folder in LayerFolders)
             {
                 string path = Path.GetFullPath(HDCTestPaths.Root + "/" + folder);
                 Assert.IsTrue(Directory.Exists(path), "no folder " + folder);
@@ -72,7 +72,7 @@ namespace HDC.Ads.Tests
             var message = new StringBuilder();
             if (added.Count > 0)
             {
-                message.AppendLine("The logic layer must reach these through the classes under it (Internal, Firebase):");
+                message.AppendLine("The API and logic layers must reach these through the classes under them (Internal, Firebase):");
                 foreach (string use in added)
                     message.Append("  ").AppendLine(use);
             }

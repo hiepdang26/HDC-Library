@@ -6,10 +6,10 @@ using UnityEngine;
 namespace HDC.Ads
 {
     /// <summary>
-    /// Direct access to the ads SDK: load, show and query ads by instance id. Call it from the Unity main
+    /// The ads SDK under the channels: load, show and query ads by instance id. Call it from the Unity main
     /// thread. Events arrive through <see cref="AdEvent"/>, also on the main thread.
     /// </summary>
-    public static partial class HDCAdsSdk
+    internal static partial class HDCAdsSdk
     {
         private const string LogTag = "[HDCAds]";
 

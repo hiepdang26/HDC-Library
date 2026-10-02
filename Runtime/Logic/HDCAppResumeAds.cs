@@ -3,13 +3,8 @@ using UnityEngine;
 
 namespace HDC.Ads
 {
-    /// <summary>
-    /// A native full-screen ad for players coming back to the app: it loads when the app goes to the
-    /// background and shows once loaded. After a full-screen ad opened, a banner was tapped, or
-    /// <see cref="Block"/>, the next trip to the background shows nothing: the player left because of an ad
-    /// or of the game itself.
-    /// </summary>
-    public sealed class HDCAppResumeAds
+    /// <summary>The app resume channel behind <see cref="IAppResumeAds"/>.</summary>
+    internal sealed class HDCAppResumeAds : IAppResumeAds
     {
         private const string InstanceId = "native_resume";
 
@@ -130,6 +125,7 @@ namespace HDC.Ads
                 if (adEvent.type == HDCAdEventType.Loaded && showWhenLoaded)
                 {
                     showWhenLoaded = false;
+                    HDCAdPlacements.Record(InstanceId, HDCAdChannel.AppResume);
                     showing = source.Show(null, _ => showing = false);
                 }
 

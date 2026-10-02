@@ -5,11 +5,8 @@ using UnityEngine;
 
 namespace HDC.Ads
 {
-    /// <summary>
-    /// Native popups at game positions. Each position maps to a popup group of the ad core config. A popup
-    /// only shows after <see cref="Move(string, Rect)"/> placed it.
-    /// </summary>
-    public sealed class HDCPopupAds
+    /// <summary>The popup channel behind <see cref="IPopupAds"/>.</summary>
+    internal sealed class HDCPopupAds : IPopupAds
     {
         private readonly Dictionary<string, Popup> popups = new Dictionary<string, Popup>(StringComparer.Ordinal);
 
@@ -40,6 +37,7 @@ namespace HDC.Ads
             }
 
             popup.Load();
+            HDCAdPlacements.Record(popup.Id, HDCAdChannel.Popup, position);
             return HDCAdsSdk.ShowPopup(popup.Id);
         }
 

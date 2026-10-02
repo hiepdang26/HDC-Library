@@ -3,8 +3,8 @@ using UnityEngine;
 
 namespace HDC.Ads
 {
-    /// <summary>The MREC (300x250) view, from the Google Mobile Ads plugin.</summary>
-    public sealed class HDCMrecAds
+    /// <summary>The MREC channel behind <see cref="IMrecAds"/>.</summary>
+    internal sealed class HDCMrecAds : IMrecAds
     {
         private const string InstanceId = "mrec_plugin";
 
@@ -104,6 +104,7 @@ namespace HDC.Ads
             var sources = new List<HDCRectSource>();
             if ((unit.mediationPriority == HDCAds.PluginUnit || unit.useBackup) && !string.IsNullOrEmpty(unit.admobUnit?.id))
                 sources.Add(new HDCPluginRectSource(InstanceId, unit.admobUnit.id, HDCBannerViewPlacement.Mrec));
+            HDCAdPlacements.Record(InstanceId, HDCAdChannel.Mrec);
             group = new HDCRectGroup(sources, false);
             return group;
         }

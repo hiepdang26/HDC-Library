@@ -5,13 +5,8 @@ using UnityEngine;
 
 namespace HDC.Ads
 {
-    /// <summary>
-    /// Force ads: full-screen ads at game positions. Each position maps to a force ad group of the ad core
-    /// config and has its own capping: the time since the last full-screen ad must reach its capping time,
-    /// minus a decrease per impression already shown there, never below the minimum. The first force ad of a
-    /// session also waits for the launch capping. The break ad shows the ad of one position on a timer.
-    /// </summary>
-    public sealed class HDCForceAds
+    /// <summary>The force ad channel behind <see cref="IForceAds"/>.</summary>
+    internal sealed class HDCForceAds : IForceAds
     {
         private const string TotalImpressionsKey = "fa_total_impression";
 
@@ -67,7 +62,7 @@ namespace HDC.Ads
             }
 
             HDCFullscreenGroup group = HDCAds.ForceAdGroup(HDCAds.CoreConfig.ForceAdGroupAt(position));
-            bool shown = group != null && group.Show(null, () => CountImpression(position), _ => Run(onDone));
+            bool shown = group != null && group.Show(HDCAdChannel.ForceAd, position, null, () => CountImpression(position), _ => Run(onDone));
             if (!shown)
                 Run(onDone);
             return shown;
@@ -309,6 +304,8 @@ namespace HDC.Ads
             breakAttempting = true;
             bool displayed = false;
             bool shown = group.Show(
+                HDCAdChannel.ForceAd,
+                position,
                 () => Raise(BreakAdShown, position),
                 () =>
                 {

@@ -2,8 +2,8 @@ using System;
 
 namespace HDC.Ads
 {
-    /// <summary>Rewarded ads. Ad removal does not block them.</summary>
-    public sealed class HDCRewardedAds
+    /// <summary>The rewarded channel behind <see cref="IRewardedAds"/>.</summary>
+    internal sealed class HDCRewardedAds : IRewardedAds
     {
         private const string ImpressionsKey = "rw_count";
 
@@ -42,6 +42,8 @@ namespace HDC.Ads
             }
 
             return HDCAds.RewardedGroup().Show(
+                HDCAdChannel.Rewarded,
+                position,
                 null,
                 () => HDCAdsLog.SetInt(ImpressionsKey, ImpressionCount + 1),
                 rewarded =>

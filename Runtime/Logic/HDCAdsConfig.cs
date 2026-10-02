@@ -8,7 +8,7 @@ namespace HDC.Ads
     /// missing keys keep the defaults below.
     /// </summary>
     [Serializable]
-    public sealed class HDCAdsConfig
+    internal sealed class HDCAdsConfig
     {
         /// <summary>Remote Config key that holds the <see cref="HDCAdCoreConfig"/>.</summary>
         public string selectedAdCoreName = "";
@@ -171,16 +171,5 @@ namespace HDC.Ads
             public bool autoInit;
             public string positionName = "";
         }
-    }
-
-    /// <summary>The six banner slots of the banner channel.</summary>
-    public enum HDCBannerSlot
-    {
-        FullBottom = 0,
-        FullTop = 1,
-        TopLeft = 2,
-        TopRight = 3,
-        BottomLeft = 4,
-        BottomRight = 5,
     }
 }

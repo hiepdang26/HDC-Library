@@ -10,13 +10,13 @@ namespace HDC.Ads.Tests
     public class HDCTestAdUnitsTests : HDCPlayModeTest
     {
         [TearDown]
-        public void UseConfiguredUnits() => HDCAdsSdk.UseTestAdUnits = false;
+        public void UseConfiguredUnits() => HDCAds.Testing.UseTestAdUnits = false;
 
         [UnityTest]
         public IEnumerator TestAdUnitsReplaceEveryConfiguredUnit()
         {
             yield return new EnterPlayMode();
-            HDCAdsSdk.UseTestAdUnits = true;
+            HDCAds.Testing.UseTestAdUnits = true;
             bool ready = false;
             HDCAds.Initialize(HDCTestConfigs.Ads, HDCTestConfigs.Core, () => ready = true);
             yield return WaitFor(() => ready, 10f);

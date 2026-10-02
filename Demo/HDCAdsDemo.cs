@@ -4,70 +4,66 @@ using UnityEngine;
 namespace HDC.Ads.Demo
 {
     /// <summary>
-    /// On-screen buttons to try HDC ads on a device or in the Editor. Add it to a GameObject in any scene.
-    /// The default ad units are Google's test units.
+    /// On-screen buttons that call the HDCAds API the way game code does: a row per channel, then the testing
+    /// switches. Add it to a GameObject in a scene without HDCAdsSetup: it starts HDCAds with the small configs
+    /// below. Their ad unit ids are placeholders that Google's test ad units replace
+    /// (<see cref="HDCAds.Testing.UseTestAdUnits"/>).
     /// </summary>
     public sealed class HDCAdsDemo : MonoBehaviour
     {
         private const int MaxLogLines = 80;
-        private const string InterstitialId = "demo_interstitial";
-        private const string FullscreenId = "demo_fullscreen";
-        private const string PopupId = "demo_popup";
-        private const string BannerId = "demo_banner";
-        private const string RewardedId = "demo_rewarded";
-        private const string AppOpenId = "demo_app_open";
-        private const string BannerViewId = "demo_banner_view";
-        private const string MrecId = "demo_mrec";
+        private const string Position = "demo";
+        private const string ForceAdGroup = "demo_force";
+        private const string PopupGroup = "demo_popup";
 
-        [SerializeField] private string[] androidInterstitialUnits = { "ca-app-pub-3940256099942544/1033173712" };
-        [SerializeField] private string[] iosInterstitialUnits = { "ca-app-pub-3940256099942544/4411468910" };
-        [SerializeField] private string[] androidNativeUnits = { "ca-app-pub-3940256099942544/2247696110" };
-        [SerializeField] private string[] iosNativeUnits = { "ca-app-pub-3940256099942544/3986624511" };
-        [SerializeField] private string androidRewardedUnit = "ca-app-pub-3940256099942544/5224354917";
-        [SerializeField] private string iosRewardedUnit = "ca-app-pub-3940256099942544/1712485313";
-        [SerializeField] private string androidAppOpenUnit = "ca-app-pub-3940256099942544/9257395921";
-        [SerializeField] private string iosAppOpenUnit = "ca-app-pub-3940256099942544/5575463023";
-        [SerializeField] private string androidAdaptiveBannerUnit = "ca-app-pub-3940256099942544/9214589741";
-        [SerializeField] private string iosAdaptiveBannerUnit = "ca-app-pub-3940256099942544/2435281174";
-        [SerializeField] private string androidFixedBannerUnit = "ca-app-pub-3940256099942544/6300978111";
-        [SerializeField] private string iosFixedBannerUnit = "ca-app-pub-3940256099942544/2934735716";
-        [SerializeField] private HDCFullscreenOptions fullscreenOptions = new HDCFullscreenOptions();
-        [SerializeField] private HDCPopupOptions popupOptions = new HDCPopupOptions { x = 0.5f, y = 0.5f };
-        [SerializeField] private HDCBannerOptions bannerOptions = new HDCBannerOptions();
+        // Every channel on, none loading on its own: the buttons start them.
+        private const string AdsConfig = @"{ ""selectedAdCoreName"": ""demo"",
+  ""appLaunchChannel"": { ""isEnabled"": true, ""minWaitSeconds"": 1, ""timeoutSeconds"": 15 },
+  ""appResumeChannel"": { ""isEnabled"": true, ""adUnitId"": ""demo-native"", ""layoutGroup"": ""demo"" },
+  ""forceAdChannel"": { ""isEnabled"": true, ""positionConfigs"": [ { ""positionName"": ""demo"", ""canShow"": true } ] },
+  ""rewardedChannel"": { ""isEnabled"": true },
+  ""bannerChannel"": { ""isEnabled"": true, ""fullBottom"": { ""isEnabled"": true } },
+  ""mrecChannel"": { ""isEnabled"": true },
+  ""popupChannel"": { ""isEnabled"": true, ""positionConfigs"": [ { ""positionName"": ""demo"", ""isEnabled"": true } ] } }";
+
+        // Native units first with AdMob plugin units as backups; the app launch shows the app open ad.
+        private const string CoreConfig = @"{
+  ""comebackChannel"": { ""launchAdType"": 1 },
+  ""forceAdLayoutConfig"": { ""layoutGroups"": [ { ""groupName"": ""demo"", ""layouts"": [ { ""layout"": ""fs_single_cls_01"", ""layoutTime"": 5 } ] } ] },
+  ""forceAdGroups"": [ { ""groupName"": ""demo_force"", ""positionNames"": [ ""demo"" ], ""mediationPriority"": 1, ""useBackup"": true,
+      ""androidUnit"": { ""id"": ""demo-native"", ""layoutGroupName"": ""demo"" }, ""admobUnit"": { ""id"": ""demo-interstitial"" } } ],
+  ""rewardedUnit"": { ""mediationPriority"": 0, ""admobUnit"": { ""id"": ""demo-rewarded"" } },
+  ""appOpenUnit"": { ""mediationPriority"": 0, ""admobUnit"": { ""id"": ""demo-app-open"" } },
+  ""mrecUnit"": { ""mediationPriority"": 0, ""admobUnit"": { ""id"": ""demo-mrec"" } },
+  ""bannerUnit"": { ""fullBottom"": { ""mediationPriority"": 1, ""useBackup"": true,
+      ""androidUnit"": { ""id"": ""demo-native"", ""layouts"": [ ""bn_single_transparent_01"" ] }, ""admobUnit"": { ""id"": ""demo-banner"" } } },
+  ""popupGroups"": [ { ""groupName"": ""demo_popup"", ""positionNames"": [ ""demo"" ],
+      ""androidUnit"": { ""id"": ""demo-native"", ""layout"": ""popup_single_manual_01"", ""timeShow"": 3 } } ] }";
+
+        [Tooltip("Loads Google's test ad units in place of the placeholder ids in the configs.")]
+        [SerializeField] private bool useTestAdUnits = true;
 
         private readonly List<string> log = new List<string>();
-        private HDCBannerViewPlacement bannerPlacement = HDCBannerViewPlacement.FullBottom;
         private Vector2 buttonsScroll;
         private Vector2 logScroll;
 
-        private static bool IsIos => Application.platform == RuntimePlatform.IPhonePlayer;
-
-        private string[] InterstitialUnits => IsIos ? iosInterstitialUnits : androidInterstitialUnits;
-
-        private string[] NativeUnits => IsIos ? iosNativeUnits : androidNativeUnits;
-
-        private string FixedBannerUnit => IsIos ? iosFixedBannerUnit : androidFixedBannerUnit;
-
-        private string BannerViewUnit =>
-            bannerPlacement == HDCBannerViewPlacement.FullBottom || bannerPlacement == HDCBannerViewPlacement.FullTop
-                ? IsIos ? iosAdaptiveBannerUnit : androidAdaptiveBannerUnit
-                : FixedBannerUnit;
-
         private void Awake()
         {
-            HDCAdsSdk.DebugLog = true;
-            HDCAdsSdk.AdEvent += OnAdEvent;
+            HDCAds.Testing.DebugLog = true;
+            HDCAds.Testing.UseTestAdUnits = useTestAdUnits;
+            HDCAds.Revenue += OnRevenue;
+            HDCAds.AppLaunch.Completed += OnLaunchCompleted;
         }
 
         private void OnDestroy()
         {
-            HDCAdsSdk.AdEvent -= OnAdEvent;
+            HDCAds.Revenue -= OnRevenue;
+            HDCAds.AppLaunch.Completed -= OnLaunchCompleted;
         }
 
-        private void OnAdEvent(HDCAdEvent adEvent)
-        {
-            Append(adEvent.ToString());
-        }
+        private void OnRevenue(HDCAdRevenue revenue) => Append("revenue: " + revenue);
+
+        private void OnLaunchCompleted() => Append("app launch completed");
 
         private void OnGUI()
         {
@@ -78,15 +74,14 @@ namespace HDC.Ads.Demo
             GUILayout.BeginArea(new Rect(10f, 10f, width, height));
 
             buttonsScroll = GUILayout.BeginScrollView(buttonsScroll, GUILayout.Height(height * 0.6f));
-            DrawSdk();
-            DrawInterstitial();
-            DrawFullscreen();
-            DrawPopup();
-            DrawBanner();
+            DrawSetup();
+            DrawForceAd();
             DrawRewarded();
-            DrawAppOpen();
-            DrawBannerView();
+            DrawLaunchAndResume();
+            DrawBanner();
             DrawMrec();
+            DrawPopup();
+            DrawTesting();
             GUILayout.EndScrollView();
 
             logScroll = GUILayout.BeginScrollView(logScroll);
@@ -97,76 +92,27 @@ namespace HDC.Ads.Demo
             GUILayout.EndArea();
         }
 
-        private void DrawSdk()
+        private void DrawSetup()
         {
-            GUILayout.Label("SDK");
+            GUILayout.Label(HDCAds.IsInitialized ? "HDCAds: initialized" : "HDCAds: not initialized");
             GUILayout.BeginHorizontal();
             if (Button("Initialize"))
-                HDCAdsSdk.Initialize(() => Append("Initialize callback"));
-            if (Button("Meta test on"))
-                Append("meta test=" + HDCAdsSdk.EnableMetaTestMode() + " hash=" + HDCAdsSdk.GetMetaTestDeviceHash());
-            if (Button("Meta test off"))
-                HDCAdsSdk.DisableMetaTestMode();
-            if (Button("Test device"))
-                HDCAdsSdk.EnableTestDevice();
+                HDCAds.Initialize(AdsConfig, CoreConfig, () => Append("initialized"));
+            if (Button(HDCAds.IsAdsRemoved ? "Restore ads" : "Remove ads"))
+                HDCAds.SetAdsRemoved(!HDCAds.IsAdsRemoved);
             GUILayout.EndHorizontal();
         }
 
-        private void DrawInterstitial()
+        private void DrawForceAd()
         {
-            GUILayout.Label("Interstitial");
+            GUILayout.Label("Force ad at \"" + Position + "\"");
             GUILayout.BeginHorizontal();
-            if (Button("Load"))
-                HDCAdsSdk.LoadInterstitial(InterstitialId, InterstitialUnits);
-            if (Button("Ready?"))
-                Append("interstitial ready=" + HDCAdsSdk.IsInterstitialReady(InterstitialId));
+            if (Button("Init"))
+                HDCAds.ForceAd.Initialize(ForceAdGroup);
+            if (Button("Can show?"))
+                Append("force ad can show=" + HDCAds.ForceAd.CanShow(Position));
             if (Button("Show"))
-                Append("interstitial show=" + HDCAdsSdk.ShowInterstitial(InterstitialId));
-            GUILayout.EndHorizontal();
-        }
-
-        private void DrawFullscreen()
-        {
-            GUILayout.Label("Fullscreen native");
-            GUILayout.BeginHorizontal();
-            if (Button("Load"))
-                HDCAdsSdk.LoadFullscreen(FullscreenId, NativeUnits);
-            if (Button("Ready?"))
-                Append("fullscreen ready=" + HDCAdsSdk.IsFullscreenReady(FullscreenId));
-            if (Button("Show"))
-                Append("fullscreen show=" + HDCAdsSdk.ShowFullscreen(FullscreenId, fullscreenOptions));
-            if (Button("Hide"))
-                HDCAdsSdk.HideFullscreen(FullscreenId);
-            GUILayout.EndHorizontal();
-        }
-
-        private void DrawPopup()
-        {
-            GUILayout.Label("Popup native");
-            GUILayout.BeginHorizontal();
-            if (Button("Load"))
-                HDCAdsSdk.LoadPopup(PopupId, NativeUnits, popupOptions);
-            if (Button("State"))
-                Append("popup state=" + HDCAdsSdk.GetPopupState(PopupId));
-            if (Button("Show"))
-                Append("popup show=" + HDCAdsSdk.ShowPopup(PopupId));
-            if (Button("Close"))
-                HDCAdsSdk.ClosePopup(PopupId);
-            GUILayout.EndHorizontal();
-        }
-
-        private void DrawBanner()
-        {
-            GUILayout.Label("Banner native");
-            GUILayout.BeginHorizontal();
-            if (Button("Load"))
-                HDCAdsSdk.LoadBanner(BannerId, NativeUnits, bannerOptions);
-            if (Button("Show"))
-                HDCAdsSdk.ShowBanner(BannerId);
-            if (Button("Expand"))
-                Append("banner expand=" + HDCAdsSdk.ExpandBanner(BannerId));
-            if (Button("Hide"))
-                HDCAdsSdk.HideBanner(BannerId);
+                Append("force ad show=" + HDCAds.ForceAd.Show(Position, () => Append("force ad done")));
             GUILayout.EndHorizontal();
         }
 
@@ -174,46 +120,40 @@ namespace HDC.Ads.Demo
         {
             GUILayout.Label("Rewarded");
             GUILayout.BeginHorizontal();
-            if (Button("Load"))
-                HDCAdsSdk.LoadRewarded(RewardedId, IsIos ? iosRewardedUnit : androidRewardedUnit);
-            if (Button("Ready?"))
-                Append("rewarded ready=" + HDCAdsSdk.IsRewardedReady(RewardedId));
+            if (Button("Init"))
+                HDCAds.Rewarded.Initialize();
+            if (Button("Can show?"))
+                Append("rewarded can show=" + HDCAds.Rewarded.CanShow);
             if (Button("Show"))
-                Append("rewarded show=" + HDCAdsSdk.ShowRewarded(RewardedId, rewarded => Append("rewarded closed, reward=" + rewarded)));
+                Append("rewarded show=" + HDCAds.Rewarded.Show(Position, () => Append("reward earned"), () => Append("rewarded closed")));
             GUILayout.EndHorizontal();
         }
 
-        private void DrawAppOpen()
+        private void DrawLaunchAndResume()
         {
-            GUILayout.Label("App open");
+            GUILayout.Label("App launch and resume");
             GUILayout.BeginHorizontal();
-            if (Button("Load"))
-                HDCAdsSdk.LoadAppOpen(AppOpenId, IsIos ? iosAppOpenUnit : androidAppOpenUnit);
-            if (Button("Ready?"))
-                Append("app open ready=" + HDCAdsSdk.IsAppOpenReady(AppOpenId));
-            if (Button("Show"))
-                Append("app open show=" + HDCAdsSdk.ShowAppOpen(AppOpenId, () => Append("app open closed")));
+            if (Button("Launch"))
+                HDCAds.AppLaunch.Initialize();
+            if (Button("Resume on"))
+                HDCAds.AppResume.Initialize();
+            if (Button("Skip next resume"))
+                HDCAds.AppResume.Block();
             GUILayout.EndHorizontal();
         }
 
-        private void DrawBannerView()
+        private void DrawBanner()
         {
-            GUILayout.Label("Banner view: " + bannerPlacement);
+            GUILayout.Label("Banner at the bottom");
             GUILayout.BeginHorizontal();
-            if (Button("Next"))
-            {
-                HDCAdsSdk.DestroyBannerView(BannerViewId);
-                bannerPlacement = bannerPlacement == HDCBannerViewPlacement.BottomRight
-                    ? HDCBannerViewPlacement.FullBottom
-                    : bannerPlacement + 1;
-            }
-
-            if (Button("Load"))
-                HDCAdsSdk.LoadBannerView(BannerViewId, BannerViewUnit, bannerPlacement);
+            if (Button("Init"))
+                HDCAds.Banner.Initialize();
             if (Button("Show"))
-                HDCAdsSdk.ShowBannerView(BannerViewId);
+                Append("banner show=" + HDCAds.Banner.Show());
+            if (Button("Expand"))
+                Append("banner expand=" + HDCAds.Banner.Expand());
             if (Button("Hide"))
-                HDCAdsSdk.HideBannerView(BannerViewId);
+                HDCAds.Banner.Hide();
             GUILayout.EndHorizontal();
         }
 
@@ -221,14 +161,47 @@ namespace HDC.Ads.Demo
         {
             GUILayout.Label("MREC");
             GUILayout.BeginHorizontal();
-            if (Button("Load"))
-                HDCAdsSdk.LoadBannerView(MrecId, FixedBannerUnit, HDCBannerViewPlacement.Mrec);
+            if (Button("Init"))
+                HDCAds.Mrec.Initialize();
             if (Button("Show"))
-                HDCAdsSdk.ShowBannerView(MrecId);
+                Append("mrec show=" + HDCAds.Mrec.Show());
             if (Button("Center"))
-                HDCAdsSdk.MoveBannerView(MrecId, new Vector2(Screen.width / 2f, Screen.height / 2f));
+                HDCAds.Mrec.Move(HDCAdPosition.Center);
             if (Button("Hide"))
-                HDCAdsSdk.HideBannerView(MrecId);
+                HDCAds.Mrec.Hide();
+            GUILayout.EndHorizontal();
+        }
+
+        private void DrawPopup()
+        {
+            GUILayout.Label("Popup at \"" + Position + "\"");
+            GUILayout.BeginHorizontal();
+            if (Button("Init"))
+                HDCAds.Popup.Initialize(PopupGroup);
+            if (Button("Place"))
+            {
+                // A popup shows only once placed: here over the middle of the screen, in screen pixels.
+                HDCAds.Popup.Move(Position, new Rect(Screen.width * 0.1f, Screen.height * 0.3f, Screen.width * 0.8f, Screen.height * 0.4f));
+            }
+
+            if (Button("Show"))
+                Append("popup show=" + HDCAds.Popup.Show(Position));
+            if (Button("Hide"))
+                HDCAds.Popup.Hide(Position);
+            GUILayout.EndHorizontal();
+        }
+
+        private void DrawTesting()
+        {
+            GUILayout.Label("Testing: test device " + (HDCAds.Testing.IsTestDevice ? "on" : "off")
+                + ", test ad units " + (HDCAds.Testing.UseTestAdUnits ? "on" : "off"));
+            GUILayout.BeginHorizontal();
+            if (Button("Test device"))
+                HDCAds.Testing.EnableTestDevice();
+            if (Button("Meta test on"))
+                Append("meta test=" + HDCAds.Testing.EnableMetaTestMode() + " hash=" + HDCAds.Testing.MetaTestDeviceHash);
+            if (Button("Meta test off"))
+                HDCAds.Testing.DisableMetaTestMode();
             GUILayout.EndHorizontal();
         }
 

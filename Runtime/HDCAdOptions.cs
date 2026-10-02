@@ -7,7 +7,7 @@ namespace HDC.Ads
     /// library's.
     /// </summary>
     [Serializable]
-    public sealed class HDCFullscreenOptions
+    internal sealed class HDCFullscreenOptions
     {
         /// <summary>
         /// SINGLE (when empty), TRANSPARENT, CTR, MULTIPLE, SEQUENCE, OVERLAY, CLS, NAV, ... CLS, NAV,
@@ -51,7 +51,7 @@ namespace HDC.Ads
 
     /// <summary>A switch per native ad asset. Price, store and star rating only apply to visibility.</summary>
     [Serializable]
-    public sealed class HDCNativeAssets
+    internal sealed class HDCNativeAssets
     {
         public bool cta = true;
         public bool headline = true;
@@ -73,7 +73,7 @@ namespace HDC.Ads
     /// are its top-left corner in dp.
     /// </summary>
     [Serializable]
-    public sealed class HDCPopupOptions
+    internal sealed class HDCPopupOptions
     {
         /// <summary>Layout such as popup_single_manual_01.</summary>
         public string layout = "popup_single_manual_01";
@@ -98,7 +98,7 @@ namespace HDC.Ads
 
     /// <summary>The native banner along the bottom of the screen.</summary>
     [Serializable]
-    public sealed class HDCBannerOptions
+    internal sealed class HDCBannerOptions
     {
         /// <summary>Layouts such as bn_single_transparent_01, used in turn. Empty uses all of them.</summary>
         public string[] layoutNames = new string[0];
@@ -114,7 +114,7 @@ namespace HDC.Ads
     }
 
     /// <summary>Size and starting position of a view from <see cref="HDCAdsSdk.LoadBannerView"/>.</summary>
-    public enum HDCBannerViewPlacement
+    internal enum HDCBannerViewPlacement
     {
         /// <summary>300x250 medium rectangle, at the bottom right until moved.</summary>
         Mrec = 0,
@@ -130,17 +130,5 @@ namespace HDC.Ads
         TopRight = 4,
         BottomLeft = 5,
         BottomRight = 6,
-    }
-
-    /// <summary>Preset positions for <see cref="HDCAdsSdk.MoveBannerView(string, HDCAdPosition)"/>.</summary>
-    public enum HDCAdPosition
-    {
-        Top,
-        Bottom,
-        TopLeft,
-        TopRight,
-        BottomLeft,
-        BottomRight,
-        Center,
     }
 }

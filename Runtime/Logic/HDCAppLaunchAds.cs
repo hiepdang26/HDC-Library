@@ -4,13 +4,8 @@ using UnityEngine;
 
 namespace HDC.Ads
 {
-    /// <summary>
-    /// The ad shown while the app starts: the force ad group or app open ad picked by the ad core config's
-    /// comeback channel. Once the launch clock starts, the ad shows as soon as it is ready and the minimum
-    /// wait has passed; after the timeout the launch goes on without it. With no ad to show (channel off,
-    /// ads removed, no unit) the launch completes right away. <see cref="Completed"/> fires once either way.
-    /// </summary>
-    public sealed class HDCAppLaunchAds
+    /// <summary>The app launch channel behind <see cref="IAppLaunchAds"/>.</summary>
+    internal sealed class HDCAppLaunchAds : IAppLaunchAds
     {
         // Completes anyway if the ad never reports closing.
         private const float CloseFallbackSeconds = 15f;
@@ -164,11 +159,13 @@ namespace HDC.Ads
             showStart = Time.unscaledTime;
             bool forceAd = HDCAds.CoreConfig.comebackChannel?.launchAdType == 0;
             bool shown = Group().Show(
+                HDCAdChannel.AppLaunch,
+                "",
                 null,
                 () =>
                 {
                     if (forceAd)
-                        HDCAds.ForceAd.CountImpression("app_launch");
+                        HDCAds.Channels.ForceAd.CountImpression("app_launch");
                 },
                 _ => Complete("closed"));
             if (!shown)

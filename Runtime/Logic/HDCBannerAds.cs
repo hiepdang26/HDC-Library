@@ -2,11 +2,8 @@ using System.Collections.Generic;
 
 namespace HDC.Ads
 {
-    /// <summary>
-    /// Banners in six slots. The bottom slot can use the native banner, which can expand; the others use
-    /// plugin banners: adaptive across the top, 320x50 in the corners.
-    /// </summary>
-    public sealed class HDCBannerAds
+    /// <summary>The banner channel behind <see cref="IBannerAds"/>.</summary>
+    internal sealed class HDCBannerAds : IBannerAds
     {
         private readonly Dictionary<HDCBannerSlot, HDCRectGroup> groups = new Dictionary<HDCBannerSlot, HDCRectGroup>();
         private readonly HashSet<HDCBannerSlot> autoShown = new HashSet<HDCBannerSlot>();
@@ -116,6 +113,8 @@ namespace HDC.Ads
                     sources.Add(new HDCNativeBannerSource("bn_native", unit.androidUnit));
             }
 
+            foreach (HDCRectSource source in sources)
+                HDCAdPlacements.Record(source.Id, HDCAdChannel.Banner, slot.ToString());
             group = new HDCRectGroup(sources, unit.useBackup);
             group.Loaded += () =>
             {

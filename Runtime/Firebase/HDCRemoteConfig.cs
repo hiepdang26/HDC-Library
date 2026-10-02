@@ -10,10 +10,9 @@ namespace HDC.Ads
 {
     /// <summary>
     /// Reads the ads configs from Firebase Remote Config: <see cref="AdsConfigKey"/>, then the ad core config
-    /// under the key its <see cref="HDCAdsConfig.selectedAdCoreName"/> names. A value Remote Config does not
-    /// have comes from the one saved on the device by the last run, then from the defaults. Every value used
-    /// is saved on the device for the next run. In the Editor the defaults are used as they are, unless
-    /// <see cref="FetchInEditor"/> is on.
+    /// under the key its selectedAdCoreName names. A value Remote Config does not have comes from the one saved
+    /// on the device by the last run, then from the defaults. Every value used is saved on the device for the
+    /// next run. In the Editor the defaults are used as they are, unless <see cref="FetchInEditor"/> is on.
     /// </summary>
     public static class HDCRemoteConfig
     {
