@@ -70,6 +70,13 @@ Những thứ sau đã đổi so với 0.5.0:
   - Trước đây, tên cũ `mrec_single_manual_NN` (Remote Config đang dùng `mrec_single_manual_13`) không được nhận ra. Thư viện native âm thầm dùng layout mặc định `popup_single_manual_01`, có media lớn.
   - Giờ tên cũ hiện layout `popup_single_manual_NN` tương ứng, giống hệ thống cũ. Tên fullscreen có đuôi `_left`/`_right` cũng hiện layout gốc.
   - Tên layout không tồn tại báo lỗi ở Config Check. Dòng `Layout` của popup trên bảng debug cho biết layout đang dùng.
+- Popup hiện lại được sau khi Hide hoặc sau khi bị đóng (thư viện `hdc-ads-android` 0.3.3 và framework iOS build lại):
+  - Trước đây `Hide` thực chất là đóng: quảng cáo bị bỏ, và HDCLib không bao giờ load quảng cáo mới cho group đó. Mọi lần `Show` sau đều báo ShowFailed "Popup not displayable: Closed" tới khi mở lại app.
+  - Giờ `Hide` chỉ ẩn popup. `Show` hiện lại đúng quảng cáo đó, không load thêm.
+  - Quảng cáo bị đóng hẳn thì `Show` hoặc `Initialize` load quảng cáo mới; `Show` hiện ngay khi load xong.
+  - Show bị chặn tạm thời (ví dụ màn hình đang chuyển cảnh) không còn làm mất quảng cáo đã load.
+  - `Hide` trước khi popup hiện không còn làm mất quảng cáo đã load.
+  - Thống kê Loaded và Shows của popup không còn bị đếm đôi cho một lần hiện.
 - App launch kết thúc ngay nếu không có quảng cáo. Group không có ad unit nào không còn gây lỗi.
 - iOS: view quảng cáo chạy được ở tần số khung hình cao, nên Compose không còn abort (`CADisableMinimumFrameDurationOnPhone`).
 - iOS: không đưa framework KMP bị xung đột vào bản build.

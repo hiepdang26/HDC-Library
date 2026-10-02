@@ -5,13 +5,20 @@ using UnityEngine;
 
 namespace HDC.Ads.Infrastructure
 {
-    internal sealed class HDCNativePopupAd : IPopupAd
+    internal sealed class HDCNativePopupAd : HDCSdkAd, IPopupAd
     {
+        private const string LoadingState = "Loading";
+        private const string ShowingState = "Showing";
+        private const string ClosedState = "Closed";
+        private const string FailedState = "Failed";
+
         private readonly HDCPopupOptions options;
+        private bool loading;
+        private bool showWhenLoaded;
 
         internal HDCNativePopupAd(string id, HDCAdCoreConfig.NativeUnit unit, bool reloadAfterShow)
+            : base(id, HDCAdFormat.Popup)
         {
-            Id = id;
             AdUnitId = unit.id;
             options = new HDCPopupOptions
             {
@@ -20,8 +27,6 @@ namespace HDC.Ads.Infrastructure
                 timeReload = reloadAfterShow ? unit.reloadTime : 0,
             };
         }
-
-        public string Id { get; }
 
         public string AdUnitId { get; }
 
@@ -37,18 +42,20 @@ namespace HDC.Ads.Infrastructure
 
         public void Load()
         {
-            if (IsRequested)
+            if (IsRequested && (loading || !IsSpent()))
                 return;
             IsRequested = HDCAdsSdk.LoadPopup(Id, new[] { AdUnitId }, options);
+            loading = IsRequested;
         }
 
         public bool Reload()
         {
-            if (IsRequested && HDCAdsSdk.GetPopupState(Id) == "Showing")
+            if (IsRequested && HDCAdsSdk.GetPopupState(Id) == ShowingState)
                 return false;
             if (IsRequested)
                 HDCAdsSdk.DestroyPopup(Id);
             IsRequested = false;
+            loading = false;
             Load();
             return IsRequested;
         }
@@ -70,12 +77,47 @@ namespace HDC.Ads.Infrastructure
                 HDCAdsSdk.UpdatePopupPlacement(Id, options.x, options.y, options.width, options.height);
         }
 
-        public bool Show() => HDCAdsSdk.ShowPopup(Id);
+        public bool Show()
+        {
+            if (!IsRequested)
+                return HDCAdsSdk.ShowPopup(Id);
+            if (loading || HDCAdsSdk.GetPopupState(Id) == LoadingState)
+            {
+                showWhenLoaded = true;
+                return true;
+            }
+
+            return HDCAdsSdk.ShowPopup(Id);
+        }
 
         public void Hide()
         {
+            showWhenLoaded = false;
             if (IsRequested)
                 HDCAdsSdk.HidePopup(Id);
+        }
+
+        protected override void OnOwnEvent(HDCAdEvent adEvent)
+        {
+            if (adEvent.type == HDCAdEventType.Loaded)
+            {
+                loading = false;
+                if (!showWhenLoaded)
+                    return;
+                showWhenLoaded = false;
+                HDCAdsSdk.ShowPopup(Id);
+            }
+            else if (adEvent.type == HDCAdEventType.LoadFailed)
+            {
+                loading = false;
+                showWhenLoaded = false;
+            }
+        }
+
+        private bool IsSpent()
+        {
+            string state = HDCAdsSdk.GetPopupState(Id);
+            return state == ClosedState || state == FailedState;
         }
     }
 }

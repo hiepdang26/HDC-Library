@@ -64,7 +64,8 @@ namespace HDC.Ads.Tests
             StringAssert.Contains("AD_REUSED", HDCAdErrorGuide.Title(new HDCAdError { Code = 1 }, true));
             StringAssert.Contains("UNKNOWN", HDCAdErrorGuide.Title(new HDCAdError { Code = 77 }, false));
             StringAssert.Contains("Gợi ý", HDCAdErrorGuide.Explain(new HDCAdError { Code = 0 }, false));
-            StringAssert.Contains("Popup chưa ở trạng thái", HDCAdErrorGuide.Explain(new HDCAdError { Code = -1, Message = "Popup not displayable: Loading" }, true));
+            StringAssert.Contains("Popup không có quảng cáo để hiện", HDCAdErrorGuide.Explain(new HDCAdError { Code = -1, Message = "Popup not displayable: Closed" }, true));
+            StringAssert.Contains("không chạy được", HDCAdErrorGuide.Explain(new HDCAdError { Code = -1, Message = "Popup did not show: another popup" }, true));
         }
     }
 }

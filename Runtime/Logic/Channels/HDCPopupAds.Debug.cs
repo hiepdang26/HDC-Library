@@ -175,7 +175,7 @@ namespace HDC.Ads.Logic
                     AdUnitId = record?.AdUnitId ?? config.androidUnit?.id,
                     Created = created,
                     Started = requested,
-                    Ready = requested && (nativeState == "Displayable" || nativeState == "Loaded"),
+                    Ready = requested && (nativeState == "Displayable" || nativeState == "Loaded" || nativeState == "Hidden"),
                     OnScreen = nativeState == "Showing",
                     NativeState = nativeState,
                     Record = record,

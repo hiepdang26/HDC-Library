@@ -172,7 +172,7 @@ HDCAds.Testing.EnableTestDevice();                  // chỉ cho bản test
 - Trong Editor, SDK được giả lập:
   - Load mất 0,5 giây. Ad unit có chữ `fail` trong ID thì load lỗi với mã 3 (no fill).
   - Show bắn `Shown`, `Impression`, `Paid`.
-  - Interstitial và fullscreen đóng sau 1 giây, popup sau 3 giây. Banner giữ đến khi ẩn.
+  - Interstitial và fullscreen đóng sau 1 giây, popup sau 3 giây. Banner giữ đến khi ẩn. Popup bị `Hide` thì giữ quảng cáo như trên máy thật.
   - Rewarded, app open và banner view dùng quảng cáo mẫu có sẵn của plugin GMA trong Editor.
 
 ## Config và hành vi các kênh
@@ -215,6 +215,12 @@ Hành vi các kênh:
 - App resume:
   - Load native fullscreen khi app xuống nền và hiện khi load xong.
   - Lần xuống nền kế tiếp bị bỏ qua nếu vừa có fullscreen mở, vừa bấm banner, hoặc game đã gọi `AppResume.Block()`.
+- Popup:
+  - Phải gọi `Move` (đặt vùng popup) trước khi `Show`. `Move` lúc popup đang ẩn thì lần hiện sau dùng vị trí mới.
+  - `Hide` chỉ ẩn popup và giữ quảng cáo. `Show` sau đó hiện lại đúng quảng cáo đó, không load thêm và không tính thêm impression.
+  - Quảng cáo bị đóng hẳn (nút X trên popup, hoặc `timeShow` hết khi bật tự đóng) thì không dùng lại được. `Show` hoặc `Initialize` lần sau load quảng cáo mới; `Show` hiện popup ngay khi load xong và trả `true`.
+  - `Show` lúc quảng cáo đang load cũng trả `true` và hiện khi load xong. `Hide` huỷ lần hiện đang chờ đó.
+  - `disablePostInitReload` (dòng `Reload After Show` trên bảng debug) chỉ quyết định popup có tự đổi quảng cáo mới theo `reloadTime` trong lúc đang hiện hay không. Load quảng cáo mới sau khi đóng luôn chờ game gọi `Show` hoặc `Initialize`.
 - Rewarded vẫn hiện khi đã gỡ quảng cáo. Các kênh còn lại đều bị chặn.
 - Chưa hỗ trợ: collapsible banner, config theo quốc gia. HDCLib không tự gửi doanh thu lên Firebase hay Adjust; game nhận `HDCAds.Revenue` rồi tự gửi.
 

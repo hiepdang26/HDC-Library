@@ -65,12 +65,17 @@ namespace HDC.Ads.Infrastructure
                     return Result(Show(key, format, args.id, ad));
                 case "isReady":
                 case "isDisplayable":
-                    return Result(ad != null && ad.Ready);
+                    return Result(ad != null && (ad.Ready || ad.Hidden));
                 case "state":
-                    return StringResult(ad == null ? "NotLoaded" : ad.Showing ? "Showing" : ad.Ready ? "Displayable" : "Loading");
+                    return StringResult(State(ad));
                 case "expand":
                     return Result(ad != null && ad.Showing);
                 case "hide":
+                    if (format == HDCAdFormat.Popup)
+                        Hide(ad);
+                    else
+                        Close(key, ad);
+                    return Result(true);
                 case "close":
                 case "stop":
                     Close(key, ad);
@@ -92,9 +97,24 @@ namespace HDC.Ads.Infrastructure
                     return args.autoReload;
                 case HDCAdFormat.Fullscreen:
                     return args.reloadAfterShow;
+                case HDCAdFormat.Popup:
+                    return false;
                 default:
                     return true;
             }
+        }
+
+        private static string State(SimulatedAd ad)
+        {
+            if (ad == null)
+                return "NotLoaded";
+            if (ad.Showing)
+                return "Showing";
+            if (ad.Hidden)
+                return "Hidden";
+            if (ad.Ready)
+                return "Displayable";
+            return ad.Closed ? "Closed" : "Loading";
         }
 
         private void SimulateLoad(string key, SimulatedAd ad)
@@ -113,6 +133,7 @@ namespace HDC.Ads.Infrastructure
                 }
 
                 ad.Ready = true;
+                ad.Closed = false;
                 Send(Event(ad, HDCAdEventType.Loaded));
                 if (ad.ShowWhenLoaded)
                     Show(key, ad.Format, ad.Id, ad);
@@ -129,6 +150,15 @@ namespace HDC.Ads.Infrastructure
 
             if (ad != null)
                 ad.ShowWhenLoaded = false;
+            if (ad != null && ad.Hidden)
+            {
+                ad.Hidden = false;
+                ad.Showing = true;
+                Send(Event(ad, HDCAdEventType.Shown));
+                ClosePopupLater(key, ad);
+                return true;
+            }
+
             if (ad == null || !ad.Ready || ad.Showing)
             {
                 Send(new HDCAdEvent
@@ -150,10 +180,13 @@ namespace HDC.Ads.Infrastructure
             paid.currency = "USD";
             Send(paid);
 
-            if (ad.Format != HDCAdFormat.Banner)
+            if (ad.Format == HDCAdFormat.Popup)
             {
-                float seconds = ad.Format == HDCAdFormat.Popup ? PopupShowSeconds : ShowSeconds;
-                HDCMainThread.PostDelayed(seconds, () =>
+                ClosePopupLater(key, ad);
+            }
+            else if (ad.Format != HDCAdFormat.Banner)
+            {
+                HDCMainThread.PostDelayed(ShowSeconds, () =>
                 {
                     if (IsCurrent(key, ad))
                         Close(key, ad);
@@ -163,7 +196,17 @@ namespace HDC.Ads.Infrastructure
             return true;
         }
 
-        private void Close(string key, SimulatedAd ad)
+        private void ClosePopupLater(string key, SimulatedAd ad)
+        {
+            int turn = ++ad.ShowTurn;
+            HDCMainThread.PostDelayed(PopupShowSeconds, () =>
+            {
+                if (IsCurrent(key, ad) && ad.ShowTurn == turn && ad.Showing)
+                    Close(key, ad);
+            });
+        }
+
+        private void Hide(SimulatedAd ad)
         {
             if (ad == null)
                 return;
@@ -173,11 +216,30 @@ namespace HDC.Ads.Infrastructure
                 return;
 
             ad.Showing = false;
+            ad.Hidden = true;
             Send(Event(ad, HDCAdEventType.Closed));
+        }
+
+        private void Close(string key, SimulatedAd ad)
+        {
+            if (ad == null)
+                return;
+
+            ad.ShowWhenLoaded = false;
+            bool wasShowing = ad.Showing;
+            if (!wasShowing && !ad.Hidden)
+                return;
+
+            ad.Showing = false;
+            ad.Hidden = false;
+            if (wasShowing)
+                Send(Event(ad, HDCAdEventType.Closed));
             if (ad.Format == HDCAdFormat.Banner)
                 ad.Ready = true;
             else if (ad.ReloadsAfterShow)
                 SimulateLoad(key, ad);
+            else
+                ad.Closed = true;
         }
 
         private string Meta(string action)
@@ -242,7 +304,10 @@ namespace HDC.Ads.Infrastructure
             public readonly bool ReloadsAfterShow;
             public bool Ready;
             public bool Showing;
+            public bool Hidden;
+            public bool Closed;
             public bool ShowWhenLoaded;
+            public int ShowTurn;
 
             public SimulatedAd(string format, string id, string adUnitId, bool reloadsAfterShow)
             {

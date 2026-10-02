@@ -129,7 +129,10 @@ namespace HDC.Ads.DebugUI
             if (Has(message, "Not ready") || Has(message, "Not loaded"))
                 return "Gọi show khi quảng cáo chưa load xong.\nGợi ý: chờ trạng thái READY; HDC tự load lại sau lần show hụt.";
             if (Has(message, "Popup not displayable"))
-                return "Popup chưa ở trạng thái hiển thị được: chưa load xong, chưa đặt vị trí (Move), hoặc đang hiện.\nGợi ý: đặt vùng popup (UpdatePos) rồi show khi popup READY.";
+                return "Popup không có quảng cáo để hiện ở trạng thái ghi trong Message (ví dụ Closed: quảng cáo đã bị đóng hẳn; Failed: load hoặc show lỗi).\n" +
+                       "Gợi ý: Show hoặc Init lại, HDC sẽ load quảng cáo mới (Show thì hiện ngay khi load xong). Hide chỉ ẩn popup, Show sau Hide hiện lại đúng quảng cáo đó.";
+            if (Has(message, "Popup did not show"))
+                return "Lệnh show của popup không chạy được trên máy (ví dụ đang có màn hình khác che, hoặc popup khác đang hiện).\nGợi ý: show lại khi màn hình game đang ở trên cùng.";
             if (Has(message, "No ad loaded"))
                 return "Native không load được quảng cáo nào từ các ad unit, và không gửi kèm mã lỗi của SDK.\nGợi ý: xem log native của máy để biết lý do cụ thể.";
             if (Has(message, "already taken"))
