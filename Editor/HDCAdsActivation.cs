@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.Build;
+using UnityEditor.Build.Reporting;
 using UnityEditor.Compilation;
 using UnityEngine;
 
@@ -14,7 +15,8 @@ namespace HDC.Ads.Editor
     /// the runtime assembly needs the HDC_ADS define, the iOS postprocess adds the HDCAds framework only
     /// with it, and the native dependencies file is absent. When the Firebase Remote Config SDK is in the
     /// project, enabling also adds HDC_FIREBASE, which builds HDCRemoteConfig. While on, the dependencies file
-    /// follows its template, so a library update that changes the native versions takes effect by itself.
+    /// follows its template, so a library update that changes the native versions takes effect by itself, from the
+    /// next script reload or build.
     /// HDCLib works from any folder: under Assets, or as a package in Packages, read-only ones included.
     /// </summary>
     [InitializeOnLoad]
@@ -108,6 +110,19 @@ namespace HDC.Ads.Editor
             string file = DependenciesFile;
             if (!File.Exists(file) || File.ReadAllText(file) != ExpectedDependencies())
                 WriteDependencies();
+        }
+
+        /// <summary>
+        /// Refreshes the dependencies file when a build starts. The refresh after a script reload waits for the
+        /// Editor's next update, which a batch mode build started with -executeMethod comes before: the dependency
+        /// manager would resolve the native versions of the HDCLib before the update.
+        /// </summary>
+        internal sealed class BuildRefresh : IPreprocessBuildWithReport
+        {
+            // Before the dependency manager resolves for the build.
+            public int callbackOrder => int.MinValue;
+
+            public void OnPreprocessBuild(BuildReport report) => RefreshDependencies();
         }
 
         private static void DeleteDependencies()

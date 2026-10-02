@@ -59,6 +59,9 @@ Những thứ sau đã đổi so với 0.5.0:
 
 ### Sửa
 
+- Android (thư viện `hdc-ads-android` 0.3.2):
+  - Lệnh show của native full-screen và popup trả lời ngay sau khi kiểm tra ad sẵn sàng, không chờ ad hiện xong. Trước đây, trên máy chậm, việc hiện ad kéo dài quá 2 giây thì lệnh trả về "không hiện" trong khi ad vẫn hiện. Khi đó `ForceAd.Show` trả false, `onDone` chạy ngay, và capping không tính lượt đó.
+  - Show không thực hiện được (ví dụ không còn ad đã load) giờ báo ShowFailed, thay vì LoadFailed.
 - App launch kết thúc ngay nếu không có quảng cáo. Group không có ad unit nào không còn gây lỗi.
 - iOS: view quảng cáo chạy được ở tần số khung hình cao, nên Compose không còn abort (`CADisableMinimumFrameDurationOnPhone`).
 - iOS: không đưa framework KMP bị xung đột vào bản build.

@@ -289,6 +289,12 @@ Lệnh này làm hai việc:
   - Module này dùng lại logic của `:shared` và vẽ quảng cáo bằng View/XML, không dùng Compose, để mọi bản Unity build được.
   - Khi đổi version, sửa cả `unityAndroid/build.gradle.kts` và `Editor/Templates~/HDCAdsDependencies.xml`.
 
+Khi chỉ thư viện Android đổi, chỉ cần publish phần Android:
+
+```bash
+./gradlew :unityAndroid:exportUnityAndroidPlugin -PunityPluginsDir=<HDCLib>/Plugins
+```
+
 ## Kiểm thử
 
 Test Edit Mode nằm trong `Tests/Editor` (assembly `HDC.Ads.Tests`). Assembly này chỉ compile khi project có package Test Framework và đang bật HDC (define `HDC_ADS`), và không bao giờ vào bản build của game.
@@ -393,7 +399,7 @@ Các giới hạn sau đến từ GMA, Meta và AndroidX, không phải từ HDC
   - Hỗ trợ tắt domain reload.
 - Menu `HDC` riêng trên thanh menu: bật/tắt Ads, sửa config mặc định trong cửa sổ có kiểm tra JSON.
 - Bảng debug `HDCAdsDebugPanel`, bốn trang:
-  - Ads: chọn kênh, group và vị trí theo config rồi gọi init/show/hide; group đang chọn hiện từng ad unit với trạng thái, mã lỗi kèm giải thích và số liệu. Native banner và popup cũng báo mã lỗi thật của SDK (thư viện Android 0.3.1 và framework iOS mới).
+  - Ads: chọn kênh, group và vị trí theo config rồi gọi init/show/hide; group đang chọn hiện từng ad unit với trạng thái, mã lỗi kèm giải thích và số liệu. Native banner và popup cũng báo mã lỗi thật của SDK (từ thư viện Android 0.3.1 và framework iOS cùng đợt).
   - Remote Config: config lấy từ đâu, kiểm tra lỗi config, xem JSON theo Remote, Saved, Default, Applied và mọi key Remote Config.
   - Events: mọi sự kiện quảng cáo, lọc và giải thích. Device: build, test ads, thiết bị, mạng, Adjust.
 - Prefab `HDCAdsSetup` cho scene đầu: lấy config, khởi tạo ads, chạy app launch rồi mở scene tiếp theo.
