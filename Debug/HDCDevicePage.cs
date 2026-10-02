@@ -194,7 +194,10 @@ namespace HDC.Ads.DebugUI
                 if (status != null)
                     AdapterRow("Adapter", status);
                 else
-                    mediationList.Row("Adapter", HDCMediationReport.Received ? "Not in this build" : "-", HDCDebugStyle.MutedColor);
+                    // Google Mobile Ads can leave out a partner that is in the build when no mediation group of the app
+                    // uses it, as with Google's sample app ID.
+                    mediationList.Row("Adapter", HDCMediationReport.Received ? "Not reported: not in this build, or no mediation group uses it" : "-",
+                        HDCDebugStyle.MutedColor);
                 if (partner.HasTestMode && partnerTestModes.TryGetValue(partner, out (bool On, string DeviceId) test))
                 {
                     mediationList.Row("Test Mode", test.On ? "On" : "Off", test.On ? HDCDebugStyle.GoodColor : HDCDebugStyle.MutedColor);
