@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using HDC.Ads.Diagnostics;
 using HDC.Ads.Domain;
@@ -10,7 +12,9 @@ namespace HDC.Ads.DebugUI
     {
         internal const string AllOption = "All";
 
-        internal static readonly string[] Channels = { "AL", "AR", "RW", "FA", "BN", "MREC", "PU", "SDK" };
+        // The SDK's own events, which belong to no channel.
+        private const string Sdk = "SDK";
+        private const string Other = "OTHER";
 
         internal static readonly string[] Types =
         {
@@ -19,28 +23,16 @@ namespace HDC.Ads.DebugUI
             HDCAdEventType.Closed, HDCAdEventType.Initialized,
         };
 
-        /// <summary>
-        /// The channel of an event's ad, from the instance ids the channels load with. An app launch that shows a
-        /// force ad group counts as FA.
-        /// </summary>
+        /// <summary>The channels to filter events by: each channel's key, then the SDK's own events.</summary>
+        internal static IEnumerable<string> Channels() => HDCAds.Channels.All.Select(channel => channel.Key).Append(Sdk);
+
+        /// <summary>The channel of an event's ad: the channel whose debug module owns its instance id.</summary>
         internal static string Channel(HDCAdEvent adEvent)
         {
             if (adEvent.format == HDCAdFormat.Sdk)
-                return "SDK";
+                return Sdk;
             string id = adEvent.id ?? string.Empty;
-            if (id.StartsWith("fa_"))
-                return "FA";
-            if (id.StartsWith("rw_"))
-                return "RW";
-            if (id.StartsWith("ao_"))
-                return "AL";
-            if (id == HDCAdNames.NativeAppResume)
-                return "AR";
-            if (id.StartsWith("bn_"))
-                return "BN";
-            if (id.StartsWith("mrec_"))
-                return "MREC";
-            return id.StartsWith("pu_") ? "PU" : "OTHER";
+            return HDCAds.Channels.All.FirstOrDefault(channel => channel.Diagnostics.Owns(id))?.Key ?? Other;
         }
 
         internal static bool Matches(HDCAdEvent adEvent, string channel, string type) =>

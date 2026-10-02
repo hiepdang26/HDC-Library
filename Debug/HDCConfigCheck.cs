@@ -3,38 +3,21 @@ using System.Collections.Generic;
 using System.Linq;
 using HDC.Ads.Diagnostics;
 using HDC.Ads.Domain;
+using HDC.Ads.Logic;
 using UnityEngine;
 
 namespace HDC.Ads.DebugUI
 {
     /// <summary>
-    /// Checks the configs HDCAds runs on: how the load went, the JSON, and whether every enabled channel has its
-    /// ad units, groups, positions and layouts. Each finding is in Vietnamese, with what to fix.
+    /// Checks the configs HDCAds runs on: how the load went, the JSON, then each channel's rules, which say whether
+    /// the channel has its ad units, groups, positions and layouts, and last the positions listed twice. Each
+    /// finding is in Vietnamese, with what to fix.
     /// </summary>
     internal static class HDCConfigCheck
     {
-        internal enum Level
+        internal static List<HDCConfigFinding> Run()
         {
-            Error,
-            Warning,
-            Info,
-        }
-
-        internal sealed class Finding
-        {
-            internal Finding(Level level, string text)
-            {
-                Level = level;
-                Text = text;
-            }
-
-            internal Level Level { get; }
-            internal string Text { get; }
-        }
-
-        internal static List<Finding> Run()
-        {
-            var findings = new List<Finding>();
+            var findings = new List<HDCConfigFinding>();
             CheckLoad(findings);
             string ads = HDCConfigReport.AppliedAds;
             string core = HDCConfigReport.AppliedCore;
@@ -60,7 +43,7 @@ namespace HDC.Ads.DebugUI
             return findings;
         }
 
-        private static void CheckLoad(List<Finding> findings)
+        private static void CheckLoad(List<HDCConfigFinding> findings)
         {
             if (!HDCConfigReport.Started)
             {
@@ -97,96 +80,31 @@ namespace HDC.Ads.DebugUI
             }
         }
 
-        private static void CheckChannels(HDCAdsConfig ads, HDCAdCoreConfig core, List<Finding> findings)
+        private static void CheckChannels(HDCAdsConfig ads, HDCAdCoreConfig core, List<HDCConfigFinding> findings)
         {
-            HDCAdCoreConfig.ForceAdGroup[] faGroups = (core.forceAdGroups ?? new HDCAdCoreConfig.ForceAdGroup[0]).Where(g => g != null).ToArray();
-            HDCAdCoreConfig.PopupGroup[] puGroups = (core.popupGroups ?? new HDCAdCoreConfig.PopupGroup[0]).Where(g => g != null).ToArray();
-            string[] faPositions = (ads.forceAdChannel?.positionConfigs ?? new HDCAdsConfig.ForceAdPosition[0]).Where(p => p != null).Select(p => p.positionName).ToArray();
-            string[] puPositions = (ads.popupChannel?.positionConfigs ?? new HDCAdsConfig.PopupPosition[0]).Where(p => p != null).Select(p => p.positionName).ToArray();
+            IReadOnlyList<IAdChannel> channels = HDCAds.Channels.All;
+            foreach (IAdChannel channel in channels)
+                findings.AddRange(channel.ConfigRule.Check(ads, core));
 
-            // App launch
-            HDCAdCoreConfig.Comeback comeback = core.comebackChannel ?? new HDCAdCoreConfig.Comeback();
-            if (ads.appLaunchChannel?.isEnabled ?? false)
+            // Positions named twice, in a channel or by two of them.
+            string[][] positions = channels.Select(channel => channel.ConfigRule.Positions(ads).ToArray()).ToArray();
+            for (int i = 0; i < channels.Count; i++)
             {
-                if (comeback.launchAdType == 0 && core.ForceAdGroupNamed(comeback.launchForceAdGroupName) == null)
-                    findings.Add(Error($"AL: comebackChannel.launchForceAdGroupName '{comeback.launchForceAdGroupName}' không có trong forceAdGroups."));
-                else if (comeback.launchAdType != 0 && string.IsNullOrEmpty(core.appOpenUnit?.admobUnit?.id))
-                    findings.Add(Error("AL: launch dùng app open nhưng appOpenUnit.admobUnit.id trống."));
+                foreach (string position in Duplicates(positions[i]))
+                    findings.Add(Error($"{channels[i].Key}: position '{position}' bị khai báo nhiều lần trong positionConfigs."));
             }
 
-            // App resume
-            HDCAdsConfig.AppResumeChannel resume = ads.appResumeChannel ?? new HDCAdsConfig.AppResumeChannel();
-            if (resume.isEnabled)
+            for (int i = 0; i < channels.Count; i++)
             {
-                if (string.IsNullOrEmpty(resume.adUnitId))
-                    findings.Add(Error("AR: appResumeChannel.adUnitId trống."));
-                if (!string.IsNullOrEmpty(resume.layoutGroup) && core.LayoutGroupNamed(resume.layoutGroup) == null)
-                    findings.Add(Warning($"AR: layoutGroup '{resume.layoutGroup}' không có trong forceAdLayoutConfig."));
-            }
-
-            // Rewarded
-            if ((ads.rewardedChannel?.isEnabled ?? false) && !HasUnit(core.rewardedUnit))
-                findings.Add(Error("RW: rewardedUnit không có ad unit nào (admobUnit.id và androidUnit.id đều trống)."));
-
-            // Force ads
-            if (ads.forceAdChannel?.isEnabled ?? false)
-            {
-                if (faGroups.Length == 0)
-                    findings.Add(Error("FA: bật forceAdChannel nhưng ad core config không có forceAdGroups."));
-                foreach (string position in faPositions.Where(p => !string.IsNullOrEmpty(p) && string.IsNullOrEmpty(core.ForceAdGroupAt(p))))
-                    findings.Add(Error($"FA: position '{position}' không thuộc force ad group nào (thêm vào positionNames của một group)."));
-                foreach (HDCAdCoreConfig.ForceAdGroup group in faGroups)
+                for (int j = i + 1; j < channels.Count; j++)
                 {
-                    if (string.IsNullOrEmpty(group.admobUnit?.id) && string.IsNullOrEmpty(group.androidUnit?.id))
-                        findings.Add(Error($"FA: group '{group.groupName}' không có ad unit nào."));
-                    bool nativeFullscreen = !string.IsNullOrEmpty(group.androidUnit?.id) && !(group.androidUnit.androidInterstitials?.switchToInterstitialAndroid ?? false);
-                    if (nativeFullscreen && core.LayoutGroupNamed(group.androidUnit.layoutGroupName) == null)
-                        findings.Add(Error($"FA: group '{group.groupName}' dùng layout group '{group.androidUnit.layoutGroupName}' không có trong forceAdLayoutConfig."));
-                    foreach (string position in (group.positionNames ?? new string[0]).Where(p => !string.IsNullOrEmpty(p) && !faPositions.Contains(p)))
-                        findings.Add(Warning($"FA: group '{group.groupName}' có position '{position}' không có trong forceAdChannel.positionConfigs."));
+                    foreach (string position in positions[i].Intersect(positions[j]).Where(p => !string.IsNullOrEmpty(p)))
+                        findings.Add(Warning($"Position '{position}' có ở cả {channels[i].Key} và {channels[j].Key}: dễ nhầm khi gọi Show."));
                 }
             }
-
-            // Banner
-            if (ads.bannerChannel?.isEnabled ?? false)
-            {
-                foreach (HDCBannerSlot slot in (HDCBannerSlot[])Enum.GetValues(typeof(HDCBannerSlot)))
-                {
-                    if (!ads.bannerChannel.Slot(slot).isEnabled)
-                        continue;
-                    HDCAdCoreConfig.FullscreenUnit unit = core.bannerUnit?.Slot(slot);
-                    bool native = slot == HDCBannerSlot.FullBottom && unit?.androidUnit != null
-                        && (!string.IsNullOrEmpty(unit.androidUnit.id) || (unit.androidUnit.ids?.Length ?? 0) > 0);
-                    if (string.IsNullOrEmpty(unit?.admobUnit?.id) && !native)
-                        findings.Add(Error($"BN: slot {slot} đang bật nhưng bannerUnit không có ad unit cho slot này."));
-                }
-            }
-
-            // MREC
-            if ((ads.mrecChannel?.isEnabled ?? false) && string.IsNullOrEmpty(core.mrecUnit?.admobUnit?.id))
-                findings.Add(Error("MREC: mrecUnit.admobUnit.id trống."));
-
-            // Popups
-            if (ads.popupChannel?.isEnabled ?? false)
-            {
-                if (puGroups.Length == 0)
-                    findings.Add(Error("PU: bật popupChannel nhưng ad core config không có popupGroups."));
-                foreach (string position in puPositions.Where(p => !string.IsNullOrEmpty(p) && string.IsNullOrEmpty(core.PopupGroupAt(p))))
-                    findings.Add(Error($"PU: position '{position}' không thuộc popup group nào."));
-                foreach (HDCAdCoreConfig.PopupGroup group in puGroups.Where(g => string.IsNullOrEmpty(g.androidUnit?.id)))
-                    findings.Add(Error($"PU: group '{group.groupName}' không có androidUnit.id."));
-            }
-
-            // Positions named twice.
-            foreach (string position in Duplicates(faPositions))
-                findings.Add(Error($"FA: position '{position}' bị khai báo nhiều lần trong positionConfigs."));
-            foreach (string position in Duplicates(puPositions))
-                findings.Add(Error($"PU: position '{position}' bị khai báo nhiều lần trong positionConfigs."));
-            foreach (string position in faPositions.Intersect(puPositions).Where(p => !string.IsNullOrEmpty(p)))
-                findings.Add(Warning($"Position '{position}' có ở cả FA và PU: dễ nhầm khi gọi Show."));
         }
 
-        private static T Parse<T>(string json, string name, List<Finding> findings) where T : class
+        private static T Parse<T>(string json, string name, List<HDCConfigFinding> findings) where T : class
         {
             if (string.IsNullOrWhiteSpace(json))
             {
@@ -205,9 +123,6 @@ namespace HDC.Ads.DebugUI
             }
         }
 
-        private static bool HasUnit(HDCAdCoreConfig.FullscreenUnit unit) =>
-            unit != null && (!string.IsNullOrEmpty(unit.admobUnit?.id) || !string.IsNullOrEmpty(unit.androidUnit?.id));
-
         private static bool IsEmptyJson(string json)
         {
             string compact = new string((json ?? string.Empty).Where(c => !char.IsWhiteSpace(c)).ToArray());
@@ -217,10 +132,10 @@ namespace HDC.Ads.DebugUI
         private static IEnumerable<string> Duplicates(IEnumerable<string> values) =>
             values.Where(v => !string.IsNullOrEmpty(v)).GroupBy(v => v).Where(g => g.Count() > 1).Select(g => g.Key);
 
-        private static Finding Error(string text) => new Finding(Level.Error, text);
+        private static HDCConfigFinding Error(string text) => HDCConfigFinding.Error(text);
 
-        private static Finding Warning(string text) => new Finding(Level.Warning, text);
+        private static HDCConfigFinding Warning(string text) => HDCConfigFinding.Warning(text);
 
-        private static Finding Info(string text) => new Finding(Level.Info, text);
+        private static HDCConfigFinding Info(string text) => HDCConfigFinding.Info(text);
     }
 }

@@ -1,11 +1,17 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
+using HDC.Ads.Composition;
 using HDC.Ads.DebugUI;
 using HDC.Ads.Diagnostics;
+using HDC.Ads.Domain;
+using HDC.Ads.Logic;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
 using static HDC.Ads.Tests.HDCTestUi;
+using Object = UnityEngine.Object;
 
 namespace HDC.Ads.Tests
 {
@@ -46,13 +52,14 @@ namespace HDC.Ads.Tests
             Transform page = window.Find("Pages/Ads Page");
             Transform content = page.Find("Body/Viewport/Content");
 
-            // Selection lives in the Actions card; break ad buttons are gone.
+            // A tab per channel; selection lives in the Actions card, with FA's own buttons only.
+            CollectionAssert.AreEqual(new[] { "AL", "AR", "RW", "FA", "BN", "MREC", "PU" }, Rows(page.Find("Channel Tabs"), "").Select(tab => tab.name).ToArray());
             Transform actions = content.Find("Actions Card");
             Assert.IsTrue(actions.Find("Selection Row/Group Button").gameObject.activeSelf);
             Assert.IsTrue(actions.Find("Selection Row/Position Button").gameObject.activeSelf);
             Assert.IsNull(content.Find("Selection Card"));
             Assert.IsFalse(AllText(actions).Contains("BreakAd"), "no break ad in FA");
-            Assert.IsFalse(actions.Find("Action Buttons/Update Position Button").gameObject.activeSelf);
+            CollectionAssert.AreEqual(new[] { "Init", "Show" }, Rows(actions.Find("Action Buttons"), "").Select(ButtonText).ToArray());
 
             // Only the selected group: the two units of native_gameplay.
             Transform detail = content.Find("Detail Card");
@@ -111,18 +118,23 @@ namespace HDC.Ads.Tests
             Click(detail.Find("Header Row/Copy Report Button"));
             StringAssert.Contains("native_ui", GUIUtility.systemCopyBuffer);
 
-            // Popup channel: one popup group with its error.
+            // Popup channel: one popup group with its error, and its own buttons.
             Click(window.Find("Pages/Ads Page/Channel Tabs/PU"));
             yield return null;
             units = Rows(detail.Find("Units List"), "Unit ");
             Assert.AreEqual(1, units.Count);
             StringAssert.StartsWith("LOAD FAILED", Badge(units[0]));
+            Assert.AreEqual("Native Popup", TextOf(units[0].Find("Top/Title")).Substring(4));
             Assert.IsTrue(panelObject.transform.Find("Safe Area/Popup Area").gameObject.activeSelf);
+            CollectionAssert.AreEqual(new[] { "Init", "Show", "Hide", "UpdatePos" }, Rows(actions.Find("Action Buttons"), "").Select(ButtonText).ToArray());
+            Click(actions.Find("Action Buttons/Update Position Button"));
+            StringAssert.Contains("Popup.Move(\"popup\", popup area)", TextOf(actions.Find("Last Call")));
 
             // Banner channel: only the selected placement.
             Click(window.Find("Pages/Ads Page/Channel Tabs/BN"));
             yield return null;
             Assert.AreEqual("Placement: FullBottom", TextOf(detail.Find("Group Title")));
+            Assert.AreEqual("Activate", ButtonText(actions.Find("Action Buttons/Show Button")));
             Capture(panelObject, "hdc-debug-ads-bn.png");
 
             // Remote Config page, with configs given to HDCAds.Initialize directly.
@@ -175,6 +187,81 @@ namespace HDC.Ads.Tests
 
             Click(window.Find("Header/Close Button"));
             Assert.IsFalse(panel.IsOpen);
+            yield return new ExitPlayMode();
+        }
+
+        /// <summary>
+        /// A channel registered from a test gets its tab, buttons, groups, state, events, config check and ad units
+        /// map, with no code of the panel's own for it.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AChannelFromATestShowsOnThePanel()
+        {
+            yield return new EnterPlayMode();
+            var ads = new HDCFakeAds(extraChannels: new Func<HDCAdsContext, IAdChannel>[] { context => new HDCFakeChannel(context) });
+            HDCAdsRuntime.Use(ads.Runtime);
+            try
+            {
+                ads.Start(HDCTestConfigs.Ads, HDCTestConfigs.Core);
+                var fake = (HDCFakeChannel)HDCAds.Channels.All.Last();
+                Assert.AreEqual(1, fake.Starts, "it starts with the others once the SDK is ready");
+
+                GameObject panelObject = Object.Instantiate(HDCTestPaths.DebugPanelPrefab());
+                panelObject.GetComponent<HDCAdsDebugPanel>().Open();
+                yield return null;
+                Transform window = panelObject.transform.Find("Safe Area/Window");
+                Transform page = window.Find("Pages/Ads Page");
+                Transform tab = page.Find("Channel Tabs/FAKE");
+                Assert.AreEqual("Fake", TextOf(tab.Find("Name")));
+                Click(tab);
+                yield return null;
+
+                Transform content = page.Find("Body/Viewport/Content");
+                Transform actions = content.Find("Actions Card");
+                Assert.AreEqual("Fake · FAKE", TextOf(actions.Find("Channel Title")));
+                Assert.AreEqual("Position: fake_spot", ButtonText(actions.Find("Selection Row/Position Button")));
+                CollectionAssert.AreEqual(new[] { "Ping" }, Rows(actions.Find("Action Buttons"), "").Select(ButtonText).ToArray());
+                Click(actions.Find("Action Buttons/Ping Button"));
+                Assert.AreEqual(1, fake.Pings);
+                StringAssert.Contains("Fake.Ping(\"fake_spot\")", TextOf(actions.Find("Last Call")));
+
+                Transform detail = content.Find("Detail Card");
+                Assert.AreEqual("Group: fake_group", TextOf(detail.Find("Group Title")));
+                List<Transform> units = Rows(detail.Find("Units List"), "Unit ");
+                Assert.AreEqual(1, units.Count);
+                Assert.AreEqual("#1  Fake Banner", TextOf(units[0].Find("Top/Title")));
+                Assert.AreEqual("READY", Badge(units[0]));
+
+                Transform system = content.Find("System Card");
+                Click(system.Find("Header Row/Expand Button"));
+                yield return null;
+                string systemText = AllText(system.Find("System Body"));
+                StringAssert.Contains("FAKE STATE", systemText);
+                StringAssert.Contains("Fake.Ping(position)", systemText);
+                Capture(panelObject, "hdc-debug-ads-fake.png");
+
+                Assert.AreEqual("FAKE", HDCEventText.Channel(new HDCAdEvent { id = HDCFakeChannel.InstanceId, format = HDCAdFormat.Banner }));
+                CollectionAssert.AreEqual(new[] { "AL", "AR", "RW", "FA", "BN", "MREC", "PU", "FAKE", "SDK" }, HDCEventText.Channels().ToArray());
+
+                Click(window.Find("Page Bar/Remote Config Tab"));
+                yield return null;
+                Transform configContent = window.Find("Pages/Remote Config Page/Body/Viewport/Content");
+                string check = AllText(configContent.Find("Check Card"));
+                StringAssert.Contains("FAKE: kênh giả luôn có một cảnh báo.", check);
+                StringAssert.Contains($"Position '{HDCFakeChannel.SharedPosition}' có ở cả FA và FAKE", check);
+                Click(configContent.Find("Map Card/Header Row/Expand Button"));
+                yield return null;
+                StringAssert.Contains("FAKE CHANNEL", AllText(configContent.Find("Map Card")));
+
+                ads.Context.SetAdsRemoved(true);
+                Assert.AreEqual(1, fake.Removals);
+                Object.Destroy(panelObject);
+            }
+            finally
+            {
+                HDCAdsRuntime.Use(HDCAdsRuntime.CreateDefault());
+            }
+
             yield return new ExitPlayMode();
         }
 

@@ -36,12 +36,6 @@ namespace HDC.Ads.DebugUI.Editor
         private static readonly Color PopupAreaColor = new Color(0.31f, 0.275f, 0.898f, 0.18f);
         private static readonly Color ViewportColor = new Color(1f, 1f, 1f, 0.01f);
 
-        private static readonly string[,] Channels =
-        {
-            { "AL", "AppLaunch" }, { "AR", "AppResume" }, { "RW", "Rewarded" }, { "FA", "ForceAd" },
-            { "BN", "Banner" }, { "MREC", "Mrec" }, { "CL", "Collapsible" }, { "PU", "Popup" },
-        };
-
         private static readonly string[] Pages = { "Ads", "Remote Config", "Events", "Device" };
 
         private static Font font;
@@ -166,7 +160,8 @@ namespace HDC.Ads.DebugUI.Editor
             Debug.Log($"[HDCAds] Built {path}.");
         }
 
-        // Ads page: channel tabs, then Actions, Detail Information, Recent Events and System.
+        // Ads page: channel tabs, then Actions, Detail Information, Recent Events and System. The page makes a tab
+        // per channel and a button per action from the templates.
         private static HDCAdsDebugWorkspace AdsPage(Transform parent, HDCOptionPicker picker, HDCAdsDebugViewer viewer, GameObject popupArea)
         {
             GameObject page = Page(parent, "Ads Page");
@@ -181,10 +176,8 @@ namespace HDC.Ads.DebugUI.Editor
             grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
             grid.constraintCount = 4;
             grid.childAlignment = TextAnchor.UpperCenter;
-            var tabButtons = new Button[Channels.GetLength(0)];
-            var tabDots = new Image[Channels.GetLength(0)];
-            for (int i = 0; i < Channels.GetLength(0); i++)
-                tabButtons[i] = Tab(tabsRoot.transform, Channels[i, 0], Channels[i, 1], out tabDots[i]);
+            Button tabTemplate = Tab(tabsRoot.transform, "Tab Template");
+            tabTemplate.gameObject.SetActive(false);
 
             RectTransform content = Body(page.transform, -224f);
 
@@ -201,11 +194,8 @@ namespace HDC.Ads.DebugUI.Editor
             Flexible(positionButton.gameObject, 1f);
             Height(positionButton.gameObject, ButtonHeight);
             GameObject actionGrid = Grid(actions.transform, "Action Buttons", 3, 306f, ButtonHeight);
-            Button initButton = ButtonWithLabel(actionGrid.transform, "Init Button", "Init", PrimaryColor, 26);
-            Button showButton = ButtonWithLabel(actionGrid.transform, "Show Button", "Show", PrimaryColor, 26);
-            Button hideButton = ButtonWithLabel(actionGrid.transform, "Hide Button", "Hide", ButtonColor, 26);
-            Button utilityPrimary = ButtonWithLabel(actionGrid.transform, "Update Position Button", "UpdatePos", ButtonColor, 26);
-            Button utilitySecondary = ButtonWithLabel(actionGrid.transform, "Get Size Button", "GetSize", ButtonColor, 26);
+            Button actionTemplate = ButtonWithLabel(actionGrid.transform, "Action Template", "Action", ButtonColor, 26);
+            actionTemplate.gameObject.SetActive(false);
             Text lastCall = Label(actions.transform, "Last Call", "Last call: -", 22, FontStyle.Normal, MutedTextColor, TextAnchor.UpperLeft);
 
             // Detail information: the selected group and its ad units.
@@ -238,16 +228,12 @@ namespace HDC.Ads.DebugUI.Editor
             HDCKeyValueList systemList = KeyValueList(systemBody.transform, "System List");
             systemBody.SetActive(false);
 
-            AssignTabs(workspace, tabButtons, tabDots);
+            Assign(workspace, "tabTemplate", tabTemplate);
             Assign(workspace, "channelTitleText", channelTitle);
             Assign(workspace, "selectionHintText", hint);
             Assign(workspace, "groupButton", groupButton);
             Assign(workspace, "positionButton", positionButton);
-            Assign(workspace, "initButton", initButton);
-            Assign(workspace, "showButton", showButton);
-            Assign(workspace, "hideButton", hideButton);
-            Assign(workspace, "utilityPrimaryButton", utilityPrimary);
-            Assign(workspace, "utilitySecondaryButton", utilitySecondary);
+            Assign(workspace, "actionTemplate", actionTemplate);
             Assign(workspace, "lastCallText", lastCall);
             Assign(workspace, "groupTitleText", groupTitle);
             Assign(workspace, "groupList", groupList);
@@ -432,17 +418,18 @@ namespace HDC.Ads.DebugUI.Editor
             return device;
         }
 
-        private static Button Tab(Transform parent, string key, string name, out Image dot)
+        // A channel tab: its key, its name under it and a dot with the state of its ads.
+        private static Button Tab(Transform parent, string name)
         {
-            GameObject tab = Box(parent, key, ButtonColor, true, true);
+            GameObject tab = Box(parent, name, ButtonColor, true, true);
             var button = tab.AddComponent<Button>();
             button.targetGraphic = tab.GetComponent<Image>();
-            Text keyText = Label(tab.transform, "Key", key, 32, FontStyle.Bold, TextColor, TextAnchor.MiddleCenter);
+            Text keyText = Label(tab.transform, "Key", "KEY", 32, FontStyle.Bold, TextColor, TextAnchor.MiddleCenter);
             Stretch(keyText.transform, new Vector2(8f, 34f), new Vector2(-8f, -6f));
-            Text nameText = Label(tab.transform, "Name", name, 20, FontStyle.Normal, SoftTextColor, TextAnchor.MiddleCenter);
+            Text nameText = Label(tab.transform, "Name", "Channel", 20, FontStyle.Normal, SoftTextColor, TextAnchor.MiddleCenter);
             Stretch(nameText.transform, new Vector2(8f, 6f), new Vector2(-8f, -62f));
             GameObject dotObject = Element(tab.transform, "Dot");
-            dot = dotObject.AddComponent<Image>();
+            var dot = dotObject.AddComponent<Image>();
             dot.sprite = circle;
             dot.color = MutedTextColor;
             dot.raycastTarget = false;
@@ -801,22 +788,6 @@ namespace HDC.Ads.DebugUI.Editor
             if (property == null)
                 throw new System.ArgumentException($"{target.GetType().Name} has no field {field}");
             property.objectReferenceValue = value;
-            serialized.ApplyModifiedPropertiesWithoutUndo();
-        }
-
-        private static void AssignTabs(HDCAdsDebugWorkspace workspace, Button[] buttons, Image[] dots)
-        {
-            var serialized = new SerializedObject(workspace);
-            SerializedProperty tabs = serialized.FindProperty("tabs");
-            tabs.arraySize = buttons.Length;
-            for (int i = 0; i < buttons.Length; i++)
-            {
-                SerializedProperty tab = tabs.GetArrayElementAtIndex(i);
-                tab.FindPropertyRelative("key").stringValue = Channels[i, 0];
-                tab.FindPropertyRelative("button").objectReferenceValue = buttons[i];
-                tab.FindPropertyRelative("dot").objectReferenceValue = dots[i];
-            }
-
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 

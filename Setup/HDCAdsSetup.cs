@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
 #if HDC_ADS
-using HDC.Ads.Domain;
+using HDC.Ads.Logic;
 #endif
 
 namespace HDC.Ads
@@ -49,8 +49,6 @@ namespace HDC.Ads
         [SerializeField] private UnityEvent onFinished = new UnityEvent();
 
 #if HDC_ADS
-        private static readonly HDCBannerSlot[] BannerSlots = (HDCBannerSlot[])Enum.GetValues(typeof(HDCBannerSlot));
-
         /// <summary>
         /// Initializes HDCAds the way the setup does: with the configs from Remote Config, and the defaults from
         /// HDC > Edit configs where it has none. For scenes that start without the setup, such as a test scene.
@@ -126,27 +124,11 @@ namespace HDC.Ads
             onAdsReady.Invoke();
         }
 
-        // Channels that are off, or that started on their own, ignore these calls.
+        // Channels that are off, and what started on its own, ignore these calls.
         private static void StartChannels()
         {
-            HDCAds.AppResume.Initialize();
-            HDCAds.Rewarded.Initialize();
-            HDCAds.Mrec.Initialize();
-
-            foreach (HDCBannerSlot slot in BannerSlots)
-                HDCAds.Banner.Initialize(slot);
-
-            foreach (HDCAdCoreConfig.ForceAdGroup group in HDCAds.CoreConfig.forceAdGroups ?? new HDCAdCoreConfig.ForceAdGroup[0])
-            {
-                if (group != null)
-                    HDCAds.ForceAd.Initialize(group.groupName);
-            }
-
-            foreach (HDCAdCoreConfig.PopupGroup group in HDCAds.CoreConfig.popupGroups ?? new HDCAdCoreConfig.PopupGroup[0])
-            {
-                if (group != null)
-                    HDCAds.Popup.Initialize(group.groupName);
-            }
+            foreach (IAdChannel channel in HDCAds.Channels.All)
+                channel.InitializeAll();
         }
 #endif
     }

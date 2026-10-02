@@ -1,13 +1,12 @@
 using System;
 using System.Collections.Generic;
-using HDC.Ads.Diagnostics;
 using HDC.Ads.Domain;
 using UnityEngine;
 
 namespace HDC.Ads.Logic
 {
     /// <summary>The force ad channel behind <see cref="IForceAds"/>.</summary>
-    internal sealed class HDCForceAds : IForceAds
+    internal sealed partial class HDCForceAds : IForceAds, IAdChannel
     {
         private readonly HDCAdsContext context;
         private bool firstAd = true;
@@ -124,54 +123,30 @@ namespace HDC.Ads.Logic
                 ResetBreakCycle(true);
         }
 
-        /// <summary>The configs, the capping of a position and the state of a group, for the debug panel.</summary>
-        internal HDCDebugInfo Describe(string position, string groupName)
-        {
-            HDCAdsConfig.ForceAdChannel channel = Channel;
-            HDCDebugInfo info = new HDCDebugInfo()
-                .Section("Configs")
-                .Needed("Enabled", channel.isEnabled)
-                .Line("Launch Capping (s)", channel.launchCappingTime)
-                .Line("Minimum Capping (s)", channel.minimumCappingTime)
-                .Line("Capping Decrease Per Impression (s)", channel.cappingDecreasePerImpression)
-                .Line("Positions", channel.positionConfigs?.Length ?? 0)
-                .Section("Runtime")
-                .Line("Ignore Ads", IgnoreAds)
-                .Line("First Ad Of Session", firstAd)
-                .Line("Total Impressions", TotalImpressionCount)
-                .Line("Since Last Full-Screen Ad (s)", context.Clock.RealTime - context.LastFullscreenAdTime)
-                .Section("Gates")
-                .Gate("Disabled", IsDisabled)
-                .Gate("Ads Removed", context.IsAdsRemoved);
+        string IAdChannel.Key => "FA";
 
-            HDCAdsConfig.ForceAdPosition config = PositionConfig(position);
-            if (config != null)
-            {
-                bool allowed = Allowed(position, false, out string reason);
-                info.Section("Position " + position)
-                    .Line("Group", context.CoreConfig.ForceAdGroupAt(position))
-                    .Line("Can Show (Config)", config.canShow)
-                    .Line("Auto Init", config.autoInit)
-                    .Line("Capping Now (s)", Capping(config))
-                    .Line("Impressions Here", ImpressionCount(position))
-                    .Add("Can Show Now", allowed ? "Yes" : "No · " + reason, allowed ? HDCDebugTone.Good : HDCDebugTone.Bad);
-            }
+        string IAdChannel.Title => "ForceAd";
 
-            info.Section("Group " + (string.IsNullOrEmpty(groupName) ? "-" : groupName));
-            HDCFullscreenGroup group = context.Groups.ExistingForceAdGroup(groupName);
-            if (group != null)
-                group.DescribeTo(info);
-            else
-                info.Add("State", "Not started: press Init", HDCDebugTone.Muted);
-            return info;
-        }
-
-        internal void OnSdkInitialized()
+        void IAdChannel.OnSdkInitialized()
         {
             if (IsDisabled)
                 return;
             foreach (string groupName in AutoInitGroups())
                 context.Groups.ForceAdGroup(groupName)?.Initialize();
+        }
+
+        void IAdChannel.InitializeAll()
+        {
+            foreach (HDCAdCoreConfig.ForceAdGroup group in context.CoreConfig.forceAdGroups ?? new HDCAdCoreConfig.ForceAdGroup[0])
+            {
+                if (group != null)
+                    Initialize(group.groupName);
+            }
+        }
+
+        // Force ads close on their own; removed ads stop the next ones.
+        void IAdChannel.OnAdsRemoved()
+        {
         }
 
         internal void CountImpression(string position)

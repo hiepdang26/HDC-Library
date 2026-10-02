@@ -221,7 +221,7 @@ Prefab `Debug/HDCAdsDebugPanel.prefab` là bảng debug nằm đè lên game. Ch
 
 ### Trang Ads
 
-- Tab kênh: AL (app launch), AR (app resume), RW (rewarded), FA (force ad), BN (banner), MREC, CL (collapsible, HDC chưa có), PU (popup). Chấm màu trên tab là trạng thái chung của kênh: xanh lá có ad sẵn sàng, xanh dương đang hiện, cam đang load, đỏ đang lỗi, xám chưa chạy.
+- Tab kênh, mỗi kênh của HDCAds một tab: AL (app launch), AR (app resume), RW (rewarded), FA (force ad), BN (banner), MREC, PU (popup). Chấm màu trên tab là trạng thái chung của kênh: xanh lá có ad sẵn sàng, xanh dương đang hiện, cam đang load, đỏ đang lỗi, xám chưa chạy. Tab, nút, thông tin và phần kiểm tra config đều lấy từ module debug của từng kênh, nên kênh mới có tab ngay mà không phải sửa bảng.
 - Thẻ Actions: chọn `Group` và `Position` từ config HDCAds đang chạy (trên máy thật là giá trị Remote Config); banner chọn placement, MREC chọn vị trí trên màn hình. Các nút gọi thẳng API của HDCAds:
   - `Init` và `Show`. Với banner và MREC, nút `Show` thành `Activate`.
   - `Hide` cho banner, MREC và popup.

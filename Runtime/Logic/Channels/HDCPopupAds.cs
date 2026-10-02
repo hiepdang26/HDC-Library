@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using HDC.Ads.Diagnostics;
 using HDC.Ads.Domain;
 using HDC.Ads.Ports;
 using UnityEngine;
@@ -8,7 +7,7 @@ using UnityEngine;
 namespace HDC.Ads.Logic
 {
     /// <summary>The popup channel behind <see cref="IPopupAds"/>.</summary>
-    internal sealed class HDCPopupAds : IPopupAds
+    internal sealed partial class HDCPopupAds : IPopupAds, IAdChannel
     {
         private readonly HDCAdsContext context;
         private readonly Dictionary<string, Popup> popups = new Dictionary<string, Popup>(StringComparer.Ordinal);
@@ -84,51 +83,11 @@ namespace HDC.Ads.Logic
                 PopupNamed(groupName)?.Ad.Load();
         }
 
-        /// <summary>The configs, a group's state and a position's gate, for the debug panel.</summary>
-        internal HDCDebugInfo Describe(string groupName, string position)
-        {
-            HDCDebugInfo info = new HDCDebugInfo()
-                .Section("Configs")
-                .Needed("Enabled", Channel.isEnabled)
-                .Line("Positions", Channel.positionConfigs?.Length ?? 0)
-                .Line("Auto Init Groups", string.Join(", ", AutoInitGroups()))
-                .Section("Gates")
-                .Gate("Disabled", IsDisabled)
-                .Gate("Ads Removed", context.IsAdsRemoved);
+        string IAdChannel.Key => "PU";
 
-            if (!string.IsNullOrEmpty(position))
-            {
-                bool allowed = Allowed(position, out string reason);
-                info.Section("Position " + position)
-                    .Line("Group", context.CoreConfig.PopupGroupAt(position))
-                    .Add("Can Show Here", allowed ? "Yes" : "No · " + reason, allowed ? HDCDebugTone.Good : HDCDebugTone.Bad);
-            }
+        string IAdChannel.Title => "Popup";
 
-            info.Section("Group " + (string.IsNullOrEmpty(groupName) ? "-" : groupName));
-            if (string.IsNullOrEmpty(groupName) || !popups.TryGetValue(groupName, out Popup popup))
-                return info.Add("State", "Not started", HDCDebugTone.Muted);
-
-            return info
-                .Line("Instance ID", popup.Ad.Id)
-                .Line("Requested", popup.Ad.IsRequested)
-                .Needed("Placed (Move)", popup.Ad.IsPlaced)
-                .Line("Native State", popup.Ad.State ?? "-");
-        }
-
-        /// <summary>A popup group's instance once the channel made it, for the debug panel.</summary>
-        internal bool TryGetPopup(string groupName, out string id, out bool requested, out bool placed)
-        {
-            id = null;
-            requested = placed = false;
-            if (string.IsNullOrEmpty(groupName) || !popups.TryGetValue(groupName, out Popup popup))
-                return false;
-            id = popup.Ad.Id;
-            requested = popup.Ad.IsRequested;
-            placed = popup.Ad.IsPlaced;
-            return true;
-        }
-
-        internal void OnSdkInitialized()
+        void IAdChannel.OnSdkInitialized()
         {
             if (IsDisabled)
                 return;
@@ -136,7 +95,16 @@ namespace HDC.Ads.Logic
                 PopupNamed(groupName)?.Ad.Load();
         }
 
-        internal void HideAll()
+        void IAdChannel.InitializeAll()
+        {
+            foreach (HDCAdCoreConfig.PopupGroup group in context.CoreConfig.popupGroups ?? new HDCAdCoreConfig.PopupGroup[0])
+            {
+                if (group != null)
+                    Initialize(group.groupName);
+            }
+        }
+
+        void IAdChannel.OnAdsRemoved()
         {
             foreach (Popup popup in popups.Values)
                 popup.Ad.Hide();

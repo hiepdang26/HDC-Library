@@ -1,4 +1,3 @@
-using HDC.Ads.Diagnostics;
 using HDC.Ads.Domain;
 using HDC.Ads.Ports;
 using UnityEngine;
@@ -6,7 +5,7 @@ using UnityEngine;
 namespace HDC.Ads.Logic
 {
     /// <summary>The app resume channel behind <see cref="IAppResumeAds"/>.</summary>
-    internal sealed class HDCAppResumeAds : IAppResumeAds
+    internal sealed partial class HDCAppResumeAds : IAppResumeAds, IAdChannel
     {
         private readonly HDCAdsContext context;
         private HDCFullscreenSource source;
@@ -23,10 +22,6 @@ namespace HDC.Ads.Logic
         }
 
         public bool IgnoreAds { get; set; }
-
-        internal string DebugAdUnitId => Channel.adUnitId;
-
-        internal bool IsStarted => source != null;
 
         public bool IsInitialized => source != null;
 
@@ -52,28 +47,21 @@ namespace HDC.Ads.Logic
 #endif
         }
 
-        /// <summary>Configs and state, for the debug panel.</summary>
-        internal HDCDebugInfo Describe() =>
-            new HDCDebugInfo()
-                .Section("Configs")
-                .Needed("Enabled", Channel.isEnabled)
-                .Line("Auto Init", Channel.autoInit)
-                .Line("Ad Unit ID", Channel.adUnitId)
-                .Line("Layout Group", Channel.layoutGroup)
-                .Section("Runtime")
-                .Line("Started", IsInitialized)
-                .Line("Blocked For Next Resume", blocked)
-                .Line("Showing", showing)
-                .Line("Shows Once Loaded", showWhenLoaded)
-                .Line("Ignore Ads", IgnoreAds)
-                .Section("Gates")
-                .Gate("Disabled", IsDisabled)
-                .Gate("Ads Removed", context.IsAdsRemoved);
+        string IAdChannel.Key => "AR";
 
-        internal void OnSdkInitialized()
+        string IAdChannel.Title => "AppResume";
+
+        void IAdChannel.OnSdkInitialized()
         {
             if (Channel.autoInit)
                 Start();
+        }
+
+        void IAdChannel.InitializeAll() => Initialize();
+
+        // Resume ads show only after the app comes back, and ad removal stops the next ones.
+        void IAdChannel.OnAdsRemoved()
+        {
         }
 
         private void Start()

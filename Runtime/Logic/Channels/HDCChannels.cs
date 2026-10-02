@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace HDC.Ads.Logic
 {
     /// <summary>
@@ -6,7 +9,8 @@ namespace HDC.Ads.Logic
     /// </summary>
     internal sealed class HDCChannels
     {
-        internal HDCChannels(HDCAdsContext context)
+        /// <param name="extraChannels">Channels beyond the seven, made with the context after them, such as a test's.</param>
+        internal HDCChannels(HDCAdsContext context, IEnumerable<Func<HDCAdsContext, IAdChannel>> extraChannels = null)
         {
             // The order they were always made in, which sets the order their handlers of shared events run.
             ForceAd = new HDCForceAds(context);
@@ -16,6 +20,11 @@ namespace HDC.Ads.Logic
             Banner = new HDCBannerAds(context);
             Mrec = new HDCMrecAds(context);
             Popup = new HDCPopupAds(context);
+
+            var all = new List<IAdChannel> { AppLaunch, AppResume, Rewarded, ForceAd, Banner, Mrec, Popup };
+            foreach (Func<HDCAdsContext, IAdChannel> make in extraChannels ?? new Func<HDCAdsContext, IAdChannel>[0])
+                all.Add(make(context));
+            All = all;
             context.SdkReady += Start;
             context.AdsRemoved += HideRemovedAds;
         }
@@ -28,23 +37,22 @@ namespace HDC.Ads.Logic
         internal HDCMrecAds Mrec { get; }
         internal HDCPopupAds Popup { get; }
 
-        // The launch ad starts loading first.
+        /// <summary>
+        /// Every channel, in the order they start once the SDK is ready, the launch ad first, and the order the
+        /// debug panel lists them in.
+        /// </summary>
+        internal IReadOnlyList<IAdChannel> All { get; }
+
         private void Start()
         {
-            AppLaunch.OnSdkInitialized();
-            AppResume.OnSdkInitialized();
-            ForceAd.OnSdkInitialized();
-            Rewarded.OnSdkInitialized();
-            Banner.OnSdkInitialized();
-            Mrec.OnSdkInitialized();
-            Popup.OnSdkInitialized();
+            foreach (IAdChannel channel in All)
+                channel.OnSdkInitialized();
         }
 
         private void HideRemovedAds()
         {
-            Banner.HideAll();
-            Mrec.Hide();
-            Popup.HideAll();
+            foreach (IAdChannel channel in All)
+                channel.OnAdsRemoved();
         }
     }
 }

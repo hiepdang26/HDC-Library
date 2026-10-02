@@ -1,12 +1,11 @@
 using System;
-using HDC.Ads.Diagnostics;
 using HDC.Ads.Domain;
 using UnityEngine;
 
 namespace HDC.Ads.Logic
 {
     /// <summary>The app launch channel behind <see cref="IAppLaunchAds"/>.</summary>
-    internal sealed class HDCAppLaunchAds : IAppLaunchAds
+    internal sealed partial class HDCAppLaunchAds : IAppLaunchAds, IAdChannel
     {
         // Completes anyway if the ad never reports closing.
         private const float CloseFallbackSeconds = 15f;
@@ -74,39 +73,21 @@ namespace HDC.Ads.Logic
                 Start();
         }
 
-        /// <summary>Configs, clock and state, for the debug panel. It reads the group without making it.</summary>
-        internal HDCDebugInfo Describe()
-        {
-            HDCAdCoreConfig.Comeback comeback = context.CoreConfig.comebackChannel ?? new HDCAdCoreConfig.Comeback();
-            HDCDebugInfo info = new HDCDebugInfo()
-                .Section("Configs")
-                .Needed("Enabled", Channel.isEnabled)
-                .Line("Auto Init", Channel.autoInit)
-                .Line("Minimum Wait (s)", MinimumWait)
-                .Line("Timeout (s)", Timeout)
-                .Line("Launch Ad", comeback.launchAdType == 0 ? "Force ad group " + comeback.launchForceAdGroupName : "App open")
-                .Section("Runtime")
-                .Line("Clock Started", clockStarted)
-                .Line("Elapsed (s)", Elapsed)
-                .Line("Showing", showing)
-                .Line("Completed", IsCompleted)
-                .Line("Before Show Raised", IsBeforeShowRaised)
-                .Line("Ignore Ads", IgnoreAds)
-                .Section("Gates")
-                .Gate("Disabled", IsDisabled)
-                .Gate("Ads Removed", context.IsAdsRemoved)
-                .Section("Group");
-            if (group != null)
-                group.DescribeTo(info);
-            else
-                info.Add("State", "Not started", HDCDebugTone.Muted);
-            return info;
-        }
+        string IAdChannel.Key => "AL";
 
-        internal void OnSdkInitialized()
+        string IAdChannel.Title => "AppLaunch";
+
+        void IAdChannel.OnSdkInitialized()
         {
             if (Channel.autoInit || startRequested)
                 Start();
+        }
+
+        void IAdChannel.InitializeAll() => Initialize();
+
+        // The launch ad shows once, at launch: nothing stays on screen to hide.
+        void IAdChannel.OnAdsRemoved()
+        {
         }
 
         private void Start()
@@ -201,9 +182,6 @@ namespace HDC.Ads.Logic
             IsBeforeShowRaised = true;
             HDCCallbacks.Run(BeforeShow);
         }
-
-        /// <summary>The launch ad's group once the channel made it, for the debug panel.</summary>
-        internal HDCFullscreenGroup ExistingGroup => group;
 
         private HDCFullscreenGroup Group()
         {

@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using HDC.Ads.Composition;
 using HDC.Ads.Domain;
 using HDC.Ads.Logic;
@@ -11,13 +13,14 @@ namespace HDC.Ads.Tests
     /// </summary>
     internal sealed class HDCFakeAds
     {
-        internal HDCFakeAds(HDCFakeStore store = null)
+        /// <param name="extraChannels">Channels beyond the seven, such as <see cref="HDCFakeChannel"/>.</param>
+        internal HDCFakeAds(HDCFakeStore store = null, IEnumerable<Func<HDCAdsContext, IAdChannel>> extraChannels = null)
         {
             Store = store ?? new HDCFakeStore();
             AdMob = new HDCFakeNetwork(HDCAdUnitKeys.AdMob, Sdk);
             Native = new HDCFakeNetwork(HDCAdUnitKeys.Native, Sdk);
             Runtime = new HDCAdsRuntime(Clock, Store, MainThread, Log, Sdk, new HDCFakeTesting(),
-                new IAdNetwork[] { AdMob, Native }, new HDCPriorityOrder());
+                new IAdNetwork[] { AdMob, Native }, new HDCPriorityOrder(), null, extraChannels);
         }
 
         internal HDCFakeClock Clock { get; } = new HDCFakeClock();

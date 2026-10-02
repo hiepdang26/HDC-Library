@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using HDC.Ads.Diagnostics;
 using HDC.Ads.Infrastructure;
@@ -14,11 +15,13 @@ namespace HDC.Ads.Composition
     /// </summary>
     internal sealed class HDCAdsRuntime
     {
+        /// <param name="extraChannels">Channels beyond the seven, each made with the runtime's context.</param>
         internal HDCAdsRuntime(IClock clock, IKeyValueStore store, IMainThread mainThread, IAdsLog log, IAdsSdk sdk, IAdsTesting testing,
-            IReadOnlyList<IAdNetwork> networks, IUnitOrderPolicy order, IReadOnlyList<IMediationPartner> partners = null)
+            IReadOnlyList<IAdNetwork> networks, IUnitOrderPolicy order, IReadOnlyList<IMediationPartner> partners = null,
+            IEnumerable<Func<HDCAdsContext, IAdChannel>> extraChannels = null)
         {
             Context = new HDCAdsContext(clock, store, mainThread, log, sdk, networks, order);
-            Channels = new HDCChannels(Context);
+            Channels = new HDCChannels(Context, extraChannels);
             Testing = testing;
             Partners = partners ?? new IMediationPartner[0];
         }

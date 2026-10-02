@@ -6,6 +6,7 @@ using System.Text;
 using HDC.Ads.Diagnostics;
 using HDC.Ads.Domain;
 using HDC.Ads.Infrastructure;
+using HDC.Ads.Logic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -13,41 +14,31 @@ namespace HDC.Ads.DebugUI
 {
     /// <summary>
     /// The ads page of the debug panel. Pick a channel, then a group and a position from the configs HDCAds runs
-    /// on, and call the HDCAds API with the action buttons. Detail Information shows only the selected group: its
-    /// settings, then each of its ad units with its state, its last errors explained, and its counts. The group's
-    /// recent events and the channel's system state open on demand. Everything refreshes every second and on
-    /// every ad event.
+    /// on, and call the HDCAds API with the channel's buttons. Detail Information shows only the selected group:
+    /// its settings, then each of its ad units with its state, its last errors explained, and its counts. The
+    /// group's recent events and the channel's system state open on demand. Everything refreshes every second and
+    /// on every ad event. The page draws what each channel's debug module gives it, a tab per channel and its
+    /// buttons, groups and state, and has no code of its own for any channel.
     /// </summary>
     public sealed class HDCAdsDebugWorkspace : HDCDebugPage
     {
-        private const string RewardedPosition = "debug_rw";
+        // The tab the page opens on, when there is one: the channel with the most to see.
+        private const string FirstChannel = "FA";
         private const int EventRows = 15;
         private const int FullScreenEvents = 40;
         private const float CopiedSeconds = 1.5f;
 
-        private static readonly string[] MrecPositions = { "TopLeft", "Top", "TopRight", "Center", "BottomLeft", "Bottom", "BottomRight" };
-
-        [Serializable]
-        private sealed class ChannelTab
-        {
-            public string key;
-            public Button button;
-            public Image dot;
-        }
-
         [Header("Channels")]
-        [SerializeField] private ChannelTab[] tabs = new ChannelTab[0];
+        [Tooltip("A channel's tab, with \"Key\" and \"Name\" texts and a \"Dot\" image. The page copies it for each channel.")]
+        [SerializeField] private Button tabTemplate;
 
         [Header("Actions")]
         [SerializeField] private Text channelTitleText;
         [SerializeField] private Text selectionHintText;
         [SerializeField] private Button groupButton;
         [SerializeField] private Button positionButton;
-        [SerializeField] private Button initButton;
-        [SerializeField] private Button showButton;
-        [SerializeField] private Button hideButton;
-        [SerializeField] private Button utilityPrimaryButton;
-        [SerializeField] private Button utilitySecondaryButton;
+        [Tooltip("A button the page copies for each action of the selected channel.")]
+        [SerializeField] private Button actionTemplate;
         [SerializeField] private Text lastCallText;
 
         [Header("Detail information")]
@@ -73,12 +64,17 @@ namespace HDC.Ads.DebugUI
         [Header("Helpers")]
         [SerializeField] private HDCOptionPicker optionPicker;
         [SerializeField] private HDCAdsDebugViewer viewer;
-        [Tooltip("Where popups show. Visible while the popup channel is selected.")]
+        [Tooltip("Where ads placed over the screen show, such as popups. Visible while a channel that uses it is selected.")]
         [SerializeField] private RectTransform popupArea;
 
+        private readonly List<GameObject> tabs = new List<GameObject>();
+        private readonly List<GameObject> actionButtons = new List<GameObject>();
         private readonly List<GameObject> unitRows = new List<GameObject>();
         private readonly List<GameObject> eventRows = new List<GameObject>();
-        private string channel = "FA";
+        private IReadOnlyList<IAdChannel> tabChannels;
+        private IAdChannel actionsChannel;
+        private IAdChannel channel;
+        private string channelKey = FirstChannel;
         private string group = "";
         private string position = "";
         private string lastCall = "";
@@ -86,30 +82,19 @@ namespace HDC.Ads.DebugUI
         private List<HDCDebugGroup> groups = new List<HDCDebugGroup>();
         private HDCDebugGroup selected;
 
+        private IChannelDiagnostics Diagnostics => channel.Diagnostics;
+
         private void Awake()
         {
+            tabTemplate.gameObject.SetActive(false);
+            actionTemplate.gameObject.SetActive(false);
             unitTemplate.SetActive(false);
             eventTemplate.SetActive(false);
             eventsBody.SetActive(false);
             systemBody.SetActive(false);
 
-            foreach (ChannelTab tab in tabs)
-            {
-                string key = tab.key;
-                tab.button.onClick.AddListener(() =>
-                {
-                    channel = key;
-                    Refresh();
-                });
-            }
-
             groupButton.onClick.AddListener(() => OpenPicker(true));
             positionButton.onClick.AddListener(() => OpenPicker(false));
-            initButton.onClick.AddListener(Init);
-            showButton.onClick.AddListener(Show);
-            hideButton.onClick.AddListener(Hide);
-            utilityPrimaryButton.onClick.AddListener(UtilityPrimary);
-            utilitySecondaryButton.onClick.AddListener(UtilitySecondary);
             copyReportButton.onClick.AddListener(CopyReport);
             eventsToggleButton.onClick.AddListener(() => Toggle(eventsBody));
             eventsFullScreenButton.onClick.AddListener(OpenEventsFullScreen);
@@ -131,77 +116,44 @@ namespace HDC.Ads.DebugUI
 
         protected override void Redraw()
         {
+            IReadOnlyList<IAdChannel> all = HDCAds.Channels.All;
+            channel = all.FirstOrDefault(each => each.Key == channelKey) ?? all.FirstOrDefault();
+            if (channel == null)
+                return;
+            channelKey = channel.Key;
             NormalizeSelection();
-            groups = HDCAdsDebugModel.Groups(channel, group, position);
-            selected = HDCAdsDebugModel.Selected(groups);
+            groups = UnitGroups(channel, group, position, true);
+            selected = groups.FirstOrDefault(each => each.Selected) ?? (groups.Count == 1 ? groups[0] : null);
 
-            RedrawTabs();
+            RedrawTabs(all);
             RedrawActions();
             RedrawDetail();
             RedrawEvents();
             RedrawSystem();
-            ShowPopupArea(channel == "PU" && isActiveAndEnabled);
+            ShowPopupArea(Diagnostics.UsesArea && isActiveAndEnabled);
         }
+
+        // A channel's groups once HDCAds runs on its configs.
+        private static List<HDCDebugGroup> UnitGroups(IAdChannel of, string group, string position, bool askNative) =>
+            HDCAds.IsInitialized ? of.Diagnostics.UnitGroups(group, position, askNative) : new List<HDCDebugGroup>();
 
         // Selection: the group first, then the positions of that group.
 
         private void NormalizeSelection()
         {
-            string[] groupOptions = Groups();
-            group = groupOptions.Length == 0 ? "" : Array.IndexOf(groupOptions, group) >= 0 ? group : groupOptions[0];
-            string[] positionOptions = Positions();
-            position = positionOptions.Length == 0 ? "" : Array.IndexOf(positionOptions, position) >= 0 ? position : positionOptions[0];
+            IReadOnlyList<string> groupOptions = GroupOptions();
+            group = groupOptions.Count == 0 ? "" : groupOptions.Contains(group) ? group : groupOptions[0];
+            IReadOnlyList<string> positionOptions = Diagnostics.Positions(group);
+            position = positionOptions.Count == 0 ? "" : positionOptions.Contains(position) ? position : positionOptions[0];
         }
 
-        private string[] Groups()
-        {
-            if (!HDCAds.IsInitialized)
-                return new string[0];
-            switch (channel)
-            {
-                case "FA":
-                    return Distinct((HDCAds.CoreConfig.forceAdGroups ?? new HDCAdCoreConfig.ForceAdGroup[0]).Select(g => g?.groupName));
-                case "PU":
-                    return Distinct((HDCAds.CoreConfig.popupGroups ?? new HDCAdCoreConfig.PopupGroup[0]).Select(g => g?.groupName));
-                default:
-                    return new string[0];
-            }
-        }
-
-        private string[] Positions()
-        {
-            switch (channel)
-            {
-                case "FA":
-                    if (!HDCAds.IsInitialized)
-                        return new string[0];
-                    return Distinct((HDCAds.Config.forceAdChannel?.positionConfigs ?? new HDCAdsConfig.ForceAdPosition[0])
-                        .Select(p => p?.positionName)
-                        .Where(p => string.IsNullOrEmpty(group) || HDCAds.CoreConfig.ForceAdGroupAt(p) == group));
-                case "PU":
-                    if (!HDCAds.IsInitialized)
-                        return new string[0];
-                    return Distinct((HDCAds.Config.popupChannel?.positionConfigs ?? new HDCAdsConfig.PopupPosition[0])
-                        .Select(p => p?.positionName)
-                        .Where(p => string.IsNullOrEmpty(group) || HDCAds.CoreConfig.PopupGroupAt(p) == group));
-                case "RW":
-                    return new[] { RewardedPosition };
-                case "BN":
-                    return HDCAdsDebugModel.BannerSlots;
-                case "MREC":
-                    return MrecPositions;
-                default:
-                    return new string[0];
-            }
-        }
+        private IReadOnlyList<string> GroupOptions() => HDCAds.IsInitialized ? Diagnostics.Groups() : new string[0];
 
         private void OpenPicker(bool pickGroup)
         {
-            string title = pickGroup ? $"Select Group · {channel}" : $"Select {PositionLabel()} · {channel}";
-            string subtitle = pickGroup
-                ? "Chọn group: Detail Information chỉ hiện group này."
-                : channel == "BN" ? "Chọn vị trí banner." : "Chọn position để Show, Hide hay đặt vị trí.";
-            optionPicker.Open(title, subtitle, pickGroup ? Groups() : Positions(), pickGroup ? group : position, picked =>
+            string title = pickGroup ? $"Select Group · {channel.Key}" : $"Select {Diagnostics.PositionLabel} · {channel.Key}";
+            string subtitle = pickGroup ? "Chọn group: Detail Information chỉ hiện group này." : Diagnostics.PositionHint;
+            optionPicker.Open(title, subtitle, pickGroup ? GroupOptions() : Diagnostics.Positions(group), pickGroup ? group : position, picked =>
             {
                 if (pickGroup)
                 {
@@ -217,65 +169,105 @@ namespace HDC.Ads.DebugUI
             });
         }
 
-        // Tabs and actions
+        // Tabs and actions: one tab per channel, and the selected channel's buttons.
 
-        private void RedrawTabs()
+        private void RedrawTabs(IReadOnlyList<IAdChannel> all)
         {
-            foreach (ChannelTab tab in tabs)
+            if (!ReferenceEquals(all, tabChannels))
             {
-                HDCDebugStyle.Highlight(tab.button, tab.key == channel);
-                if (tab.dot == null)
-                    continue;
-                HDCUnitTone tone = HDCAdsDebugModel.Tone(tab.key == channel ? groups : HDCAdsDebugModel.Groups(tab.key, "", "", false));
-                tab.dot.color = HDCDebugStyle.BadgeColor(tone);
+                tabChannels = all;
+                int used = 0;
+                foreach (IAdChannel each in all)
+                {
+                    GameObject tab = HDCDebugStyle.Take(tabs, tabTemplate.gameObject, ref used);
+                    tab.name = each.Key;
+                    tab.transform.Find("Key").GetComponent<Text>().text = each.Key;
+                    tab.transform.Find("Name").GetComponent<Text>().text = each.Title;
+                    string key = each.Key;
+                    Button button = tab.GetComponent<Button>();
+                    button.onClick.RemoveAllListeners();
+                    button.onClick.AddListener(() =>
+                    {
+                        channelKey = key;
+                        Refresh();
+                    });
+                }
+
+                HDCDebugStyle.HideRest(tabs, used);
+            }
+
+            for (int i = 0; i < all.Count; i++)
+            {
+                HDCDebugStyle.Highlight(tabs[i].GetComponent<Button>(), all[i] == channel);
+                List<HDCDebugGroup> tabGroups = all[i] == channel ? groups : UnitGroups(all[i], "", "", false);
+                tabs[i].transform.Find("Dot").GetComponent<Image>().color = HDCDebugStyle.BadgeColor(Tone(tabGroups));
             }
         }
 
         private void RedrawActions()
         {
-            channelTitleText.text = $"{Title(channel)} · {channel}";
-            bool supported = channel != "CL";
-            bool hasGroups = Groups().Length > 0;
-            bool hasPositions = Positions().Length > 0;
-            if (!supported)
-                selectionHintText.text = "Collapsible banner chưa có trong HDC Ads.";
-            else if (!HDCAds.IsInitialized)
-                selectionHintText.text = "HDCAds chưa khởi tạo: group và position lấy từ config HDCAds đang chạy. Bấm Init SDK ở trên.";
-            else
-                selectionHintText.text = Hint() + " Các nút gọi thẳng API của HDCAds.";
+            channelTitleText.text = $"{channel.Title} · {channel.Key}";
+            selectionHintText.text = HDCAds.IsInitialized
+                ? Diagnostics.Hint + " Các nút gọi thẳng API của HDCAds."
+                : "HDCAds chưa khởi tạo: group và position lấy từ config HDCAds đang chạy. Bấm Init SDK ở trên.";
 
+            bool hasGroups = GroupOptions().Count > 0;
+            bool hasPositions = Diagnostics.Positions(group).Count > 0;
             HDCDebugStyle.SetVisible(groupButton, hasGroups);
             HDCDebugStyle.SetLabel(groupButton, "Group: " + (hasGroups ? group : "-"));
             HDCDebugStyle.SetVisible(positionButton, hasPositions);
-            HDCDebugStyle.SetLabel(positionButton, $"{PositionLabel()}: {(hasPositions ? position : "-")}");
+            HDCDebugStyle.SetLabel(positionButton, $"{Diagnostics.PositionLabel}: {(hasPositions ? position : "-")}");
 
-            HDCDebugStyle.SetVisible(initButton, supported);
-            HDCDebugStyle.SetVisible(showButton, supported && channel != "AL" && channel != "AR");
-            HDCDebugStyle.SetLabel(showButton, channel == "BN" || channel == "MREC" ? "Activate" : "Show");
-            HDCDebugStyle.SetVisible(hideButton, channel == "BN" || channel == "MREC" || channel == "PU");
-            HDCDebugStyle.SetVisible(utilityPrimaryButton, channel == "MREC" || channel == "PU");
-            HDCDebugStyle.SetLabel(utilityPrimaryButton, "UpdatePos");
-            HDCDebugStyle.SetVisible(utilitySecondaryButton, channel == "MREC");
-            HDCDebugStyle.SetLabel(utilitySecondaryButton, "GetSize");
+            if (actionsChannel != channel)
+            {
+                actionsChannel = channel;
+                int used = 0;
+                foreach (HDCDebugAction action in Diagnostics.Actions)
+                {
+                    GameObject made = HDCDebugStyle.Take(actionButtons, actionTemplate.gameObject, ref used);
+                    made.name = action.Name + " Button";
+                    Button button = made.GetComponent<Button>();
+                    HDCDebugStyle.SetLabel(button, action.Label);
+                    button.image.color = action.Primary ? HDCDebugStyle.PrimaryColor : HDCDebugStyle.ButtonColor;
+                    HDCDebugAction picked = action;
+                    button.onClick.RemoveAllListeners();
+                    button.onClick.AddListener(() => Run(picked));
+                }
+
+                HDCDebugStyle.HideRest(actionButtons, used);
+            }
+
             lastCallText.text = "Last call: " + (lastCall.Length > 0 ? lastCall : "-");
         }
 
-        private string Hint()
+        // Calls the channel's API with the selected group and position.
+        private void Run(HDCDebugAction action)
         {
-            switch (channel)
+            if (Diagnostics.UsesArea)
+                ShowPopupArea(true);
+            string call = action.Run(new HDCDebugSelection(group, position, popupArea, Record));
+            if (!string.IsNullOrEmpty(call))
+                Record(call);
+            Refresh();
+        }
+
+        /// <summary>A channel's overall tone: live or ready if any unit is, then loading, then failing.</summary>
+        private static HDCUnitTone Tone(IEnumerable<HDCDebugGroup> of)
+        {
+            var tones = new List<HDCUnitTone>();
+            foreach (HDCDebugUnit unit in of.SelectMany(each => each.Units))
             {
-                case "FA":
-                case "PU":
-                    return "Chọn group, rồi position của group đó.";
-                case "BN":
-                    return "Chọn placement: một trong sáu vị trí banner.";
-                case "MREC":
-                    return "Chọn vị trí MREC trên màn hình cho UpdatePos.";
-                case "RW":
-                    return $"Show dùng position {RewardedPosition}.";
-                default:
-                    return "Kênh này không cần chọn group hay position.";
+                unit.Status(out HDCUnitTone tone);
+                tones.Add(tone);
             }
+
+            if (tones.Contains(HDCUnitTone.Live))
+                return HDCUnitTone.Live;
+            if (tones.Contains(HDCUnitTone.Good))
+                return HDCUnitTone.Good;
+            if (tones.Contains(HDCUnitTone.Busy))
+                return HDCUnitTone.Busy;
+            return tones.Contains(HDCUnitTone.Bad) ? HDCUnitTone.Bad : HDCUnitTone.Idle;
         }
 
         // Detail information: the selected group and its ad units.
@@ -291,19 +283,17 @@ namespace HDC.Ads.DebugUI
                 HDCDebugStyle.Fill(groupList, selected.Details);
             groupList.End();
 
-            groupTitleText.text = selected != null ? $"{selected.Kind}: {selected.Name}" : Title(channel);
+            groupTitleText.text = selected != null ? $"{selected.Kind}: {selected.Name}" : channel.Title;
             HDCDebugStyle.SetVisible(groupList, selected != null);
             if (!HDCAds.IsInitialized)
                 unitsNoticeText.text = "Đang chờ HDCAds khởi tạo: ad unit lấy từ ad core config HDCAds đang chạy.";
-            else if (channel == "CL")
-                unitsNoticeText.text = "Collapsible banner chưa có trong HDC Ads nên kênh này không có ad unit.";
             else if (selected == null)
                 unitsNoticeText.text = "Ad core config không có group nào cho kênh này.";
             else if (selected.Units.Count == 0)
                 unitsNoticeText.text = "Group này không có ad unit nào trong ad core config.";
             else
                 unitsNoticeText.text = $"{selected.Units.Count} ad unit, theo thứ tự group thử. Lỗi hiện mã lỗi của SDK và ý nghĩa."
-                    + (HDCAdsSdk.UseTestAdUnits ? " Đang dùng ad unit test của Google thay cho ad unit trong config." : string.Empty);
+                    + (HDCAds.Testing.UseTestAdUnits ? " Đang dùng ad unit test của Google thay cho ad unit trong config." : string.Empty);
 
             int used = 0;
             foreach (HDCDebugUnit unit in selected?.Units ?? new List<HDCDebugUnit>())
@@ -317,7 +307,7 @@ namespace HDC.Ads.DebugUI
             Transform badge = card.transform.Find("Top/Badge");
             badge.GetComponent<Image>().color = HDCDebugStyle.BadgeColor(tone);
             badge.GetComponentInChildren<Text>(true).text = status;
-            card.transform.Find("Top/Title").GetComponent<Text>().text = $"#{unit.Index}  {HDCAdsDebugModel.UnitName(unit.Format, unit.Id)}";
+            card.transform.Find("Top/Title").GetComponent<Text>().text = $"#{unit.Index}  {unit.Name}";
 
             var list = card.transform.Find("Info").GetComponent<HDCKeyValueList>();
             list.Begin();
@@ -408,7 +398,8 @@ namespace HDC.Ads.DebugUI
 
         private List<HDCTrackedEvent> GroupEvents(int limit)
         {
-            HashSet<string> ids = HDCAdsDebugModel.InstanceIds(selected != null ? new[] { selected } : (IEnumerable<HDCDebugGroup>)groups);
+            var ids = new HashSet<string>((selected != null ? new[] { selected } : (IEnumerable<HDCDebugGroup>)groups)
+                .SelectMany(each => each.Units).Select(unit => unit.Id).Where(id => !string.IsNullOrEmpty(id)));
             var picked = new List<HDCTrackedEvent>();
             IReadOnlyList<HDCTrackedEvent> events = HDCAdsTracker.Events;
             for (int i = events.Count - 1; i >= 0 && picked.Count < limit; i--)
@@ -431,87 +422,27 @@ namespace HDC.Ads.DebugUI
             }, true);
         }
 
-        private string Scope() => selected != null ? $"{selected.Kind.ToLowerInvariant()} {selected.Name}" : "kênh " + channel;
+        private string Scope() => selected != null ? $"{selected.Kind.ToLowerInvariant()} {selected.Name}" : "kênh " + channel.Key;
 
         // System: only the selected channel's configs, runtime state and gates, and its API.
 
         private void RedrawSystem()
         {
-            systemTitleText.text = "System · " + Title(channel);
+            systemTitleText.text = "System · " + channel.Title;
             HDCDebugStyle.SetLabel(systemToggleButton, systemBody.activeSelf ? "Collapse" : "Expand");
             if (!systemBody.activeSelf)
                 return;
 
             systemList.Begin();
-            if (!HDCAds.IsInitialized)
-                systemList.Note(HDCDebugStyle.Colored(HDCDebugStyle.MutedHex, "Đang chờ HDCAds khởi tạo: thông tin kênh có sau khi config được áp dụng."));
-            else if (channel == "CL")
-                systemList.Note(HDCDebugStyle.Colored(HDCDebugStyle.MutedHex, "Collapsible banner chưa có trong HDC Ads."));
+            if (HDCAds.IsInitialized)
+                HDCDebugStyle.Fill(systemList, Diagnostics.Describe(group, position));
             else
-                HDCDebugStyle.Fill(systemList, ChannelInfo());
+                systemList.Note(HDCDebugStyle.Colored(HDCDebugStyle.MutedHex, "Đang chờ HDCAds khởi tạo: thông tin kênh có sau khi config được áp dụng."));
             systemList.Header("API");
-            foreach (KeyValuePair<string, string> call in Api())
-                systemList.Row(call.Key, call.Value, HDCDebugStyle.MutedColor);
+            foreach ((string label, string call) in Diagnostics.Api)
+                systemList.Row(label, call, HDCDebugStyle.MutedColor);
             systemList.End();
         }
-
-        private HDCDebugInfo ChannelInfo()
-        {
-            switch (channel)
-            {
-                case "AL": return HDCAds.Channels.AppLaunch.Describe();
-                case "AR": return HDCAds.Channels.AppResume.Describe();
-                case "RW": return HDCAds.Channels.Rewarded.Describe();
-                case "FA": return HDCAds.Channels.ForceAd.Describe(position, group);
-                case "BN": return HDCAds.Channels.Banner.Describe(Slot());
-                case "MREC": return HDCAds.Channels.Mrec.Describe();
-                default: return HDCAds.Channels.Popup.Describe(group, position);
-            }
-        }
-
-        private IEnumerable<KeyValuePair<string, string>> Api()
-        {
-            switch (channel)
-            {
-                case "AL":
-                    yield return Call("Init", "HDCAds.AppLaunch.Initialize()");
-                    yield return Call("Done", "HDCAds.AppLaunch.Completed, IsCompleted");
-                    break;
-                case "AR":
-                    yield return Call("Init", "HDCAds.AppResume.Initialize()");
-                    yield return Call("Skip Next", "HDCAds.AppResume.Block()");
-                    break;
-                case "RW":
-                    yield return Call("Init", "HDCAds.Rewarded.Initialize()");
-                    yield return Call("Show", "HDCAds.Rewarded.Show(position, onRewarded, onClosed)");
-                    yield return Call("Ready", "HDCAds.Rewarded.CanShow");
-                    break;
-                case "FA":
-                    yield return Call("Init", "HDCAds.ForceAd.Initialize(group)");
-                    yield return Call("Show", "HDCAds.ForceAd.Show(position, onDone)");
-                    yield return Call("Ready", "HDCAds.ForceAd.CanShow(position)");
-                    break;
-                case "BN":
-                    yield return Call("Init", "HDCAds.Banner.Initialize(slot)");
-                    yield return Call("Show / Hide", "HDCAds.Banner.Show(slot), Hide(slot)");
-                    break;
-                case "MREC":
-                    yield return Call("Init", "HDCAds.Mrec.Initialize()");
-                    yield return Call("Show / Hide", "HDCAds.Mrec.Show(), Hide()");
-                    yield return Call("Place", "HDCAds.Mrec.Move(position), SizeInPixels");
-                    break;
-                case "PU":
-                    yield return Call("Init", "HDCAds.Popup.Initialize(group)");
-                    yield return Call("Place", "HDCAds.Popup.Move(position, area)");
-                    yield return Call("Show / Hide", "HDCAds.Popup.Show(position), Hide(position)");
-                    break;
-                default:
-                    yield return Call("-", "Not in HDC Ads");
-                    break;
-            }
-        }
-
-        private static KeyValuePair<string, string> Call(string label, string api) => new KeyValuePair<string, string>(label, api);
 
         // Copy report: the selected group's units, events and system state, as plain text.
 
@@ -519,15 +450,15 @@ namespace HDC.Ads.DebugUI
         {
             var text = new StringBuilder()
                 .Append("HDC Ads debug report · ").AppendLine(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture))
-                .Append("Channel: ").Append(Title(channel)).Append(" (").Append(channel).AppendLine(")")
-                .Append("Group: ").Append(Dash(group)).Append(" · ").Append(PositionLabel()).Append(": ").AppendLine(Dash(position))
+                .Append("Channel: ").Append(channel.Title).Append(" (").Append(channel.Key).AppendLine(")")
+                .Append("Group: ").Append(Dash(group)).Append(" · ").Append(Diagnostics.PositionLabel).Append(": ").AppendLine(Dash(position))
                 .AppendLine();
             if (selected != null)
             {
                 text.Append("== ").Append(selected.Kind).Append(' ').AppendLine(selected.Name).AppendLine(selected.Details.ToText());
                 foreach (HDCDebugUnit unit in selected.Units)
                 {
-                    text.AppendLine().Append("#").Append(unit.Index).Append(' ').Append(HDCAdsDebugModel.UnitName(unit.Format, unit.Id))
+                    text.AppendLine().Append("#").Append(unit.Index).Append(' ').Append(unit.Name)
                         .Append(" · ").AppendLine(unit.Status(out _))
                         .Append("Instance ID: ").AppendLine(unit.Id)
                         .Append("Ad Unit ID: ").AppendLine(Dash(unit.AdUnitId));
@@ -544,8 +475,8 @@ namespace HDC.Ads.DebugUI
             text.AppendLine().AppendLine("== Events");
             foreach (HDCTrackedEvent tracked in GroupEvents(FullScreenEvents))
                 text.AppendLine(HDCDebugStyle.StripTags(HDCEventText.Line(tracked, false, false)));
-            if (HDCAds.IsInitialized && channel != "CL")
-                text.AppendLine().AppendLine("== System").AppendLine(ChannelInfo().ToText());
+            if (HDCAds.IsInitialized)
+                text.AppendLine().AppendLine("== System").AppendLine(Diagnostics.Describe(group, position).ToText());
 
             GUIUtility.systemCopyBuffer = text.ToString();
             copiedUntil = Time.unscaledTime + CopiedSeconds;
@@ -563,141 +494,6 @@ namespace HDC.Ads.DebugUI
                 text.Append("Message: ").AppendLine(error.Message);
         }
 
-        // Actions call the HDCAds API directly.
-
-        private void Init()
-        {
-            switch (channel)
-            {
-                case "AL":
-                    HDCAds.AppLaunch.Initialize();
-                    Record("AppLaunch.Initialize()");
-                    break;
-                case "AR":
-                    HDCAds.AppResume.Initialize();
-                    Record("AppResume.Initialize()");
-                    break;
-                case "RW":
-                    HDCAds.Rewarded.Initialize();
-                    Record("Rewarded.Initialize()");
-                    break;
-                case "FA":
-                    if (string.IsNullOrEmpty(group))
-                        break;
-                    HDCAds.ForceAd.Initialize(group);
-                    Record($"ForceAd.Initialize(\"{group}\")");
-                    break;
-                case "BN":
-                    HDCAds.Banner.Initialize(Slot());
-                    Record($"Banner.Initialize({Slot()})");
-                    break;
-                case "MREC":
-                    HDCAds.Mrec.Initialize();
-                    Record("Mrec.Initialize()");
-                    break;
-                case "PU":
-                    if (string.IsNullOrEmpty(group))
-                        break;
-                    HDCAds.Popup.Initialize(group);
-                    Record($"Popup.Initialize(\"{group}\")");
-                    break;
-            }
-
-            Refresh();
-        }
-
-        private void Show()
-        {
-            switch (channel)
-            {
-                case "RW":
-                    string rewardedAt = string.IsNullOrEmpty(position) ? RewardedPosition : position;
-                    bool rewarded = HDCAds.Rewarded.Show(rewardedAt, () => Record("Rewarded: reward earned"), () => Record("Rewarded: closed"));
-                    Record($"Rewarded.Show(\"{rewardedAt}\") -> {rewarded}");
-                    break;
-                case "FA":
-                    if (string.IsNullOrEmpty(position))
-                        break;
-                    string shownAt = position;
-                    bool shown = HDCAds.ForceAd.Show(shownAt, () => Record($"ForceAd \"{shownAt}\": done"));
-                    Record($"ForceAd.Show(\"{shownAt}\") -> {shown}");
-                    break;
-                case "BN":
-                    Record($"Banner.Show({Slot()}) -> {HDCAds.Banner.Show(Slot())}");
-                    break;
-                case "MREC":
-                    Record($"Mrec.Show() -> {HDCAds.Mrec.Show()}");
-                    break;
-                case "PU":
-                    if (string.IsNullOrEmpty(position))
-                        break;
-                    PlacePopup();
-                    Record($"Popup.Show(\"{position}\") -> {HDCAds.Popup.Show(position)}");
-                    break;
-            }
-
-            Refresh();
-        }
-
-        private void Hide()
-        {
-            switch (channel)
-            {
-                case "BN":
-                    HDCAds.Banner.Hide(Slot());
-                    Record($"Banner.Hide({Slot()})");
-                    break;
-                case "MREC":
-                    HDCAds.Mrec.Hide();
-                    Record("Mrec.Hide()");
-                    break;
-                case "PU":
-                    if (string.IsNullOrEmpty(position))
-                        break;
-                    HDCAds.Popup.Hide(position);
-                    Record($"Popup.Hide(\"{position}\")");
-                    break;
-            }
-
-            Refresh();
-        }
-
-        private void UtilityPrimary()
-        {
-            switch (channel)
-            {
-                case "MREC":
-                    if (Enum.TryParse(position, out HDCAdPosition mrecPosition))
-                    {
-                        HDCAds.Mrec.Move(mrecPosition);
-                        Record($"Mrec.Move({mrecPosition})");
-                    }
-
-                    break;
-                case "PU":
-                    PlacePopup();
-                    break;
-            }
-
-            Refresh();
-        }
-
-        private void UtilitySecondary()
-        {
-            if (channel == "MREC")
-                Record($"Mrec.SizeInPixels -> {HDCAds.Mrec.SizeInPixels}");
-            Refresh();
-        }
-
-        private void PlacePopup()
-        {
-            if (popupArea == null || string.IsNullOrEmpty(position))
-                return;
-            ShowPopupArea(true);
-            HDCAds.Popup.Move(position, popupArea);
-            Record($"Popup.Move(\"{position}\", popup area)");
-        }
-
         // Helpers
 
         private void Record(string call)
@@ -712,34 +508,12 @@ namespace HDC.Ads.DebugUI
             Refresh();
         }
 
-        private HDCBannerSlot Slot() => Enum.TryParse(position, out HDCBannerSlot slot) ? slot : HDCBannerSlot.FullBottom;
-
-        private string PositionLabel() => channel == "BN" ? "Placement" : "Position";
-
         private void ShowPopupArea(bool visible)
         {
             if (popupArea != null && popupArea.gameObject.activeSelf != visible)
                 popupArea.gameObject.SetActive(visible);
         }
 
-        private static string Title(string key)
-        {
-            switch (key)
-            {
-                case "AL": return "AppLaunch";
-                case "AR": return "AppResume";
-                case "RW": return "Rewarded";
-                case "FA": return "ForceAd";
-                case "BN": return "Banner";
-                case "MREC": return "Mrec";
-                case "CL": return "Collapsible";
-                default: return "Popup";
-            }
-        }
-
         private static string Dash(string value) => string.IsNullOrEmpty(value) ? "-" : value;
-
-        private static string[] Distinct(IEnumerable<string> values) =>
-            values.Where(value => !string.IsNullOrEmpty(value)).Distinct().ToArray();
     }
 }

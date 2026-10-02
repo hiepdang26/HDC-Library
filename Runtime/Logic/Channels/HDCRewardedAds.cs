@@ -1,13 +1,13 @@
 using System;
-using HDC.Ads.Diagnostics;
 using HDC.Ads.Domain;
 
 namespace HDC.Ads.Logic
 {
     /// <summary>The rewarded channel behind <see cref="IRewardedAds"/>.</summary>
-    internal sealed class HDCRewardedAds : IRewardedAds
+    internal sealed partial class HDCRewardedAds : IRewardedAds, IAdChannel
     {
         private readonly HDCAdsContext context;
+
         internal HDCRewardedAds(HDCAdsContext context)
         {
             this.context = context;
@@ -63,32 +63,21 @@ namespace HDC.Ads.Logic
                 context.Groups.RewardedGroup().Initialize();
         }
 
-        /// <summary>Configs and state, for the debug panel. It reads the group without making it.</summary>
-        internal HDCDebugInfo Describe()
-        {
-            HDCFullscreenGroup group = context.Groups.ExistingRewardedGroup;
-            HDCDebugInfo info = new HDCDebugInfo()
-                .Section("Configs")
-                .Needed("Enabled", IsEnabled)
-                .Line("Auto Init", AutoInit)
-                .Section("Runtime")
-                .Line("Ignore Ads", IgnoreAds)
-                .Line("Can Show", IsEnabled && group != null && group.IsReady)
-                .Line("Impressions", ImpressionCount)
-                .Section("Gates")
-                .Gate("Disabled", !IsEnabled)
-                .Section("Group");
-            if (group != null)
-                group.DescribeTo(info);
-            else
-                info.Add("State", "Not started", HDCDebugTone.Muted);
-            return info;
-        }
+        string IAdChannel.Key => "RW";
 
-        internal void OnSdkInitialized()
+        string IAdChannel.Title => "Rewarded";
+
+        void IAdChannel.OnSdkInitialized()
         {
             if (IsEnabled && AutoInit)
                 context.Groups.RewardedGroup().Initialize();
+        }
+
+        void IAdChannel.InitializeAll() => Initialize();
+
+        // Ad removal leaves rewarded ads on: the player chooses to watch them.
+        void IAdChannel.OnAdsRemoved()
+        {
         }
     }
 }

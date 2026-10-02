@@ -18,6 +18,7 @@ namespace HDC.Ads.DebugUI
 
         internal static readonly Color ButtonColor = new Color(0.2f, 0.255f, 0.333f, 1f);
         internal static readonly Color SelectedColor = new Color(0.31f, 0.275f, 0.898f, 1f);
+        internal static readonly Color PrimaryColor = new Color(0.31f, 0.275f, 0.898f, 1f);
 
         // Badge colors of the ad states.
         internal static readonly Color IdleBadge = new Color(0.278f, 0.333f, 0.412f, 1f);

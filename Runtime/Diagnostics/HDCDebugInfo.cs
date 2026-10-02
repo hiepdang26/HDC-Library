@@ -48,6 +48,9 @@ namespace HDC.Ads.Diagnostics
         /// <summary>A switch the channel needs on: green when it is, red when not.</summary>
         internal HDCDebugInfo Needed(string label, bool on) => Add(label, Format(on), on ? HDCDebugTone.Good : HDCDebugTone.Bad);
 
+        /// <summary>A switch that may be either way: green when on, dimmed when off.</summary>
+        internal HDCDebugInfo Switch(string label, bool on) => Add(label, Format(on), on ? HDCDebugTone.Good : HDCDebugTone.Muted);
+
         /// <summary>A gate that stops the ads while true: red when it does, green when not.</summary>
         internal HDCDebugInfo Gate(string label, bool closed) => Add(label, Format(closed), closed ? HDCDebugTone.Bad : HDCDebugTone.Good);
 

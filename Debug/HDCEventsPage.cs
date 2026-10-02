@@ -49,7 +49,7 @@ namespace HDC.Ads.DebugUI
             sequentialButton.onClick.AddListener(() => SetCounting(false));
             countButton.onClick.AddListener(() => SetCounting(true));
             channelButton.onClick.AddListener(() => Pick("Chọn channel", "Chỉ hiện sự kiện của channel này.",
-                new[] { HDCEventText.AllOption }.Concat(HDCEventText.Channels), channel, picked => channel = picked));
+                new[] { HDCEventText.AllOption }.Concat(HDCEventText.Channels()), channel, picked => channel = picked));
             typeButton.onClick.AddListener(() => Pick("Chọn loại sự kiện", "Chỉ hiện một loại sự kiện.",
                 new[] { HDCEventText.AllOption }.Concat(HDCEventText.Types), type, picked => type = picked));
             explainButton.onClick.AddListener(() =>

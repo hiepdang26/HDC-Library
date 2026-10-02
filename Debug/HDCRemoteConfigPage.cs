@@ -2,11 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using HDC.Ads.Composition;
 using HDC.Ads.Diagnostics;
-using HDC.Ads.Domain;
 using HDC.Ads.Logic;
-using HDC.Ads.Ports;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -227,23 +224,23 @@ namespace HDC.Ads.DebugUI
 
         private void RedrawCheck()
         {
-            List<HDCConfigCheck.Finding> findings = HDCConfigCheck.Run();
+            List<HDCConfigFinding> findings = HDCConfigCheck.Run();
             checkList.Begin();
-            int errors = findings.Count(finding => finding.Level == HDCConfigCheck.Level.Error);
-            int warnings = findings.Count(finding => finding.Level == HDCConfigCheck.Level.Warning);
+            int errors = findings.Count(finding => finding.Level == HDCConfigLevel.Error);
+            int warnings = findings.Count(finding => finding.Level == HDCConfigLevel.Warning);
             if (errors == 0 && warnings == 0 && HDCConfigReport.AppliedAds != null)
                 checkList.Note(HDCDebugStyle.Colored(HDCDebugStyle.GoodHex, "<b>OK</b>") + "   Không thấy lỗi nào trong config.");
-            foreach (HDCConfigCheck.Finding finding in findings.OrderBy(finding => finding.Level))
+            foreach (HDCConfigFinding finding in findings.OrderBy(finding => finding.Level))
                 checkList.Note(Tag(finding.Level) + "   " + finding.Text);
             checkList.End();
         }
 
-        private static string Tag(HDCConfigCheck.Level level)
+        private static string Tag(HDCConfigLevel level)
         {
             switch (level)
             {
-                case HDCConfigCheck.Level.Error: return HDCDebugStyle.Colored(HDCDebugStyle.BadHex, "<b>ERROR</b>");
-                case HDCConfigCheck.Level.Warning: return HDCDebugStyle.Colored(HDCDebugStyle.WarnHex, "<b>WARNING</b>");
+                case HDCConfigLevel.Error: return HDCDebugStyle.Colored(HDCDebugStyle.BadHex, "<b>ERROR</b>");
+                case HDCConfigLevel.Warning: return HDCDebugStyle.Colored(HDCDebugStyle.WarnHex, "<b>WARNING</b>");
                 default: return HDCDebugStyle.Colored(HDCDebugStyle.InfoHex, "<b>INFO</b>");
             }
         }
@@ -534,94 +531,14 @@ namespace HDC.Ads.DebugUI
                 return;
             }
 
-            HDCAdsConfig ads = HDCAds.Config;
-            HDCAdCoreConfig core = HDCAds.CoreConfig;
-            HDCAdCoreConfig.Comeback comeback = core.comebackChannel ?? new HDCAdCoreConfig.Comeback();
-
-            mapList.Header("App Launch · AL");
-            Switch("Enabled", ads.appLaunchChannel?.isEnabled ?? false);
-            mapList.Row("Launch Ad", comeback.launchAdType == 0 ? "Force ad group " + Dash(comeback.launchForceAdGroupName) : "App open");
-            if (comeback.launchAdType != 0)
-                mapList.Row("App Open Unit", Dash(core.appOpenUnit?.admobUnit?.id));
-
-            mapList.Header("App Resume · AR");
-            Switch("Enabled", ads.appResumeChannel?.isEnabled ?? false);
-            mapList.Row("Native Unit", Dash(ads.appResumeChannel?.adUnitId));
-            mapList.Row("Layout Group", Dash(ads.appResumeChannel?.layoutGroup));
-
-            mapList.Header("Rewarded · RW");
-            Switch("Enabled", ads.rewardedChannel?.isEnabled ?? false);
-            Units(core.rewardedUnit);
-
-            foreach (HDCAdCoreConfig.ForceAdGroup group in core.forceAdGroups ?? new HDCAdCoreConfig.ForceAdGroup[0])
-            {
-                if (group == null)
-                    continue;
-                mapList.Header("Force Ad · " + group.groupName);
-                mapList.Row("Positions", Join(group.positionNames));
-                mapList.Row("Priority", Priority(group.mediationPriority) + (group.useBackup ? " · backup on" : string.Empty));
-                mapList.Row("AdMob Unit", Dash(group.admobUnit?.id));
-                bool interstitial = group.androidUnit?.androidInterstitials?.switchToInterstitialAndroid ?? false;
-                mapList.Row(interstitial ? "Native Unit (Interstitial)" : "Native Unit", Dash(group.androidUnit?.id));
-                if (!interstitial && !string.IsNullOrEmpty(group.androidUnit?.id))
-                    mapList.Row("Layout Group", Dash(group.androidUnit.layoutGroupName));
-            }
-
-            foreach (HDCBannerSlot slot in (HDCBannerSlot[])Enum.GetValues(typeof(HDCBannerSlot)))
-            {
-                HDCAdCoreConfig.FullscreenUnit unit = core.bannerUnit?.Slot(slot) ?? new HDCAdCoreConfig.FullscreenUnit();
-                bool enabled = (ads.bannerChannel?.isEnabled ?? false) && (ads.bannerChannel?.Slot(slot).isEnabled ?? false);
-                if (!enabled && string.IsNullOrEmpty(unit.admobUnit?.id) && string.IsNullOrEmpty(unit.androidUnit?.id))
-                    continue;
-                mapList.Header("Banner · " + slot);
-                Switch("Enabled", enabled);
-                mapList.Row("Priority", Priority(unit.mediationPriority) + (unit.useBackup ? " · backup on" : string.Empty));
-                mapList.Row("AdMob Unit", Dash(unit.admobUnit?.id));
-                if (slot == HDCBannerSlot.FullBottom)
-                    mapList.Row("Native Units", Join(new[] { unit.androidUnit?.id }.Concat(unit.androidUnit?.ids ?? new string[0])));
-            }
-
-            mapList.Header("MREC");
-            Switch("Enabled", ads.mrecChannel?.isEnabled ?? false);
-            mapList.Row("AdMob Unit", Dash(core.mrecUnit?.admobUnit?.id));
-
-            foreach (HDCAdCoreConfig.PopupGroup group in core.popupGroups ?? new HDCAdCoreConfig.PopupGroup[0])
-            {
-                if (group == null)
-                    continue;
-                mapList.Header("Popup · " + group.groupName);
-                mapList.Row("Positions", Join(group.positionNames));
-                mapList.Row("Native Unit", Dash(group.androidUnit?.id));
-                mapList.Row("Layout", Dash(group.androidUnit?.layout));
-            }
-
+            var map = new HDCDebugInfo();
+            foreach (IAdChannel channel in HDCAds.Channels.All)
+                channel.Diagnostics.MapUnits(map);
+            HDCDebugStyle.Fill(mapList, map);
             mapList.End();
         }
 
-        private void Units(HDCAdCoreConfig.FullscreenUnit unit)
-        {
-            unit = unit ?? new HDCAdCoreConfig.FullscreenUnit();
-            mapList.Row("Priority", Priority(unit.mediationPriority) + (unit.useBackup ? " · backup on" : string.Empty));
-            mapList.Row("AdMob Unit", Dash(unit.admobUnit?.id));
-            mapList.Row("Native Unit", Dash(unit.androidUnit?.id));
-        }
-
-        private void Switch(string label, bool on) => mapList.Row(label, on ? "Yes" : "No", on ? HDCDebugStyle.GoodColor : HDCDebugStyle.MutedColor);
-
         // Helpers
-
-        private static string Priority(int priority)
-        {
-            HDCAdsContext context = HDCAdsRuntime.Current.Context;
-            IAdNetwork network = context.Network(context.Order.KeyFor(priority));
-            return network != null ? network.Name + " first" : priority.ToString(CultureInfo.InvariantCulture);
-        }
-
-        private static string Join(IEnumerable<string> values)
-        {
-            string[] list = (values ?? new string[0]).Where(value => !string.IsNullOrEmpty(value)).ToArray();
-            return list.Length == 0 ? "-" : string.Join(", ", list);
-        }
 
         private static string Size(string value) =>
             string.IsNullOrEmpty(value) ? "empty" : value.Length.ToString("#,0", CultureInfo.InvariantCulture) + " chars";

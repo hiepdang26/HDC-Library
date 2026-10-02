@@ -1,12 +1,14 @@
+using System;
 using System.Collections.Generic;
-using HDC.Ads.Diagnostics;
 using HDC.Ads.Domain;
 
 namespace HDC.Ads.Logic
 {
     /// <summary>The banner channel behind <see cref="IBannerAds"/>.</summary>
-    internal sealed class HDCBannerAds : IBannerAds
+    internal sealed partial class HDCBannerAds : IBannerAds, IAdChannel
     {
+        private static readonly HDCBannerSlot[] Slots = (HDCBannerSlot[])Enum.GetValues(typeof(HDCBannerSlot));
+
         private readonly HDCAdsContext context;
         private readonly Dictionary<HDCBannerSlot, HDCRectGroup> groups = new Dictionary<HDCBannerSlot, HDCRectGroup>();
         private readonly HashSet<HDCBannerSlot> autoShown = new HashSet<HDCBannerSlot>();
@@ -47,52 +49,30 @@ namespace HDC.Ads.Logic
                 EnabledGroup(slot)?.Initialize();
         }
 
-        /// <summary>A slot's configs and ad units, for the debug panel.</summary>
-        internal HDCDebugInfo Describe(HDCBannerSlot slot)
-        {
-            HDCAdsConfig.BannerSlot config = Channel.Slot(slot);
-            HDCDebugInfo info = new HDCDebugInfo()
-                .Section("Configs")
-                .Needed("Channel Enabled", Channel.isEnabled)
-                .Needed("Slot Enabled", config.isEnabled)
-                .Line("Auto Init", config.autoInit)
-                .Line("Auto Show On Load", config.autoShowOnLoad)
-                .Section("Runtime")
-                .Line("Can Show", CanShow(slot))
-                .Section("Gates")
-                .Gate("Disabled", !IsEnabled(slot))
-                .Gate("Ads Removed", context.IsAdsRemoved)
-                .Section("Placement " + slot);
-            if (groups.TryGetValue(slot, out HDCRectGroup group))
-                group.DescribeTo(info);
-            else
-                info.Add("State", "Not started", HDCDebugTone.Muted);
-            return info;
-        }
+        string IAdChannel.Key => "BN";
 
-        internal void OnSdkInitialized()
+        string IAdChannel.Title => "Banner";
+
+        void IAdChannel.OnSdkInitialized()
         {
-            foreach (HDCBannerSlot slot in new[]
-                     {
-                         HDCBannerSlot.FullBottom, HDCBannerSlot.FullTop, HDCBannerSlot.TopLeft,
-                         HDCBannerSlot.TopRight, HDCBannerSlot.BottomLeft, HDCBannerSlot.BottomRight,
-                     })
+            foreach (HDCBannerSlot slot in Slots)
             {
                 if (Channel.Slot(slot).autoInit)
                     EnabledGroup(slot)?.Initialize();
             }
         }
 
-        internal void HideAll()
+        void IAdChannel.InitializeAll()
+        {
+            foreach (HDCBannerSlot slot in Slots)
+                Initialize(slot);
+        }
+
+        void IAdChannel.OnAdsRemoved()
         {
             foreach (HDCRectGroup group in groups.Values)
                 group.Hide();
         }
-
-        /// <summary>A slot's group once the channel made it, for the debug panel.</summary>
-        internal HDCRectGroup ExistingGroup(HDCBannerSlot slot) => groups.TryGetValue(slot, out HDCRectGroup group) ? group : null;
-
-        internal bool IsSlotEnabled(HDCBannerSlot slot) => IsEnabled(slot);
 
         private bool IsEnabled(HDCBannerSlot slot) => Channel.isEnabled && Channel.Slot(slot).isEnabled && !context.IsAdsRemoved;
 
