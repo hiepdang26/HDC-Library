@@ -107,6 +107,16 @@ Code mới đặt ở đâu:
 | Dữ liệu đọc từ JSON | Domain |
 | Thứ bảng debug hiển thị cho một kênh | Module debug của kênh (`*.Debug.cs` trong Logic), dùng các kiểu của Diagnostics. Giao diện nằm ở assembly `HDC.Ads.Debug` và không có code riêng cho kênh nào. |
 
+### Vì sao các tầng chung một assembly
+
+Các tầng trong `Runtime/` cố ý nằm chung assembly `HDC.Ads`, không tách mỗi tầng một assembly, vì:
+
+- Assembly của game chỉ tham chiếu `HDC.Ads`, ví dụ asmdef `Game.Ads` của project mẫu.
+  - Nếu tách API sang assembly khác, mọi asmdef của game phải thêm tham chiếu tới assembly đó, không thì gặp lỗi CS0012.
+  - Có thể giữ API trong `HDC.Ads` mà vẫn tách phần còn lại, nhưng khi đó facade phải nhận runtime qua một bước đăng ký lúc chạy. Bước này thêm một chỗ có thể hỏng.
+- Luật phụ thuộc đã có `HDCLayerRulesTests` kiểm. Khác biệt duy nhất là vi phạm lộ ra khi chạy test, thay vì lúc biên dịch.
+- `Runtime/link.xml` giữ nguyên assembly `HDC.Ads` khi IL2CPP strip code, vì các field JsonUtility và các lớp `AndroidJavaProxy` chỉ được gọi qua reflection. Thêm assembly nào thì cũng phải thêm assembly đó vào `link.xml`.
+
 ## Kiểm thử
 
 - `Tools~/compile-matrix.sh` biên dịch mọi cấu hình (Editor, iOS, Android, không Firebase, Input System, tắt HDC) trong vài giây, không cần mở Unity.
