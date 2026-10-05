@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace HDC.Ads.Tests
 {
-    internal sealed class HDCFakeAd : IFullscreenAd, IViewAd
+    internal sealed class HDCFakeAd : IFullscreenAd, IViewAd, IFullscreenCompanion
     {
         private readonly HDCFakeSdk sdk;
 
@@ -20,6 +20,12 @@ namespace HDC.Ads.Tests
         }
 
         public event Action<HDCAdEvent> Event;
+
+        public event Action CompanionOpening;
+
+        internal HDCFakeAd CompanionAd { get; set; }
+
+        IFullscreenAd IFullscreenCompanion.Companion => CompanionAd;
 
         internal HDCAdUse Use { get; }
 
@@ -70,6 +76,8 @@ namespace HDC.Ads.Tests
         }
 
         internal void Loaded() => Send(HDCAdEventType.Loaded);
+
+        internal void OpenCompanion() => CompanionOpening?.Invoke();
 
         internal void FailedToLoad() => Send(HDCAdEventType.LoadFailed);
 

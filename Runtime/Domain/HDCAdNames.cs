@@ -26,6 +26,8 @@ namespace HDC.Ads.Domain
 
         internal static string NativeInterstitialForceAd(string group) => "fa_interstitial_" + group;
 
+        internal static string NativeAfterInterstitial(string group) => "fa_naf_" + group;
+
         internal static string AdMobBanner(HDCBannerSlot slot) => "bn_plugin_" + slot;
 
         internal static string NativePopup(string group) => PopupPrefix + group;

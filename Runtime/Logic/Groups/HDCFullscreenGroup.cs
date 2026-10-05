@@ -20,7 +20,10 @@ namespace HDC.Ads.Logic
             this.useBackup = useBackup;
             remainingShows = maxShowCount > 0 ? maxShowCount : -1;
             foreach (HDCFullscreenSource source in sources)
+            {
                 source.Failed = OnSourceFailed;
+                source.CompanionShowingChanged += OnCompanionShowingChanged;
+            }
         }
 
         internal string Name { get; }
@@ -58,6 +61,8 @@ namespace HDC.Ads.Logic
             onBeforeShow?.Invoke();
             context.NotifyFullscreenOpening();
             context.Placements.Record(source.Id, channel, position, source.Network.RevenueNetwork);
+            if (source.Companion != null)
+                context.Placements.Record(source.Companion.Id, channel, position, source.Network.RevenueNetwork);
             bool displayed = false;
             return source.Show(
                 () =>
@@ -98,6 +103,9 @@ namespace HDC.Ads.Logic
                 .Line("Shows Left", remainingShows < 0 ? "No limit" : remainingShows.ToString())
                 .Line("Backup", useBackup)
                 .Line("Units Started", started + " / " + sources.Count);
+
+        private void OnCompanionShowingChanged(HDCFullscreenSource source) =>
+            context.SetOverlayAd(source.Companion.Id, source.CompanionShowing);
 
         private void OnSourceFailed(HDCFullscreenSource source)
         {

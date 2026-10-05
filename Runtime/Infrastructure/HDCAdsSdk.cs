@@ -87,6 +87,18 @@ namespace HDC.Ads.Infrastructure
         public static bool ShowFullscreen(string id, HDCFullscreenOptions options = null) =>
             Call("fullscreen.show", id, options ?? new HDCFullscreenOptions()).value;
 
+        public static void ShowFullscreenWithInterstitial(string interstitialId, string fullscreenId, HDCFullscreenOptions options)
+        {
+            string argsJson = HDCJson.Args(fullscreenId, options ?? new HDCFullscreenOptions());
+            if (DebugLog)
+                Debug.Log($"{LogTag} fullscreen.show {argsJson} armed for interstitial {interstitialId}");
+            HDCShowFollowers.Arm(interstitialId, argsJson);
+        }
+
+        public static void CancelShowWithInterstitial(string interstitialId) => HDCShowFollowers.Disarm(interstitialId);
+
+        public static bool TakeShownWithInterstitial(string interstitialId) => HDCShowFollowers.Take(interstitialId);
+
         public static void HideFullscreen(string id) => Call("fullscreen.hide", id);
 
         public static bool IsFullscreenReady(string id) => Call("fullscreen.isReady", id).value;
@@ -167,6 +179,7 @@ namespace HDC.Ads.Infrastructure
             appOpenAds.Clear();
             bannerViews.Clear();
             HDCAdsTracker.Reset();
+            HDCShowFollowers.Reset();
             bridge = null;
             initializedCallbacks = null;
             AdEvent = null;

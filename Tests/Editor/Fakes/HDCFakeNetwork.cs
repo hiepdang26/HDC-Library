@@ -23,6 +23,8 @@ namespace HDC.Ads.Tests
 
         internal List<HDCFakeAd> Ads { get; } = new List<HDCFakeAd>();
 
+        internal bool ForceAdsHaveCompanions { get; set; }
+
         public HDCAdPlan Plan(HDCAdUse use, HDCAdUnitSpec spec)
         {
             string adUnitId = (spec.Unit as HDCAdCoreConfig.AdmobUnit)?.id ?? (spec.Unit as HDCAdCoreConfig.NativeUnit)?.id;
@@ -32,7 +34,13 @@ namespace HDC.Ads.Tests
             return new HDCAdPlan(this, use, $"fake_{UnitKey}_{use}_{slot}", Format(use), adUnitId, spec);
         }
 
-        public IFullscreenAd CreateFullscreen(HDCAdPlan plan) => Made(new HDCFakeAd(plan, sdk));
+        public IFullscreenAd CreateFullscreen(HDCAdPlan plan)
+        {
+            HDCFakeAd ad = Made(new HDCFakeAd(plan, sdk));
+            if (ForceAdsHaveCompanions && plan.Use == HDCAdUse.ForceAd)
+                ad.CompanionAd = new HDCFakeAd(new HDCAdPlan(this, plan.Use, plan.InstanceId + "_companion", HDCAdFormat.Fullscreen, "companion-unit", plan.Spec), sdk);
+            return ad;
+        }
 
         public IViewAd CreateView(HDCAdPlan plan) => Made(new HDCFakeAd(plan, sdk));
 

@@ -79,7 +79,8 @@ namespace HDC.Ads.Logic
                             .Line("Priority", Priority(config.mediationPriority))
                             .Line("Backup", config.useBackup)
                             .Line("Max Shows", config.maxShowCount > 0 ? config.maxShowCount.ToString() : "No limit")
-                            .Line("Reload After Show", !config.disablePostInitReload)));
+                            .Line("Reload After Show", !config.disablePostInitReload)
+                            .Line("Native After Interstitial", AfterInterstitial(config))));
                 }
 
                 return groups;
@@ -140,10 +141,30 @@ namespace HDC.Ads.Logic
                         .Line(interstitial ? "Native Unit (Interstitial)" : "Native Unit", Dash(group.androidUnit?.id));
                     if (!interstitial && !string.IsNullOrEmpty(group.androidUnit?.id))
                         map.Line("Layout Group", Dash(group.androidUnit.layoutGroupName));
+                    HDCAdCoreConfig.Interstitials after = group.androidUnit?.androidInterstitials;
+                    if (after != null && after.HasNativeAfterInterstitial)
+                    {
+                        map.Line("Native After Interstitial", after.nativeAfterInterstitialId.Trim())
+                            .Line("Layout Group (After Interstitial)", Dash(after.nativeAfterInterstitialLayout));
+                    }
                 }
             }
 
             public override bool Owns(string instanceId) => instanceId.StartsWith(HDCAdNames.ForceAdPrefix, StringComparison.Ordinal);
+
+            private static string AfterInterstitial(HDCAdCoreConfig.ForceAdGroup config)
+            {
+                HDCAdCoreConfig.Interstitials after = config.androidUnit?.androidInterstitials;
+                if (after == null || !after.useNativeAfterInterstitial)
+                    return "Off";
+                if (!after.HasNativeAfterInterstitial)
+                    return "Off · needs switchToInterstitialAndroid and nativeAfterInterstitialId";
+#if UNITY_ANDROID
+                return after.nativeAfterInterstitialId.Trim() + " · layout group " + Dash(after.nativeAfterInterstitialLayout);
+#else
+                return "Off on iOS, as in the old system";
+#endif
+            }
         }
 
         private sealed class ConfigRules : IConfigRule
@@ -168,6 +189,8 @@ namespace HDC.Ads.Logic
                         yield return HDCConfigFinding.Error($"FA: group '{group.groupName}' dùng layout group '{group.androidUnit.layoutGroupName}' không có trong forceAdLayoutConfig.");
                     foreach (string position in (group.positionNames ?? new string[0]).Where(p => !string.IsNullOrEmpty(p) && !positions.Contains(p)))
                         yield return HDCConfigFinding.Warning($"FA: group '{group.groupName}' có position '{position}' không có trong forceAdChannel.positionConfigs.");
+                    foreach (HDCConfigFinding finding in AfterInterstitialFindings(group, core))
+                        yield return finding;
                 }
 
                 foreach (HDCAdCoreConfig.LayoutGroup layoutGroup in (core.forceAdLayoutConfig?.layoutGroups ?? new HDCAdCoreConfig.LayoutGroup[0]).Where(g => g != null))
@@ -176,6 +199,30 @@ namespace HDC.Ads.Logic
                                  .Where(l => !string.IsNullOrWhiteSpace(l?.layout) && !HDCAdLayouts.IsFullscreen(l.layout)))
                         yield return HDCConfigFinding.Error($"FA: layout group '{layoutGroup.groupName}' có layout '{layout.layout}' không có, nên quảng cáo hiện layout mặc định {HDCAdLayouts.FullscreenDefault}.");
                 }
+            }
+
+            private static IEnumerable<HDCConfigFinding> AfterInterstitialFindings(HDCAdCoreConfig.ForceAdGroup group, HDCAdCoreConfig core)
+            {
+                HDCAdCoreConfig.Interstitials after = group.androidUnit?.androidInterstitials;
+                if (after == null || !after.useNativeAfterInterstitial || string.IsNullOrEmpty(group.androidUnit?.id))
+                    yield break;
+                if (!after.switchToInterstitialAndroid)
+                {
+                    yield return HDCConfigFinding.Warning($"FA: group '{group.groupName}' bật useNativeAfterInterstitial nhưng switchToInterstitialAndroid tắt, nên không có native sau interstitial.");
+                    yield break;
+                }
+
+                if (string.IsNullOrWhiteSpace(after.nativeAfterInterstitialId))
+                {
+                    yield return HDCConfigFinding.Error($"FA: group '{group.groupName}' bật useNativeAfterInterstitial nhưng nativeAfterInterstitialId trống.");
+                    yield break;
+                }
+
+                if (core.LayoutGroupNamed(after.nativeAfterInterstitialLayout) == null)
+                    yield return HDCConfigFinding.Warning($"FA: group '{group.groupName}' có nativeAfterInterstitialLayout '{after.nativeAfterInterstitialLayout}' không có trong forceAdLayoutConfig, nên native sau interstitial hiện layout mặc định {HDCAdLayouts.FullscreenDefault}.");
+#if !UNITY_ANDROID
+                yield return HDCConfigFinding.Info($"FA: group '{group.groupName}' bật native sau interstitial. Trên iOS phần này không chạy, giống hệ thống cũ.");
+#endif
             }
 
             public IEnumerable<string> Positions(HDCAdsConfig ads) =>

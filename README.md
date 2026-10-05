@@ -243,6 +243,7 @@ HDCAds.Testing.EnableTestDevice();                  // chỉ cho bản test
   - Load mất 0,5 giây. Ad unit có chữ `fail` trong ID thì load lỗi với mã 3 (no fill).
   - Show bắn `Shown`, `Impression`, `Paid`.
   - Interstitial và fullscreen đóng sau 1 giây, popup sau 3 giây. Banner giữ đến khi ẩn. Popup bị `Hide` thì giữ quảng cáo như trên máy thật.
+  - Native sau interstitial hiện cùng lúc với interstitial như trên Android, khi build target là Android.
   - Rewarded, app open và banner view dùng quảng cáo mẫu có sẵn của plugin GMA trong Editor.
 
 ## Config và hành vi các kênh
@@ -261,6 +262,7 @@ Config giữ nguyên key và schema JSON của hệ thống cũ, nên dùng lạ
 - `admobUnit` chạy qua plugin Google Mobile Ads. `androidUnit` chạy qua thư viện native trên cả Android và iOS:
   - Native fullscreen dùng layout ngẫu nhiên trong layout group, không lặp cho tới khi dùng hết.
   - Nếu bật `switchToInterstitialAndroid` thì dùng interstitial.
+  - Native sau interstitial (`androidInterstitials.useNativeAfterInterstitial`, `nativeAfterInterstitialId`, `nativeAfterInterstitialLayout`) chỉ áp dụng cho group force ad dùng interstitial, và chỉ trên Android, giống hệ thống cũ. Trên iOS, Config Check ghi chú là phần này không chạy.
 - Quảng cáo native luôn hiện đúng layout mà config ghi. Layout mặc định chỉ dùng khi config không ghi layout, hoặc ghi tên layout không tồn tại:
   - Popup (`popupGroups[].androidUnit.layout`): `popup_single_manual_01` tới `15`. Tên cũ `mrec_single_manual_NN` hiện layout `popup_single_manual_NN`. Mặc định là `popup_single_manual_01`.
   - Fullscreen (`forceAdLayoutConfig`): các layout `fs_single_*` của thư viện native. Tên có đuôi `_left` hoặc `_right` (ví dụ `fs_single_cls_03_left`, `fs_single_nav_01_right`) hiện layout gốc. Mặc định là `fs_single_universal_01`.
@@ -275,6 +277,13 @@ Hành vi các kênh:
   - Chỉ show khi thời gian từ lúc đóng fullscreen gần nhất đạt capping của vị trí. Capping là `cappingTime` trừ số lượt đã hiển thị × mức giảm, không thấp hơn mức tối thiểu. Force ad đầu phiên phải chờ thêm `launchCappingTime`.
   - Số lượt hiển thị theo vị trí lưu trong PlayerPrefs (`fa_count_<vị trí>`).
   - `StartBreakAd()` chạy đồng hồ break ad. Đồng hồ reset mỗi khi có fullscreen mở. Có các event `BreakAdNotice`, `BreakAdShown`, `BreakAdClosed`, `BreakAdShowFailed`.
+  - Native sau interstitial (Android) chạy như hệ thống cũ:
+    - Khi interstitial hiện, native full-screen (instance `fa_naf_<group>`, layout lấy ngẫu nhiên trong `nativeAfterInterstitialLayout`) hiện ngay bên dưới nó. Lúc interstitial đóng, người chơi thấy native, và đồng hồ của native đã chạy trong lúc interstitial hiện.
+    - Lệnh show native được gọi thẳng trên luồng Android lúc interstitial báo đã hiện, không chờ Unity, vì lúc đó Unity đang bị pause.
+    - Native chưa load thì lần interstitial đầu bắt đầu load nó, và native hiện ngay khi load xong. Sau mỗi lần đóng, native tự load lại để sẵn cho lần sau. Native load lại xong không tự hiện: nó chỉ hiện khi có interstitial hiện.
+    - Doanh thu của native tính cho force ad, đúng position của lần show đó. `onDone` của `Show` vẫn chạy khi interstitial đóng.
+    - Trong lúc native đang trên màn hình, app resume không hiện quảng cáo.
+    - Layout group không có thì native hiện layout mặc định `fs_single_universal_01`, và Config Check báo. Theo code của hệ thống cũ, trường hợp này native không hiện.
 - Group có `useBackup`: ban đầu chỉ load unit đầu. Unit đang dùng mà lỗi load hoặc lỗi show thì load unit kế tiếp. Show lấy unit sẵn sàng đầu tiên.
 - App launch:
   - Đồng hồ chạy từ lúc SDK sẵn sàng (hoặc từ `AppLaunch.Initialize()` khi `autoInit` tắt). Gọi `Initialize()` trước khi SDK sẵn sàng thì đồng hồ chờ tới lúc sẵn sàng.

@@ -278,6 +278,7 @@ namespace HDC.Ads.Infrastructure
         {
             string json = JsonUtility.ToJson(adEvent);
             HDCMainThread.Post(() => handler?.Invoke(json));
+            HDCShowFollowers.OnNativeEvent(json, Call);
         }
 
         private static string Result(bool value) => value ? "{\"ok\":true,\"value\":true}" : "{\"ok\":true,\"value\":false}";

@@ -42,6 +42,11 @@ Những thứ sau đã đổi so với 0.5.0:
   - Events: các sự kiện quảng cáo.
   - Device: có thẻ Mediation, cho biết trạng thái từng adapter và Meta test mode.
 - Ad unit test của Google cho mọi định dạng (`UseTestAdUnits`).
+- Native sau interstitial cho group force ad (`androidInterstitials.useNativeAfterInterstitial`, `nativeAfterInterstitialId`, `nativeAfterInterstitialLayout`), trên Android, giống hệ thống cũ:
+  - Native full-screen hiện ngay dưới interstitial lúc interstitial hiện. Lệnh show được gọi thẳng trên luồng Android, không chờ Unity đang bị pause.
+  - Native chưa load thì load ở lần interstitial đầu và hiện khi load xong. Sau mỗi lần đóng thì tự load lại, nhưng không tự hiện.
+  - Doanh thu của native tính cho force ad và position của lần show. App resume không hiện quảng cáo trong lúc native đang trên màn hình.
+  - Bảng debug có thêm dòng native sau interstitial của từng group. Config Check báo khi cấu hình không chạy được, và ghi chú rằng iOS không có phần này.
 - Prefab `HDCAdjust` (assembly `HDC.Ads.Adjust`), thay cho prefab Adjust của SDK:
   - Khởi động Adjust bằng cài đặt trên inspector, đủ các trường của prefab SDK. App token riêng cho Android và iOS. Môi trường `Auto` chạy Sandbox ở bản Development và Production ở bản release.
   - Tự gửi doanh thu của mọi quảng cáo HDC lên Adjust (source `admob_sdk`, network là nguồn mediation, unit là ad unit, placement là position), giống hệ thống cũ.

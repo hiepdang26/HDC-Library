@@ -96,6 +96,27 @@ namespace HDC.Ads.Logic
                 });
             }
 
+            foreach (HDCFullscreenSource source in made.Sources)
+            {
+                IFullscreenAd companion = source.Companion;
+                if (companion == null)
+                    continue;
+                HDCAdRecord record = HDCAdsTracker.Find(companion.Format, companion.Id);
+                group.Units.Add(new HDCDebugUnit
+                {
+                    Index = group.Units.Count + 1,
+                    Name = UnitName(source.Network.Name, companion.Format) + " · After Interstitial",
+                    Format = companion.Format,
+                    Id = companion.Id,
+                    AdUnitId = record?.AdUnitId ?? companion.AdUnitId,
+                    Created = true,
+                    Started = true,
+                    Ready = companion.IsReady,
+                    OnScreen = source.CompanionShowing,
+                    Record = record,
+                });
+            }
+
             return group;
         }
 

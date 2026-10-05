@@ -90,7 +90,7 @@ namespace HDC.Ads.Logic
                 return;
             }
 
-            if (!paused || showing || IsDisabled || IgnoreAds)
+            if (!paused || showing || IsDisabled || IgnoreAds || context.HasOverlayAd)
                 return;
 
             showWhenLoaded = true;

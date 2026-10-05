@@ -10,6 +10,7 @@ namespace HDC.Ads.Logic
 {
     internal sealed class HDCAdsContext
     {
+        private readonly HashSet<string> overlayAds = new HashSet<string>(StringComparer.Ordinal);
         private bool initializeCalled;
         private bool? adsRemoved;
 
@@ -103,6 +104,18 @@ namespace HDC.Ads.Logic
         }
 
         internal void NotifyFullscreenOpening() => FullscreenOpening?.Invoke();
+
+        internal bool HasOverlayAd => overlayAds.Count > 0;
+
+        internal void SetOverlayAd(string instanceId, bool onScreen)
+        {
+            if (string.IsNullOrEmpty(instanceId))
+                return;
+            if (onScreen)
+                overlayAds.Add(instanceId);
+            else
+                overlayAds.Remove(instanceId);
+        }
 
         internal IAdNetwork Network(string unitKey) =>
             unitKey == null ? null : Networks.FirstOrDefault(network => network.UnitKey == unitKey);

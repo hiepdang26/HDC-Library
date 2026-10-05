@@ -184,6 +184,69 @@ namespace HDC.Ads.Tests
             Assert.AreEqual(0.0025, revenue.Value, 1e-9);
         }
 
+        [Test]
+        public void ACompanionEarnsForItsPositionAndKeepsAppResumeAway()
+        {
+            const string adsConfig = @"{ ""selectedAdCoreName"": ""core"", ""appResumeChannel"": { ""isEnabled"": true, ""adUnitId"": ""resume-unit"" },
+  ""forceAdChannel"": { ""isEnabled"": true, ""positionConfigs"": [ { ""positionName"": ""pos"", ""cappingTime"": 0 } ] } }";
+            var ads = new HDCFakeAds();
+            ads.Native.ForceAdsHaveCompanions = true;
+            var revenues = new List<HDCAdRevenue>();
+            ads.Context.Revenue += revenues.Add;
+            ads.Start(adsConfig, NativeGroupCore);
+            ads.Channels.ForceAd.Initialize("g");
+            HDCFakeAd ad = ads.Native.Ad(HDCAdUse.ForceAd);
+            HDCFakeAd companion = ad.CompanionAd;
+            HDCFakeAd resume = ads.Native.Ad(HDCAdUse.AppResume);
+            ad.Loaded();
+
+            Assert.IsTrue(ads.Channels.ForceAd.Show("pos"));
+            ad.Displayed();
+            ads.MainThread.Pause(true);
+            ad.Closed();
+            ads.MainThread.Pause(false);
+            ad.OpenCompanion();
+            Assert.IsTrue(ads.Context.HasOverlayAd, "the companion is on screen before its own Shown event");
+            companion.Displayed();
+            companion.Paid(1200);
+            ads.MainThread.Pause(true);
+            Assert.AreEqual(0, resume.Loads, "no app resume ad over the companion");
+            ads.MainThread.Pause(false);
+            companion.Closed();
+            Assert.IsFalse(ads.Context.HasOverlayAd);
+            ads.MainThread.Pause(true);
+
+            Assert.AreEqual(1, resume.Loads, "app resume works again once the companion closed");
+            HDCAdRevenue revenue = revenues.Single();
+            Assert.AreEqual(HDCAdChannel.ForceAd, revenue.Channel);
+            Assert.AreEqual("pos", revenue.Position);
+            Assert.AreEqual(HDCAdFormat.Fullscreen, revenue.Format);
+            Assert.AreEqual(0.0012, revenue.Value, 1e-9);
+        }
+
+        [Test]
+        public void ACompanionOnScreenOutlivesItsGroup()
+        {
+            const string core = @"{ ""forceAdGroups"": [ { ""groupName"": ""g"", ""positionNames"": [ ""pos"" ], ""mediationPriority"": 1,
+      ""maxShowCount"": 1, ""androidUnit"": { ""id"": ""native-unit"" } } ] }";
+            var ads = new HDCFakeAds();
+            ads.Native.ForceAdsHaveCompanions = true;
+            ads.Start(ForceAdAds, core);
+            ads.Channels.ForceAd.Initialize("g");
+            HDCFakeAd ad = ads.Native.Ad(HDCAdUse.ForceAd);
+            ad.Loaded();
+
+            Assert.IsTrue(ads.Channels.ForceAd.Show("pos"));
+            ad.Displayed();
+            ad.CompanionAd.Displayed();
+            ad.Closed();
+
+            Assert.IsTrue(ad.Destroyed, "the group ran out of shows");
+            Assert.IsTrue(ads.Context.HasOverlayAd, "the companion is still on screen");
+            ad.CompanionAd.Closed();
+            Assert.IsFalse(ads.Context.HasOverlayAd);
+        }
+
         private static HDCFakeAds StartLaunch()
         {
             const string adsConfig = @"{ ""appLaunchChannel"": { ""isEnabled"": true, ""minWaitSeconds"": 2, ""timeoutSeconds"": 5 } }";

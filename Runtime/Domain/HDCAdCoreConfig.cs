@@ -205,6 +205,12 @@ namespace HDC.Ads.Domain
             public bool switchToInterstitialAndroid;
             public bool isPreloadAd;
             public int bufferSize;
+            public bool useNativeAfterInterstitial;
+            public string nativeAfterInterstitialId = "";
+            public string nativeAfterInterstitialLayout = "";
+
+            internal bool HasNativeAfterInterstitial =>
+                switchToInterstitialAndroid && useNativeAfterInterstitial && !string.IsNullOrWhiteSpace(nativeAfterInterstitialId);
         }
     }
 }

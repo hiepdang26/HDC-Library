@@ -51,7 +51,7 @@ namespace HDC.Ads.Infrastructure
             {
                 HDCAdCoreConfig.Interstitials interstitials = unit.androidInterstitials;
                 int bufferSize = interstitials.isPreloadAd && interstitials.bufferSize > 0 ? interstitials.bufferSize : 1;
-                return new HDCNativeInterstitialAd(plan.InstanceId, unit.id, bufferSize, plan.Spec.ReloadAfterShow);
+                return new HDCNativeInterstitialAd(plan.InstanceId, unit.id, bufferSize, plan.Spec.ReloadAfterShow, AfterInterstitial(plan, interstitials));
             }
 
             var layouts = new HDCLayoutPicker(plan.Spec.CoreConfig, unit.layoutGroupName);
@@ -67,6 +67,18 @@ namespace HDC.Ads.Infrastructure
 
         public IPopupAd CreatePopup(HDCAdPlan plan) =>
             new HDCNativePopupAd(plan.InstanceId, (HDCAdCoreConfig.NativeUnit)plan.Spec.Unit, plan.Spec.ReloadAfterShow);
+
+        private static HDCNativeAfterInterstitial AfterInterstitial(HDCAdPlan plan, HDCAdCoreConfig.Interstitials interstitials)
+        {
+#if UNITY_ANDROID
+            if (plan.Use == HDCAdUse.ForceAd && interstitials.HasNativeAfterInterstitial)
+            {
+                return new HDCNativeAfterInterstitial(HDCAdNames.NativeAfterInterstitial(plan.Spec.SlotName), interstitials.nativeAfterInterstitialId.Trim(),
+                    new HDCLayoutPicker(plan.Spec.CoreConfig, interstitials.nativeAfterInterstitialLayout));
+            }
+#endif
+            return null;
+        }
 
         private static bool SwitchesToInterstitial(HDCAdCoreConfig.NativeUnit unit) =>
             unit.androidInterstitials != null && unit.androidInterstitials.switchToInterstitialAndroid;

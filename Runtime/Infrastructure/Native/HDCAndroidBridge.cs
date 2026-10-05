@@ -18,23 +18,26 @@ namespace HDC.Ads.Infrastructure
 
         public void SetEventHandler(Action<string> onEvent)
         {
-            listener = new EventListener(onEvent);
+            listener = new EventListener(onEvent, Call);
             bridgeClass.CallStatic("setListener", listener);
         }
 
         private sealed class EventListener : AndroidJavaProxy
         {
             private readonly Action<string> handler;
+            private readonly Func<string, string, string> call;
 
-            public EventListener(Action<string> handler)
+            public EventListener(Action<string> handler, Func<string, string, string> call)
                 : base(ListenerInterfaceName)
             {
                 this.handler = handler;
+                this.call = call;
             }
 
             public void onEvent(string eventJson)
             {
                 HDCMainThread.Post(() => handler(eventJson));
+                HDCShowFollowers.OnNativeEvent(eventJson, call);
             }
         }
     }
