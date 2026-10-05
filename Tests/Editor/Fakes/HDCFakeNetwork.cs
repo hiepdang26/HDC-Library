@@ -42,7 +42,8 @@ namespace HDC.Ads.Tests
             return ad;
         }
 
-        public IViewAd CreateView(HDCAdPlan plan) => Made(new HDCFakeAd(plan, sdk));
+        public IViewAd CreateView(HDCAdPlan plan) =>
+            Made(new HDCFakeAd(plan, sdk) { RefreshSeconds = (plan.Spec.Unit as HDCAdCoreConfig.NativeUnit)?.reloadTime ?? -1 });
 
         public IPopupAd CreatePopup(HDCAdPlan plan) => null;
 

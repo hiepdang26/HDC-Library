@@ -147,6 +147,7 @@ Ví dụ thêm AppLovin MAX. Một mạng phục vụ những unit mà config đ
      - `Plan(use, spec)`: trả `null` cho các `HDCAdUse` mà mạng không phục vụ.
      - `CreateFullscreen`, `CreateView` và `CreatePopup`.
    - Mỗi định dạng một adapter, hiện thực `IFullscreenAd` hoặc `IViewAd`. Kế thừa `HDCSdkAd` để chỉ nhận các sự kiện có instance id và định dạng của ad đó.
+   - `IViewAd.RefreshSeconds` là chu kỳ tự refresh của view, tính bằng giây: `-1` khi SDK tự quyết (như AdMob), `0` khi view không tự refresh. Group banner dùng giá trị dương để coi một view im lặng quá lâu là refresh lỗi.
    - Một ad full-screen có thể kéo theo một ad đi kèm (`IFullscreenCompanion`), như native sau interstitial. Adapter tự quyết khi nào ad đi kèm hiện; Logic chỉ ghi position cho doanh thu của nó, và giữ app resume không hiện trong lúc nó đang trên màn hình.
    - Đổi callback của SDK thành `HDCAdEvent`: `type` lấy theo `HDCAdEventType`, doanh thu ghi vào `valueMicros` và `currency`. Gọi `HDCAdsSdk.Emit` trên main thread (`HDCMainThread.Post`). Nhờ vậy tracker, doanh thu, capping và backup chạy giống mọi mạng khác.
    - Khởi động SDK của mạng trong `HDCAdsSdk.Initialize`, giống `HDCGma.Initialize()`.

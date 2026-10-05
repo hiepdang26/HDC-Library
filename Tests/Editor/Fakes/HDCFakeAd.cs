@@ -39,6 +39,8 @@ namespace HDC.Ads.Tests
 
         public Vector2 SizeInPixels => Vector2.zero;
 
+        public int RefreshSeconds { get; set; } = -1;
+
         internal int Loads { get; private set; }
 
         internal int Shows { get; private set; }

@@ -282,7 +282,7 @@ HDCAds.Testing.EnableTestDevice();                  // chỉ cho bản test
 - Load lỗi được thử lại sau 2, 4, 8, 16, 32 rồi 64 giây, và reset khi load được:
   - Rewarded và app open: sau mỗi lần show sẽ load ad mới. Show lúc chưa có ad thì load ngay, trừ khi đang chờ retry.
   - Interstitial: KMP load mọi ad unit cùng lúc và dừng khi tất cả lỗi, nên HDCLib gọi load lại.
-  - Banner view: chỉ retry lần load đầu. Sau khi có ad, view tự refresh theo cấu hình ad unit.
+  - Banner view: chỉ retry lần load đầu. Sau khi có ad, view tự refresh theo cấu hình ad unit. Banner `fullBottom` có `useBackup` thì đổi sang unit dự phòng khi refresh lỗi (xem phần banner ở dưới).
 - Rewarded và app open có chế độ `preload`: plugin tự giữ sẵn 1–5 ad và tự load lại.
 - App open quá 4 giờ kể từ lúc load thì coi là chưa sẵn sàng.
 - `HDCAds.Testing.EnableTestDevice()` đăng ký máy đang chạy là test device của Google Mobile Ads, áp dụng cho mọi định dạng.
@@ -342,6 +342,15 @@ Hành vi các kênh:
     - Trong lúc native đang trên màn hình, app resume không hiện quảng cáo.
     - Layout group không có thì native hiện layout mặc định `fs_single_universal_01`, và Config Check báo. Theo code của hệ thống cũ, trường hợp này native không hiện.
 - Group có `useBackup`: ban đầu chỉ load unit đầu. Unit đang dùng mà lỗi load hoặc lỗi show thì load unit kế tiếp. Show lấy unit sẵn sàng đầu tiên.
+- Banner `fullBottom` có `useBackup` (banner AdMob và native banner) đổi unit khi refresh lỗi, như hệ thống cũ:
+  - Banner trên màn hình refresh lỗi thì unit dự phòng load. Unit dự phòng đã có quảng cáo nhưng quảng cáo đó đã hiện quá 10 giây thì nó load quảng cáo mới. Unit dự phòng có quảng cáo mới thì thay chỗ banner đang lỗi.
+  - Native banner có `reloadTime` dưới 20 giây được lỗi một lần mà chưa bị thay. Từ lần lỗi thứ hai mới đổi.
+  - Native banner đang hiện, có `reloadTime`, mà không báo load xong hay lỗi trong `max(30, reloadTime + 5)` giây thì tính là một lần refresh lỗi.
+  - Unit ưu tiên cao hơn (theo `mediationPriority`) load được quảng cáo mới thì luôn lấy lại chỗ.
+  - Unit bị đổi xuống, hoặc unit đang ẩn mà refresh lỗi, thì load lại sau 20, 25, 30, 35 rồi 40 giây. Các lần load lại chỉ chạy trong lúc banner đang hiện.
+  - Khác hệ thống cũ: banner AdMob không bị tính là lỗi khi im lặng 30 giây, vì AdMob tự refresh theo chu kỳ đặt trên AdMob console (30–120 giây). Banner AdMob chỉ bị đổi khi SDK báo refresh lỗi.
+  - MREC và các slot banner khác chỉ có unit AdMob, nên không có phần đổi unit này.
+  - Thẻ banner trên trang Ads của bảng debug có dòng `Refresh Fails On Screen` (số lần refresh lỗi liên tiếp của banner đang hiện) và `Swaps` (số lần đã đổi unit).
 - App launch:
   - Đồng hồ chạy từ lúc SDK sẵn sàng (hoặc từ `AppLaunch.Initialize()` khi `autoInit` tắt). Gọi `Initialize()` trước khi SDK sẵn sàng thì đồng hồ chờ tới lúc sẵn sàng.
   - Ad hiện khi đã qua `minWaitSeconds` (mặc định 5 giây) và ad đã sẵn sàng.
@@ -469,7 +478,7 @@ Test Edit Mode nằm trong `Tests/Editor` (assembly `HDC.Ads.Tests`). Assembly n
 Các nhóm test:
 
 - Logic các kênh (`HDCLogicTests`): chạy trên port giả (`Tests/Editor/Fakes`), không cần Play Mode, mỗi test vài mili giây.
-  - Có: mạng giả load và show, capping (launch, giảm theo lượt, mức tối thiểu), backup khi mạng đầu lỗi, timeout của app launch, gỡ quảng cáo, thứ tự ưu tiên, doanh thu.
+  - Có: mạng giả load và show, capping (launch, giảm theo lượt, mức tối thiểu), backup khi mạng đầu lỗi, đổi banner khi refresh lỗi, timeout của app launch, gỡ quảng cáo, thứ tự ưu tiên, doanh thu.
   - Thêm mạng hay kênh mới thì viết test kiểu này trước: `HDCFakeAds` dựng runtime với đồng hồ, lưu trữ, SDK và mạng giả do test điều khiển.
 - Bảng debug, tracker, ID test của Google, post-process iOS: chạy Play Mode với phần giả lập của Editor. Trong giả lập, ad unit có chữ `fail` trong ID load lỗi no fill.
   - Một kênh giả (`HDCFakeChannel`) đăng ký từ test hiện đủ tab, nút, ad unit, trạng thái, cảnh báo config và bản đồ ad unit: bảng debug không có code riêng cho kênh nào.

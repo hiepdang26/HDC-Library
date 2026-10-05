@@ -83,7 +83,7 @@ namespace HDC.Ads.Logic
             List<HDCRectSource> sources = HDCAdGroups.ViewSources(context.Groups.BannerPlans(slot));
             foreach (HDCRectSource source in sources)
                 context.Placements.Record(source.Id, HDCAdChannel.Banner, slot.ToString(), source.Network.RevenueNetwork);
-            group = new HDCRectGroup(sources, unit.useBackup);
+            group = new HDCRectGroup(sources, unit.useBackup, context.Clock, context.MainThread);
             group.Loaded += () =>
             {
                 if (Channel.Slot(slot).autoShowOnLoad && IsEnabled(slot) && autoShown.Add(slot))

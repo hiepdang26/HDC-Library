@@ -47,6 +47,11 @@ Những thứ sau đã đổi so với 0.5.0:
   - Cách nhận nước đích sửa ở `Country check`, gồm ngôn ngữ hệ thống, ngôn ngữ và vùng của locale, tên múi giờ, độ lệch UTC, và SIM/mạng trên Android. Locale và múi giờ đọc thẳng từ hệ điều hành.
   - Mặc định không tính theo UTC+7, vì múi giờ này cũng là của nước khác.
   - Máy test (`debugDevices` trong project, hoặc key Remote Config `devices`) không vào chế độ quốc gia. Trang Device hiện ID của máy, trang Remote Config hiện trạng thái chế độ quốc gia.
+- Banner `fullBottom` có `useBackup` đổi sang unit dự phòng khi banner đang hiện refresh lỗi, như hệ thống cũ:
+  - Unit dự phòng load, hoặc load quảng cáo mới nếu quảng cáo của nó đã hiện quá 10 giây, rồi thay chỗ banner đang lỗi. Native banner có `reloadTime` dưới 20 giây được lỗi một lần trước khi bị thay.
+  - Native banner im lặng quá `max(30, reloadTime + 5)` giây thì tính là refresh lỗi. Banner AdMob không bị tính như vậy, khác hệ thống cũ, vì chu kỳ refresh của AdMob đặt trên AdMob console.
+  - Unit ưu tiên cao hơn load lại được thì lấy lại chỗ. Unit bị đổi xuống hoặc đang ẩn mà lỗi thì load lại sau 20 tới 40 giây.
+  - Thẻ banner trên bảng debug có thêm dòng `Refresh Fails On Screen` và `Swaps`.
 - Layout theo nguồn quảng cáo (thư viện `hdc-ads-android` 0.3.4 và framework iOS build lại):
   - Fullscreen: `adSourceGroups` trong layout group. HDCLib chọn layout theo `adSourceId` của quảng cáo đã load, giống hệ thống cũ.
   - Popup: `androidUnit.adSourceLayouts`. Thư viện native chọn layout cho từng quảng cáo theo nguồn, trên cả Android và iOS.

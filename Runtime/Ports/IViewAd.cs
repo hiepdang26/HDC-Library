@@ -14,6 +14,8 @@ namespace HDC.Ads.Ports
 
         Vector2 SizeInPixels { get; }
 
+        int RefreshSeconds { get; }
+
         event Action<HDCAdEvent> Event;
 
         void Load();

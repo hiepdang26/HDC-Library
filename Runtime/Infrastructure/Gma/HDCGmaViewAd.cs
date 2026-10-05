@@ -19,6 +19,8 @@ namespace HDC.Ads.Infrastructure
 
         public Vector2 SizeInPixels => HDCAdsSdk.GetBannerViewSizeInPixels(Id);
 
+        public int RefreshSeconds => -1;
+
         public void Load() => HDCAdsSdk.LoadBannerView(Id, AdUnitId, placement);
 
         public void Show() => HDCAdsSdk.ShowBannerView(Id);
