@@ -27,7 +27,7 @@ namespace HDC.Ads.Infrastructure
         internal void BeforeInterstitialShow(string interstitialId)
         {
             if (ad.IsReady)
-                HDCAdsSdk.ShowFullscreenWithInterstitial(interstitialId, ad.Id, layouts.Next());
+                HDCAdsSdk.ShowFullscreenWithInterstitial(interstitialId, ad.Id, layouts.Next(ad.AdSourceId));
         }
 
         internal void InterstitialNotShown(string interstitialId) => HDCAdsSdk.CancelShowWithInterstitial(interstitialId);

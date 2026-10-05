@@ -92,6 +92,14 @@ namespace HDC.Ads.Domain
         {
             public string groupName = "";
             public Layout[] layouts = new Layout[0];
+            public AdSourceGroup[] adSourceGroups = new AdSourceGroup[0];
+        }
+
+        [Serializable]
+        public sealed class AdSourceGroup
+        {
+            public string[] adSourceIds = new string[0];
+            public Layout[] layouts = new Layout[0];
         }
 
         [Serializable]
@@ -195,8 +203,16 @@ namespace HDC.Ads.Domain
             public string[] ids = new string[0];
             public string layout = "";
             public string[] layouts = new string[0];
+            public AdSourceLayout[] adSourceLayouts = new AdSourceLayout[0];
             public int reloadTime;
             public int timeShow;
+        }
+
+        [Serializable]
+        public sealed class AdSourceLayout
+        {
+            public string[] adSources = new string[0];
+            public string layout = "";
         }
 
         [Serializable]

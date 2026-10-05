@@ -13,6 +13,7 @@ namespace HDC.Ads.Infrastructure
         private const float ShowSeconds = 1f;
         private const float PopupShowSeconds = 3f;
         private const string SimulatedSource = "Editor simulation";
+        internal const string SimulatedSourceId = "editor";
         private const string FailingUnitMarker = "fail";
 
         private const int NoFillCode = 3;
@@ -57,11 +58,13 @@ namespace HDC.Ads.Infrastructure
                 case "load":
                     if (args.adUnitIds == null || args.adUnitIds.Length == 0)
                         return Failure("adUnitIds is empty");
-                    ad = new SimulatedAd(format, args.id, args.adUnitIds[0], ReloadsAfterShow(format, args));
+                    ad = new SimulatedAd(format, args.id, args.adUnitIds[0], ReloadsAfterShow(format, args)) { Layout = PopupLayout(args) };
                     ads[key] = ad;
                     SimulateLoad(key, ad);
                     return Result(true);
                 case "show":
+                    if (ad != null && args.layoutNames != null && args.layoutNames.Length > 0)
+                        ad.Layout = args.layoutNames[0];
                     return Result(Show(key, format, args.id, ad));
                 case "isReady":
                 case "isDisplayable":
@@ -102,6 +105,17 @@ namespace HDC.Ads.Infrastructure
                 default:
                     return true;
             }
+        }
+
+        private static string PopupLayout(Args args)
+        {
+            foreach (SourceLayout sourceLayout in args.adSourceLayouts ?? new SourceLayout[0])
+            {
+                if (sourceLayout != null && Array.IndexOf(sourceLayout.adSources ?? new string[0], SimulatedSourceId) >= 0)
+                    return sourceLayout.layout;
+            }
+
+            return args.layout;
         }
 
         private static string State(SimulatedAd ad)
@@ -272,6 +286,8 @@ namespace HDC.Ads.Infrastructure
                 type = type,
                 adUnitId = ad.AdUnitId,
                 adSource = SimulatedSource,
+                adSourceId = SimulatedSourceId,
+                layout = type == HDCAdEventType.Shown ? ad.Layout : null,
             };
 
         private void Send(HDCAdEvent adEvent)
@@ -309,6 +325,7 @@ namespace HDC.Ads.Infrastructure
             public bool Closed;
             public bool ShowWhenLoaded;
             public int ShowTurn;
+            public string Layout;
 
             public SimulatedAd(string format, string id, string adUnitId, bool reloadsAfterShow)
             {
@@ -327,6 +344,16 @@ namespace HDC.Ads.Infrastructure
             public string[] adUnitIds;
             public bool autoReload;
             public bool reloadAfterShow;
+            public string layout;
+            public string[] layoutNames;
+            public SourceLayout[] adSourceLayouts;
+        }
+
+        [Serializable]
+        private sealed class SourceLayout
+        {
+            public string[] adSources;
+            public string layout;
         }
 #pragma warning restore 0649
     }

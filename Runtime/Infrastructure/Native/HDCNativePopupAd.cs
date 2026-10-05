@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using GoogleMobileAds.Api;
 using HDC.Ads.Domain;
 using HDC.Ads.Ports;
@@ -25,7 +27,22 @@ namespace HDC.Ads.Infrastructure
                 layout = HDCAdLayouts.Popup(unit.layout),
                 timeShow = unit.timeShow,
                 timeReload = reloadAfterShow ? unit.reloadTime : 0,
+                adSourceLayouts = SourceLayouts(unit.adSourceLayouts),
             };
+        }
+
+        internal static HDCPopupOptions.SourceLayout[] SourceLayouts(HDCAdCoreConfig.AdSourceLayout[] configured)
+        {
+            var layouts = new List<HDCPopupOptions.SourceLayout>();
+            foreach (HDCAdCoreConfig.AdSourceLayout sourceLayout in configured ?? new HDCAdCoreConfig.AdSourceLayout[0])
+            {
+                string[] sources = (sourceLayout?.adSources ?? new string[0]).Where(source => !string.IsNullOrWhiteSpace(source))
+                    .Select(source => source.Trim()).ToArray();
+                if (sources.Length > 0 && !string.IsNullOrWhiteSpace(sourceLayout.layout))
+                    layouts.Add(new HDCPopupOptions.SourceLayout { adSources = sources, layout = HDCAdLayouts.Popup(sourceLayout.layout) });
+            }
+
+            return layouts.ToArray();
         }
 
         public string AdUnitId { get; }

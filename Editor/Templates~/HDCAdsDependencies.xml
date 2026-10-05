@@ -12,7 +12,7 @@
     <repositories>
       <repository>{HDC_ROOT}/Plugins/Android/Repository~</repository>
     </repositories>
-    <androidPackage spec="com.hdc.adsmultiplatform:hdc-ads-android:0.3.3" />
+    <androidPackage spec="com.hdc.adsmultiplatform:hdc-ads-android:0.3.4" />
   </androidPackages>
   <iosPods>
     <iosPod name="Google-Mobile-Ads-SDK" version="~> 13.9" minTargetSdk="15.0" />

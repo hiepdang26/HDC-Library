@@ -21,9 +21,11 @@ namespace HDC.Ads.Infrastructure
 
         public bool IsReady => loaded;
 
+        internal string AdSourceId { get; private set; } = "";
+
         public void Load() => HDCAdsSdk.LoadFullscreen(Id, new[] { AdUnitId }, reloadAfterShow);
 
-        public bool Show() => HDCAdsSdk.ShowFullscreen(Id, layouts.Next());
+        public bool Show() => HDCAdsSdk.ShowFullscreen(Id, layouts.Next(AdSourceId));
 
         public void Destroy()
         {
@@ -32,8 +34,12 @@ namespace HDC.Ads.Infrastructure
             HDCAdsSdk.DestroyFullscreen(Id);
         }
 
-        protected override void OnOwnEvent(HDCAdEvent adEvent) =>
+        protected override void OnOwnEvent(HDCAdEvent adEvent)
+        {
+            if (adEvent.type == HDCAdEventType.Loaded)
+                AdSourceId = adEvent.adSourceId ?? "";
             loaded = adEvent.type == HDCAdEventType.Loaded || (loaded && adEvent.type != HDCAdEventType.Shown
                 && adEvent.type != HDCAdEventType.ShowFailed && adEvent.type != HDCAdEventType.LoadFailed);
+        }
     }
 }

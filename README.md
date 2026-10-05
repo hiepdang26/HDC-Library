@@ -263,6 +263,7 @@ HDCAds.Testing.EnableTestDevice();                  // chỉ cho bản test
   - Show bắn `Shown`, `Impression`, `Paid`.
   - Interstitial và fullscreen đóng sau 1 giây, popup sau 3 giây. Banner giữ đến khi ẩn. Popup bị `Hide` thì giữ quảng cáo như trên máy thật.
   - Native sau interstitial hiện cùng lúc với interstitial như trên Android, khi build target là Android.
+  - Mọi quảng cáo giả lập có nguồn `editor` (`adSourceId`), nên `adSourceGroups` và `adSourceLayouts` có `editor` thì thử được layout theo nguồn trong Editor.
   - Rewarded, app open và banner view dùng quảng cáo mẫu có sẵn của plugin GMA trong Editor.
 
 ## Config và hành vi các kênh
@@ -286,6 +287,13 @@ Config giữ nguyên key và schema JSON của hệ thống cũ, nên dùng lạ
   - Popup (`popupGroups[].androidUnit.layout`): `popup_single_manual_01` tới `15`. Tên cũ `mrec_single_manual_NN` hiện layout `popup_single_manual_NN`. Mặc định là `popup_single_manual_01`.
   - Fullscreen (`forceAdLayoutConfig`): các layout `fs_single_*` của thư viện native. Tên có đuôi `_left` hoặc `_right` (ví dụ `fs_single_cls_03_left`, `fs_single_nav_01_right`) hiện layout gốc. Mặc định là `fs_single_universal_01`.
   - Tên không tồn tại hiện thành lỗi ở thẻ Config Check. Dòng `Layout` của popup trên trang Ads cho biết layout đang dùng.
+- Layout theo nguồn quảng cáo (ad source, ví dụ Meta Audience Network hay AdMob Network), như hệ thống cũ:
+  - Fullscreen: một layout group có thể có `adSourceGroups`, mỗi phần tử gồm `adSourceIds` và `layouts`. Lúc show, HDCLib lấy `adSourceId` của quảng cáo đã load (thư viện native gửi kèm sự kiện Loaded) rồi chọn ngẫu nhiên một layout của nhóm có nguồn đó. Không nhóm nào có nguồn đó thì dùng `layouts` của layout group. Layout group không có `layouts` thì dùng nhóm nguồn đầu tiên có layout.
+  - Popup: `androidUnit.adSourceLayouts` gồm các phần tử `adSources` và `layout`. Thư viện native chọn layout cho từng quảng cáo theo nguồn của nó, kể cả quảng cáo load lại trong lúc popup đang hiện. Nguồn không có trong danh sách thì dùng `layout`. Tên cũ `mrec_single_manual_NN` cũng được nhận.
+  - Khác hệ thống cũ: popup trên iOS cũng chọn theo nguồn (hệ thống cũ chỉ làm trên Android), và mỗi quảng cáo load lại dùng layout của nguồn mới.
+  - Vùng popup giữ chiều cao tối thiểu của layout cao nhất mà popup có thể hiện.
+  - Sự kiện Shown của popup ghi layout và nguồn của quảng cáo đang hiện. Thẻ của ad unit trên trang Ads có dòng `Layout` là layout thật đã hiện. Nhóm popup có thêm dòng `Layouts By Ad Source`.
+  - Config Check báo lỗi tên layout không tồn tại trong `adSourceGroups` và `adSourceLayouts`.
   - Bật Google test ad units không đổi layout: chỉ ad unit được thay.
 - Trên máy thật, `HDCRemoteConfig` lấy giá trị theo thứ tự: Remote Config, giá trị máy lưu từ lần trước, rồi config mặc định. Nó luôn fetch mới, timeout mặc định 10 giây. Firebase không chạy được (kể cả khi thiếu thư viện native) thì nó cũng dùng giá trị máy lưu rồi config mặc định. Trong Editor nó dùng config mặc định, trừ khi bật `HDCRemoteConfig.FetchInEditor`. Trang Remote Config của bảng debug cho thấy từng key lấy từ nguồn nào.
 - Giá trị Remote Config là `{}` vẫn được coi là có giá trị. Một ad core config `{}` nghĩa là không có ad unit nào.

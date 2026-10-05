@@ -140,7 +140,12 @@ namespace HDC.Ads.Logic
                         .Line("AdMob Unit", Dash(group.admobUnit?.id))
                         .Line(interstitial ? "Native Unit (Interstitial)" : "Native Unit", Dash(group.androidUnit?.id));
                     if (!interstitial && !string.IsNullOrEmpty(group.androidUnit?.id))
+                    {
                         map.Line("Layout Group", Dash(group.androidUnit.layoutGroupName));
+                        int sourceGroups = Context.CoreConfig.LayoutGroupNamed(group.androidUnit.layoutGroupName)?.adSourceGroups?.Length ?? 0;
+                        if (sourceGroups > 0)
+                            map.Line("Ad Source Groups", sourceGroups);
+                    }
                     HDCAdCoreConfig.Interstitials after = group.androidUnit?.androidInterstitials;
                     if (after != null && after.HasNativeAfterInterstitial)
                     {
@@ -195,8 +200,10 @@ namespace HDC.Ads.Logic
 
                 foreach (HDCAdCoreConfig.LayoutGroup layoutGroup in (core.forceAdLayoutConfig?.layoutGroups ?? new HDCAdCoreConfig.LayoutGroup[0]).Where(g => g != null))
                 {
-                    foreach (HDCAdCoreConfig.Layout layout in (layoutGroup.layouts ?? new HDCAdCoreConfig.Layout[0])
-                                 .Where(l => !string.IsNullOrWhiteSpace(l?.layout) && !HDCAdLayouts.IsFullscreen(l.layout)))
+                    IEnumerable<HDCAdCoreConfig.Layout> layouts = (layoutGroup.layouts ?? new HDCAdCoreConfig.Layout[0])
+                        .Concat((layoutGroup.adSourceGroups ?? new HDCAdCoreConfig.AdSourceGroup[0]).Where(g => g != null)
+                            .SelectMany(g => g.layouts ?? new HDCAdCoreConfig.Layout[0]));
+                    foreach (HDCAdCoreConfig.Layout layout in layouts.Where(l => !string.IsNullOrWhiteSpace(l?.layout) && !HDCAdLayouts.IsFullscreen(l.layout)))
                         yield return HDCConfigFinding.Error($"FA: layout group '{layoutGroup.groupName}' có layout '{layout.layout}' không có, nên quảng cáo hiện layout mặc định {HDCAdLayouts.FullscreenDefault}.");
                 }
             }

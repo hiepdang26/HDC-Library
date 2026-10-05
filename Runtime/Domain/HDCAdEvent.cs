@@ -17,6 +17,8 @@ namespace HDC.Ads.Domain
 
         public string adSource;
 
+        public string adSourceId;
+
         public string responseId;
 
         public string layout;

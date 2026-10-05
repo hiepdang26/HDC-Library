@@ -6,7 +6,7 @@
 #import <Foundation/NSString.h>
 #import <Foundation/NSValue.h>
 
-@class HDCAAdsConsoleAssetVisibilityConfig, HDCAAdsConsoleClickAssetConfig, HDCAAdsConsoleEnvironment, HDCAAdsConsoleFeature, HDCAAdsConsoleOrientation, HDCAAdsConsolePopupPlacement, HDCAAdsConsolePopupPlacementCompanion, HDCAAdsConsoleSections, HDCAAdsConsoleStatus, HDCAAdsConsoleUiState, HDCAAdsConsoleViewport, HDCABannerCollapseCountdownStyle, HDCABannerNativeAdComposeCallbacks, HDCABannerNativeAdComposeState, HDCABannerNativeAdConfig, HDCABannerNativeAdError, HDCABannerNativeAdInfo, HDCABannerNativeAdLayoutCatalog, HDCABannerNativeAdReloadPolicy, HDCABannerNativeAdRequest, HDCABannerNativeAdShowOptions, HDCABannerNativeAdSizing, HDCAFullscreenConsoleLayoutGroup, HDCAFullscreenLayoutCatalog, HDCAFullscreenNativeAdCallbacks, HDCAFullscreenNativeAdCloseStyle, HDCAFullscreenNativeAdConfig, HDCAFullscreenNativeAdControlPhase, HDCAFullscreenNativeAdControlState, HDCAFullscreenNativeAdError, HDCAFullscreenNativeAdInfo, HDCAFullscreenNativeAdLayoutCatalog, HDCAFullscreenNativeAdMode, HDCAFullscreenNativeAdModeCompanion, HDCAFullscreenNativeAdRegistry, HDCAFullscreenNativeAdRequest, HDCAFullscreenNativeAdShowOptions, HDCAFullscreenNativeAdShowOptionsCompanion, HDCAFullscreenNativeAdState, HDCAInterstitialAdConfig, HDCAInterstitialAdInfo, HDCAInterstitialAdPaidInfo, HDCAInterstitialAdRegistry, HDCAInterstitialShowOptions, HDCAIosAdEvent, HDCAIosAdEventCenter, HDCAKotlinArray<T>, HDCAKotlinEnum<E>, HDCAKotlinEnumCompanion, HDCANativeAdLayoutNames, HDCANativeAdLoadResult, HDCANativeAdLoadResultCompanion, HDCANativeAdShowOptions, HDCANativeAdState, HDCANativeAssetVisibilityOptions, HDCANativeClickAssetOptions, HDCAPopupNativeAdComposeCallbacks, HDCAPopupNativeAdComposeState, HDCAPopupNativeAdConfig, HDCAPopupNativeAdError, HDCAPopupNativeAdInfo, HDCAPopupNativeAdLayoutCatalog, HDCAPopupNativeAdRequest, HDCUnityBridge, UIViewController;
+@class HDCAAdsConsoleAssetVisibilityConfig, HDCAAdsConsoleClickAssetConfig, HDCAAdsConsoleEnvironment, HDCAAdsConsoleFeature, HDCAAdsConsoleOrientation, HDCAAdsConsolePopupPlacement, HDCAAdsConsolePopupPlacementCompanion, HDCAAdsConsoleSections, HDCAAdsConsoleStatus, HDCAAdsConsoleUiState, HDCAAdsConsoleViewport, HDCABannerCollapseCountdownStyle, HDCABannerNativeAdComposeCallbacks, HDCABannerNativeAdComposeState, HDCABannerNativeAdConfig, HDCABannerNativeAdError, HDCABannerNativeAdInfo, HDCABannerNativeAdLayoutCatalog, HDCABannerNativeAdReloadPolicy, HDCABannerNativeAdRequest, HDCABannerNativeAdShowOptions, HDCABannerNativeAdSizing, HDCAFullscreenConsoleLayoutGroup, HDCAFullscreenLayoutCatalog, HDCAFullscreenNativeAdCallbacks, HDCAFullscreenNativeAdCloseStyle, HDCAFullscreenNativeAdConfig, HDCAFullscreenNativeAdControlPhase, HDCAFullscreenNativeAdControlState, HDCAFullscreenNativeAdError, HDCAFullscreenNativeAdInfo, HDCAFullscreenNativeAdLayoutCatalog, HDCAFullscreenNativeAdMode, HDCAFullscreenNativeAdModeCompanion, HDCAFullscreenNativeAdRegistry, HDCAFullscreenNativeAdRequest, HDCAFullscreenNativeAdShowOptions, HDCAFullscreenNativeAdShowOptionsCompanion, HDCAFullscreenNativeAdState, HDCAInterstitialAdConfig, HDCAInterstitialAdInfo, HDCAInterstitialAdPaidInfo, HDCAInterstitialAdRegistry, HDCAInterstitialShowOptions, HDCAIosAdEvent, HDCAIosAdEventCenter, HDCAKotlinArray<T>, HDCAKotlinEnum<E>, HDCAKotlinEnumCompanion, HDCANativeAdLayoutNames, HDCANativeAdLoadResult, HDCANativeAdLoadResultCompanion, HDCANativeAdShowOptions, HDCANativeAdState, HDCANativeAssetVisibilityOptions, HDCANativeClickAssetOptions, HDCAPopupNativeAdComposeCallbacks, HDCAPopupNativeAdComposeState, HDCAPopupNativeAdConfig, HDCAPopupNativeAdError, HDCAPopupNativeAdInfo, HDCAPopupNativeAdLayoutCatalog, HDCAPopupNativeAdRequest, HDCAPopupNativeAdSourceLayout, HDCUnityBridge, UIViewController;
 
 @protocol HDCAFullscreenNativeAdCallback, HDCAInterstitialAdCallback, HDCAKotlinComparable, HDCAKotlinIterator, HDCAPlatform, HDCUnityListener;
 
@@ -270,12 +270,16 @@ __attribute__((swift_name("NativeAdLayoutNames")))
 __attribute__((objc_subclassing_restricted))
 __attribute__((swift_name("NativeAdLoadResult")))
 @interface HDCANativeAdLoadResult : HDCABase
-- (instancetype)initWithState:(HDCANativeAdState *)state adUnitId:(NSString *)adUnitId code:(int32_t)code message:(NSString *)message __attribute__((swift_name("init(state:adUnitId:code:message:)"))) __attribute__((objc_designated_initializer));
+- (instancetype)initWithState:(HDCANativeAdState *)state adUnitId:(NSString *)adUnitId code:(int32_t)code message:(NSString *)message adSourceId:(NSString *)adSourceId adSourceName:(NSString *)adSourceName __attribute__((swift_name("init(state:adUnitId:code:message:adSourceId:adSourceName:)"))) __attribute__((objc_designated_initializer));
 @property (class, readonly, getter=companion) HDCANativeAdLoadResultCompanion *companion __attribute__((swift_name("companion")));
-- (HDCANativeAdLoadResult *)doCopyState:(HDCANativeAdState *)state adUnitId:(NSString *)adUnitId code:(int32_t)code message:(NSString *)message __attribute__((swift_name("doCopy(state:adUnitId:code:message:)")));
+- (HDCANativeAdLoadResult *)doCopyState:(HDCANativeAdState *)state adUnitId:(NSString *)adUnitId code:(int32_t)code message:(NSString *)message adSourceId:(NSString *)adSourceId adSourceName:(NSString *)adSourceName __attribute__((swift_name("doCopy(state:adUnitId:code:message:adSourceId:adSourceName:)")));
 - (BOOL)isEqual:(id _Nullable)other __attribute__((swift_name("isEqual(_:)")));
 - (NSUInteger)hash __attribute__((swift_name("hash()")));
 - (NSString *)description __attribute__((swift_name("description()")));
+
+/** The ad source (mediation network) that filled a loaded ad, as AdMob reports it. */
+@property (readonly) NSString *adSourceId __attribute__((swift_name("adSourceId")));
+@property (readonly) NSString *adSourceName __attribute__((swift_name("adSourceName")));
 @property (readonly) NSString *adUnitId __attribute__((swift_name("adUnitId")));
 @property (readonly) int32_t code __attribute__((swift_name("code")));
 @property (readonly) BOOL hasErrorCode __attribute__((swift_name("hasErrorCode")));
@@ -931,11 +935,13 @@ __attribute__((swift_name("FullscreenNativeAdError")))
 __attribute__((objc_subclassing_restricted))
 __attribute__((swift_name("FullscreenNativeAdInfo")))
 @interface HDCAFullscreenNativeAdInfo : HDCABase
-- (instancetype)initWithAlias:(NSString *)alias adUnitId:(NSString *)adUnitId layoutName:(NSString *)layoutName __attribute__((swift_name("init(alias:adUnitId:layoutName:)"))) __attribute__((objc_designated_initializer));
-- (HDCAFullscreenNativeAdInfo *)doCopyAlias:(NSString *)alias adUnitId:(NSString *)adUnitId layoutName:(NSString *)layoutName __attribute__((swift_name("doCopy(alias:adUnitId:layoutName:)")));
+- (instancetype)initWithAlias:(NSString *)alias adUnitId:(NSString *)adUnitId layoutName:(NSString *)layoutName adSourceId:(NSString *)adSourceId adSourceName:(NSString *)adSourceName __attribute__((swift_name("init(alias:adUnitId:layoutName:adSourceId:adSourceName:)"))) __attribute__((objc_designated_initializer));
+- (HDCAFullscreenNativeAdInfo *)doCopyAlias:(NSString *)alias adUnitId:(NSString *)adUnitId layoutName:(NSString *)layoutName adSourceId:(NSString *)adSourceId adSourceName:(NSString *)adSourceName __attribute__((swift_name("doCopy(alias:adUnitId:layoutName:adSourceId:adSourceName:)")));
 - (BOOL)isEqual:(id _Nullable)other __attribute__((swift_name("isEqual(_:)")));
 - (NSUInteger)hash __attribute__((swift_name("hash()")));
 - (NSString *)description __attribute__((swift_name("description()")));
+@property (readonly) NSString *adSourceId __attribute__((swift_name("adSourceId")));
+@property (readonly) NSString *adSourceName __attribute__((swift_name("adSourceName")));
 @property (readonly) NSString *adUnitId __attribute__((swift_name("adUnitId")));
 @property (readonly) NSString *alias __attribute__((swift_name("alias")));
 @property (readonly) NSString *layoutName __attribute__((swift_name("layoutName")));
@@ -1001,8 +1007,8 @@ __attribute__((swift_name("FullscreenNativeAdRegistry")))
 - (void)notifyClosedAlias:(NSString *)alias __attribute__((swift_name("notifyClosed(alias:)")));
 - (void)notifyDisplayedAlias:(NSString *)alias adUnitId:(NSString *)adUnitId layoutName:(NSString *)layoutName __attribute__((swift_name("notifyDisplayed(alias:adUnitId:layoutName:)")));
 - (void)notifyFailedAlias:(NSString *)alias adUnitId:(NSString *)adUnitId message:(NSString *)message code:(int32_t)code __attribute__((swift_name("notifyFailed(alias:adUnitId:message:code:)")));
-- (void)notifyLoadedAlias:(NSString *)alias adUnitId:(NSString *)adUnitId __attribute__((swift_name("notifyLoaded(alias:adUnitId:)")));
-- (void)notifyStateAlias:(NSString *)alias state:(HDCANativeAdState *)state adUnitId:(NSString * _Nullable)adUnitId errorMessage:(NSString * _Nullable)errorMessage errorCode:(int32_t)errorCode __attribute__((swift_name("notifyState(alias:state:adUnitId:errorMessage:errorCode:)")));
+- (void)notifyLoadedAlias:(NSString *)alias adUnitId:(NSString *)adUnitId adSourceId:(NSString *)adSourceId adSourceName:(NSString *)adSourceName __attribute__((swift_name("notifyLoaded(alias:adUnitId:adSourceId:adSourceName:)")));
+- (void)notifyStateAlias:(NSString *)alias state:(HDCANativeAdState *)state adUnitId:(NSString * _Nullable)adUnitId errorMessage:(NSString * _Nullable)errorMessage errorCode:(int32_t)errorCode adSourceId:(NSString *)adSourceId adSourceName:(NSString *)adSourceName __attribute__((swift_name("notifyState(alias:state:adUnitId:errorMessage:errorCode:adSourceId:adSourceName:)")));
 - (void)setCallbackAlias:(NSString *)alias callback:(id<HDCAFullscreenNativeAdCallback> _Nullable)callback __attribute__((swift_name("setCallback(alias:callback:)")));
 - (BOOL)shouldReloadAfterShowAlias:(NSString *)alias __attribute__((swift_name("shouldReloadAfterShow(alias:)")));
 - (HDCANativeAdState *)stateForAlias:(NSString *)alias __attribute__((swift_name("stateFor(alias:)")));
@@ -1390,12 +1396,15 @@ __attribute__((swift_name("PopupNativeAdCallback")))
 __attribute__((objc_subclassing_restricted))
 __attribute__((swift_name("PopupNativeAdConfig")))
 @interface HDCAPopupNativeAdConfig : HDCABase
-- (instancetype)initWithIds:(NSArray<NSString *> *)ids layoutName:(NSString *)layoutName timeShowSeconds:(int32_t)timeShowSeconds timeReloadSeconds:(int32_t)timeReloadSeconds xDp:(float)xDp yDp:(float)yDp adWidthDp:(float)adWidthDp adHeightDp:(float)adHeightDp autoClose:(BOOL)autoClose enableCtrOverlay:(BOOL)enableCtrOverlay __attribute__((swift_name("init(ids:layoutName:timeShowSeconds:timeReloadSeconds:xDp:yDp:adWidthDp:adHeightDp:autoClose:enableCtrOverlay:)"))) __attribute__((objc_designated_initializer));
-- (HDCAPopupNativeAdConfig *)doCopyIds:(NSArray<NSString *> *)ids layoutName:(NSString *)layoutName timeShowSeconds:(int32_t)timeShowSeconds timeReloadSeconds:(int32_t)timeReloadSeconds xDp:(float)xDp yDp:(float)yDp adWidthDp:(float)adWidthDp adHeightDp:(float)adHeightDp autoClose:(BOOL)autoClose enableCtrOverlay:(BOOL)enableCtrOverlay __attribute__((swift_name("doCopy(ids:layoutName:timeShowSeconds:timeReloadSeconds:xDp:yDp:adWidthDp:adHeightDp:autoClose:enableCtrOverlay:)")));
+- (instancetype)initWithIds:(NSArray<NSString *> *)ids layoutName:(NSString *)layoutName timeShowSeconds:(int32_t)timeShowSeconds timeReloadSeconds:(int32_t)timeReloadSeconds xDp:(float)xDp yDp:(float)yDp adWidthDp:(float)adWidthDp adHeightDp:(float)adHeightDp autoClose:(BOOL)autoClose enableCtrOverlay:(BOOL)enableCtrOverlay adSourceLayouts:(NSArray<HDCAPopupNativeAdSourceLayout *> *)adSourceLayouts __attribute__((swift_name("init(ids:layoutName:timeShowSeconds:timeReloadSeconds:xDp:yDp:adWidthDp:adHeightDp:autoClose:enableCtrOverlay:adSourceLayouts:)"))) __attribute__((objc_designated_initializer));
+- (HDCAPopupNativeAdConfig *)doCopyIds:(NSArray<NSString *> *)ids layoutName:(NSString *)layoutName timeShowSeconds:(int32_t)timeShowSeconds timeReloadSeconds:(int32_t)timeReloadSeconds xDp:(float)xDp yDp:(float)yDp adWidthDp:(float)adWidthDp adHeightDp:(float)adHeightDp autoClose:(BOOL)autoClose enableCtrOverlay:(BOOL)enableCtrOverlay adSourceLayouts:(NSArray<HDCAPopupNativeAdSourceLayout *> *)adSourceLayouts __attribute__((swift_name("doCopy(ids:layoutName:timeShowSeconds:timeReloadSeconds:xDp:yDp:adWidthDp:adHeightDp:autoClose:enableCtrOverlay:adSourceLayouts:)")));
 - (BOOL)isEqual:(id _Nullable)other __attribute__((swift_name("isEqual(_:)")));
 - (NSUInteger)hash __attribute__((swift_name("hash()")));
 - (NSString *)description __attribute__((swift_name("description()")));
 @property (readonly) float adHeightDp __attribute__((swift_name("adHeightDp")));
+
+/** Layouts for ads from given ad sources; an ad from any other source shows [layoutName]. */
+@property (readonly) NSArray<HDCAPopupNativeAdSourceLayout *> *adSourceLayouts __attribute__((swift_name("adSourceLayouts")));
 @property (readonly) float adWidthDp __attribute__((swift_name("adWidthDp")));
 @property (readonly) BOOL autoClose __attribute__((swift_name("autoClose")));
 @property (readonly) BOOL enableCtrOverlay __attribute__((swift_name("enableCtrOverlay")));
@@ -1486,6 +1495,18 @@ __attribute__((swift_name("PopupNativeAdRequest")))
 - (NSString *)description __attribute__((swift_name("description()")));
 @property (readonly) NSArray<NSString *> *adUnitIds __attribute__((swift_name("adUnitIds")));
 @property (readonly) NSString *instanceId __attribute__((swift_name("instanceId")));
+@end
+
+__attribute__((objc_subclassing_restricted))
+__attribute__((swift_name("PopupNativeAdSourceLayout")))
+@interface HDCAPopupNativeAdSourceLayout : HDCABase
+- (instancetype)initWithAdSourceIds:(NSArray<NSString *> *)adSourceIds layoutName:(NSString *)layoutName __attribute__((swift_name("init(adSourceIds:layoutName:)"))) __attribute__((objc_designated_initializer));
+- (HDCAPopupNativeAdSourceLayout *)doCopyAdSourceIds:(NSArray<NSString *> *)adSourceIds layoutName:(NSString *)layoutName __attribute__((swift_name("doCopy(adSourceIds:layoutName:)")));
+- (BOOL)isEqual:(id _Nullable)other __attribute__((swift_name("isEqual(_:)")));
+- (NSUInteger)hash __attribute__((swift_name("hash()")));
+- (NSString *)description __attribute__((swift_name("description()")));
+@property (readonly) NSArray<NSString *> *adSourceIds __attribute__((swift_name("adSourceIds")));
+@property (readonly) NSString *layoutName __attribute__((swift_name("layoutName")));
 @end
 
 

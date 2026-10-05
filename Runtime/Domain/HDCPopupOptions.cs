@@ -19,5 +19,14 @@ namespace HDC.Ads.Domain
         public bool autoClose;
 
         public bool enableCtrOverlay;
+
+        public SourceLayout[] adSourceLayouts = new SourceLayout[0];
+
+        [Serializable]
+        internal sealed class SourceLayout
+        {
+            public string[] adSources = new string[0];
+            public string layout = "";
+        }
     }
 }

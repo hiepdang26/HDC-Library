@@ -6,9 +6,11 @@ namespace HDC.Ads.Infrastructure
 {
     internal sealed class HDCLayoutPicker
     {
+        private const int DefaultLayouts = -1;
+
         private readonly HDCAdCoreConfig.LayoutGroup group;
         private readonly HDCAdCoreConfig config;
-        private readonly List<HDCAdCoreConfig.Layout> bag = new List<HDCAdCoreConfig.Layout>();
+        private readonly Dictionary<int, List<HDCAdCoreConfig.Layout>> bags = new Dictionary<int, List<HDCAdCoreConfig.Layout>>();
 
         internal HDCLayoutPicker(HDCAdCoreConfig config, string groupName)
         {
@@ -16,21 +18,60 @@ namespace HDC.Ads.Infrastructure
             group = config?.LayoutGroupNamed(groupName);
         }
 
-        internal HDCFullscreenOptions Next()
+        internal HDCFullscreenOptions Next(string adSourceId = "")
         {
-            HDCAdCoreConfig.Layout[] layouts = group?.layouts;
-            if (layouts == null || layouts.Length == 0)
+            if (group == null)
                 return new HDCFullscreenOptions();
 
-            if (bag.Count == 0)
-                bag.AddRange(Array.FindAll(layouts, l => l != null && !string.IsNullOrEmpty(l.layout)));
-            if (bag.Count == 0)
+            int source = SourceGroupOf(adSourceId);
+            List<HDCAdCoreConfig.Layout> layouts = Usable(source);
+            if (layouts.Count == 0)
+            {
+                source = FirstSourceGroupWithLayouts();
+                layouts = Usable(source);
+            }
+
+            if (layouts.Count == 0)
                 return new HDCFullscreenOptions();
 
+            if (!bags.TryGetValue(source, out List<HDCAdCoreConfig.Layout> bag) || bag.Count == 0)
+                bags[source] = bag = layouts;
             int index = UnityEngine.Random.Range(0, bag.Count);
             HDCAdCoreConfig.Layout layout = bag[index];
             bag.RemoveAt(index);
             return Options(layout, config.AssetConfigNamed(layout.assetConfigName));
+        }
+
+        private int SourceGroupOf(string adSourceId)
+        {
+            if (string.IsNullOrEmpty(adSourceId))
+                return DefaultLayouts;
+            HDCAdCoreConfig.AdSourceGroup[] groups = group.adSourceGroups ?? new HDCAdCoreConfig.AdSourceGroup[0];
+            for (int i = 0; i < groups.Length; i++)
+            {
+                if (Usable(i).Count > 0 && Array.IndexOf(groups[i].adSourceIds ?? new string[0], adSourceId) >= 0)
+                    return i;
+            }
+
+            return DefaultLayouts;
+        }
+
+        private int FirstSourceGroupWithLayouts()
+        {
+            int count = group.adSourceGroups?.Length ?? 0;
+            for (int i = 0; i < count; i++)
+            {
+                if (Usable(i).Count > 0)
+                    return i;
+            }
+
+            return DefaultLayouts;
+        }
+
+        private List<HDCAdCoreConfig.Layout> Usable(int source)
+        {
+            HDCAdCoreConfig.Layout[] layouts = source == DefaultLayouts ? group.layouts : group.adSourceGroups?[source]?.layouts;
+            return new List<HDCAdCoreConfig.Layout>(Array.FindAll(layouts ?? new HDCAdCoreConfig.Layout[0], l => l != null && !string.IsNullOrEmpty(l.layout)));
         }
 
         private static HDCFullscreenOptions Options(HDCAdCoreConfig.Layout layout, HDCAdCoreConfig.AssetConfig assets)

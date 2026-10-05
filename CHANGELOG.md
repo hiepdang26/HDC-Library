@@ -42,6 +42,10 @@ Những thứ sau đã đổi so với 0.5.0:
   - Events: các sự kiện quảng cáo.
   - Device: có thẻ Mediation, cho biết trạng thái từng adapter và Meta test mode.
 - Ad unit test của Google cho mọi định dạng (`UseTestAdUnits`).
+- Layout theo nguồn quảng cáo (thư viện `hdc-ads-android` 0.3.4 và framework iOS build lại):
+  - Fullscreen: `adSourceGroups` trong layout group. HDCLib chọn layout theo `adSourceId` của quảng cáo đã load, giống hệ thống cũ.
+  - Popup: `androidUnit.adSourceLayouts`. Thư viện native chọn layout cho từng quảng cáo theo nguồn, trên cả Android và iOS.
+  - Sự kiện Loaded của native fullscreen có `adSourceId` và tên nguồn; sự kiện Shown của popup có layout và nguồn của quảng cáo đang hiện. Bảng debug hiện layout thật đã hiện, Config Check kiểm tên layout của các nguồn.
 - Custom key Remote Config của game, như custom remote config của hệ thống cũ:
   - Khai báo ở `HDC > Edit configs > Custom keys`, mỗi key có giá trị mặc định cho Android và iOS. Cửa sổ cảnh báo key trống, trùng, trùng key của HDC hoặc sai quy tắc tên.
   - Game đọc bằng `HDCCustomConfig.Get(key)`. Giá trị lấy theo thứ tự Remote Config, giá trị lưu trên máy (`HDCAds.Custom.<key>`), rồi mặc định, và đọc xong trước khi HDCAds khởi tạo. Có `IsReady` và sự kiện `Updated`.
