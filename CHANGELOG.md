@@ -47,6 +47,10 @@ Những thứ sau đã đổi so với 0.5.0:
   - Cách nhận nước đích sửa ở `Country check`, gồm ngôn ngữ hệ thống, ngôn ngữ và vùng của locale, tên múi giờ, độ lệch UTC, và SIM/mạng trên Android. Locale và múi giờ đọc thẳng từ hệ điều hành.
   - Mặc định không tính theo UTC+7, vì múi giờ này cũng là của nước khác.
   - Máy test (`debugDevices` trong project, hoặc key Remote Config `devices`) không vào chế độ quốc gia. Trang Device hiện ID của máy, trang Remote Config hiện trạng thái chế độ quốc gia.
+- Thiết lập build iOS riêng cho từng máy ở `HDC > iOS > Local build settings`, như hệ thống cũ:
+  - Local signing: team ID và bundle ID của máy này, ký tự động.
+  - Run on My Mac (Designed for iPad): `Xcode default`, `On` hoặc `Off`.
+  - Thiết lập lưu trong `UserSettings` của project, không commit. Có thêm menu `HDC > iOS > Clear local signing`.
 - Banner `fullBottom` có `useBackup` đổi sang unit dự phòng khi banner đang hiện refresh lỗi, như hệ thống cũ:
   - Unit dự phòng load, hoặc load quảng cáo mới nếu quảng cáo của nó đã hiện quá 10 giây, rồi thay chỗ banner đang lỗi. Native banner có `reloadTime` dưới 20 giây được lỗi một lần trước khi bị thay.
   - Native banner im lặng quá `max(30, reloadTime + 5)` giây thì tính là refresh lỗi. Banner AdMob không bị tính như vậy, khác hệ thống cũ, vì chu kỳ refresh của AdMob đặt trên AdMob console.
@@ -92,6 +96,7 @@ Những thứ sau đã đổi so với 0.5.0:
 - Bảng debug bỏ tab CL (collapsible banner), vì HDCLib chưa có kênh này.
 - Bảng debug không còn hỏi phía native mỗi giây.
 - Mã nguồn C# của HDCLib không còn comment. Tài liệu nằm trong `README.md`, `ARCHITECTURE.md` và `CHANGELOG.md`.
+- Post-process iOS nhúng mọi framework động của pod mà app chưa có, ví dụ `AppLovinSDK` và `AdjustSigSdk`. Trước đây nó chỉ nhúng `FBAudienceNetwork`. Export kiểu Append thay build phase cũ của HDC thay vì thêm phase thứ hai.
 
 ### Sửa
 

@@ -71,6 +71,19 @@ namespace HDC.Ads.Editor
             AddPrefab(AdjustPrefabGuid, "HDCAdjust", "Add HDC Adjust");
         }
 
+        [MenuItem(Root + "iOS/Local build settings", false, 70)]
+        private static void OpenIosBuild() => HDCIosBuildWindow.Open();
+
+        [MenuItem(Root + "iOS/Clear local signing", false, 71)]
+        private static void ClearLocalSigning()
+        {
+            HDCIosLocalBuild.ClearSigning();
+            Debug.Log("[HDCAds] Local signing cleared. The next iOS export uses Player Settings.");
+        }
+
+        [MenuItem(Root + "iOS/Clear local signing", true)]
+        private static bool CanClearLocalSigning() => HDCIosLocalBuild.HasSigning;
+
         private static void AddPrefab(string guid, string name, string undo)
         {
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(AssetDatabase.GUIDToAssetPath(guid));

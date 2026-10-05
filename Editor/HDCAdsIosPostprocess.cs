@@ -58,6 +58,7 @@ namespace HDC.Ads.Editor
                 return;
 
             string projectPath = PBXProject.GetPBXProjectPath(buildPath);
+            RemoveOwnPhases(projectPath);
             var project = new PBXProject();
             project.ReadFromFile(projectPath);
 
@@ -105,6 +106,102 @@ namespace HDC.Ads.Editor
                 File.WriteAllText(projectPath, fixedText);
 
             AllowHighFrameRates(buildPath);
+        }
+
+        [PostProcessBuild(101)]
+        private static void ApplyLocalBuildSettings(BuildTarget target, string buildPath)
+        {
+            if (target != BuildTarget.iOS || !HDCIosLocalBuild.IsSet)
+                return;
+
+            bool simulator = PlayerSettings.iOS.sdkVersion == iOSSdkVersion.SimulatorSDK;
+            string projectPath = PBXProject.GetPBXProjectPath(buildPath);
+            File.WriteAllText(projectPath, WithLocalBuild(File.ReadAllText(projectPath), HDCIosLocalBuild.TeamId,
+                HDCIosLocalBuild.BundleId, HDCIosLocalBuild.MacRun, simulator));
+            Debug.Log("[HDCAds] iOS local build settings of this computer: " + HDCIosLocalBuild.Summary);
+            if (simulator && HDCIosLocalBuild.MacRun == HDCMacRun.On)
+                Debug.LogWarning("[HDCAds] Run on My Mac needs a Device SDK export; this export uses the Simulator SDK, so it is skipped.");
+        }
+
+        internal static string WithLocalBuild(string projectText, string teamId, string bundleId, HDCMacRun macRun, bool simulator)
+        {
+            var project = new PBXProject();
+            project.ReadFromString(projectText);
+            string mainTarget = project.GetUnityMainTargetGuid();
+            string frameworkTarget = project.GetUnityFrameworkTargetGuid();
+
+            if (!string.IsNullOrEmpty(teamId))
+            {
+                foreach (string target in new[] { mainTarget, frameworkTarget })
+                {
+                    if (string.IsNullOrEmpty(target))
+                        continue;
+                    project.SetBuildProperty(target, "DEVELOPMENT_TEAM", teamId);
+                    project.SetBuildProperty(target, "CODE_SIGN_STYLE", "Automatic");
+                    project.SetBuildProperty(target, "CODE_SIGN_IDENTITY", "Apple Development");
+                    project.SetBuildProperty(target, "PROVISIONING_PROFILE_SPECIFIER", "");
+                    project.SetBuildProperty(target, "PROVISIONING_PROFILE", "");
+                }
+            }
+
+            if (!string.IsNullOrEmpty(bundleId) && !string.IsNullOrEmpty(mainTarget))
+                project.SetBuildProperty(mainTarget, "PRODUCT_BUNDLE_IDENTIFIER", bundleId);
+
+            if (macRun == HDCMacRun.Off || (macRun == HDCMacRun.On && !simulator))
+            {
+                foreach (string target in new[] { mainTarget, frameworkTarget, project.TargetGuidByName("GameAssembly") })
+                {
+                    if (string.IsNullOrEmpty(target))
+                        continue;
+                    project.SetBuildProperty(target, "SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD", macRun == HDCMacRun.On ? "YES" : "NO");
+                    if (macRun == HDCMacRun.On)
+                        project.SetBuildProperty(target, "SUPPORTS_MACCATALYST", "NO");
+                }
+            }
+
+            return project.WriteToString();
+        }
+
+        private static void RemoveOwnPhases(string projectPath)
+        {
+            if (!File.Exists(projectPath))
+                return;
+            string text = File.ReadAllText(projectPath);
+            string cleaned = WithoutPhases(text, ComposeResourcesPhase, EmbedDynamicPodsPhase);
+            if (cleaned != text)
+                File.WriteAllText(projectPath, cleaned);
+        }
+
+        internal static string WithoutPhases(string projectText, params string[] names)
+        {
+            var lines = new List<string>(projectText.Split('\n'));
+            var removed = new HashSet<string>();
+            for (int i = 0; i + 1 < lines.Count; i++)
+            {
+                if (!lines[i].TrimEnd().EndsWith("= {", StringComparison.Ordinal) || lines[i + 1].Trim() != "isa = PBXShellScriptBuildPhase;")
+                    continue;
+
+                int end = i + 1;
+                string name = null;
+                while (end < lines.Count && lines[end].Trim() != "};")
+                {
+                    string line = lines[end].Trim();
+                    if (line.StartsWith("name = ", StringComparison.Ordinal))
+                        name = line.Substring("name = ".Length).TrimEnd(';').Trim('"');
+                    end++;
+                }
+
+                if (end == lines.Count || name == null || Array.IndexOf(names, name) < 0)
+                    continue;
+                removed.Add(lines[i].Trim().Split(' ')[0]);
+                lines.RemoveRange(i, end - i + 1);
+                i--;
+            }
+
+            if (removed.Count == 0)
+                return projectText;
+            lines.RemoveAll(line => line.Trim().EndsWith(",", StringComparison.Ordinal) && removed.Contains(line.Trim().Split(' ', ',')[0]));
+            return string.Join("\n", lines);
         }
 
         private static void AllowHighFrameRates(string buildPath)
@@ -289,10 +386,13 @@ rsync -a --delete ""${SOURCE}/"" ""${DESTINATION}/""
 @"set -e
 SOURCE_ROOT=""${PODS_XCFRAMEWORKS_BUILD_DIR:-${BUILT_PRODUCTS_DIR}/XCFrameworkIntermediates}""
 DESTINATION=""${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}""
-for FRAMEWORK in ""FBAudienceNetwork/FBAudienceNetwork.framework""; do
-    SOURCE=""${SOURCE_ROOT}/${FRAMEWORK}""
-    NAME=""$(basename ""${FRAMEWORK}"")""
-    if [ ! -d ""${SOURCE}"" ] || [ -d ""${DESTINATION}/${NAME}"" ]; then continue; fi
+if [ ! -d ""${SOURCE_ROOT}"" ]; then exit 0; fi
+find ""${SOURCE_ROOT}"" -maxdepth 3 -type d -name ""*.framework"" | while IFS= read -r SOURCE; do
+    NAME=""$(basename ""${SOURCE}"")""
+    BINARY=""${SOURCE}/${NAME%.framework}""
+    if [ ! -f ""${BINARY}"" ] || [ -d ""${DESTINATION}/${NAME}"" ]; then continue; fi
+    if ! /usr/bin/file -b ""${BINARY}"" | grep -q ""dynamically linked shared library""; then continue; fi
+    echo ""Embedding ${NAME}""
     mkdir -p ""${DESTINATION}""
     rsync -a --delete --exclude Headers --exclude PrivateHeaders --exclude Modules ""${SOURCE}"" ""${DESTINATION}/""
     if [ ""${CODE_SIGNING_ALLOWED:-NO}"" = ""YES"" ] && [ -n ""${EXPANDED_CODE_SIGN_IDENTITY:-}"" ]; then

@@ -545,6 +545,20 @@ Các giới hạn sau đến từ GMA, Meta và AndroidX, không phải từ HDC
 
 - Post-process tự thêm `HDCAds.xcframework` và `HDCAdsBridge.mm` vào project Xcode, nên không phụ thuộc cách từng bản Unity xử lý plugin `.xcframework`.
 - Post-process đặt `CADisableMinimumFrameDurationOnPhone = true` trong Info.plist. Quảng cáo native (full-screen, popup, banner) vẽ bằng Compose Multiplatform, và Compose dừng app ngay lần đầu hiện quảng cáo nếu key này thiếu hoặc là `false`. Unity ghi `false` khi Player Settings > iOS > Enable ProMotion đang tắt.
+- Post-process nhúng vào app mọi framework động mà pod mang theo, ví dụ `FBAudienceNetwork` của Meta, `AppLovinSDK` của adapter AppLovin và `AdjustSigSdk` của Adjust:
+  - Podfile của Unity gắn pod vào target UnityFramework, nên CocoaPods không tự nhúng các framework này vào app. Framework động không được nhúng thì app không mở được, vì thiếu thư viện lúc chạy.
+  - Script chạy lúc Xcode build. Nó tìm trong `XCFrameworkIntermediates` của pod các framework có binary là thư viện động, rồi copy vào thư mục `Frameworks` của app và ký lại những framework mà app chưa có. Framework tĩnh và framework đã được nhúng (ví dụ bởi post-process của Adjust) được bỏ qua.
+  - Export kiểu Append thay build phase cũ của HDC bằng bản mới, nên không có hai phase cùng tên.
+- Thiết lập build iOS riêng cho máy này ở `HDC > iOS > Local build settings`, như hệ thống cũ. Thiết lập lưu trong thư mục `UserSettings` của project. Thư mục này không commit, nên mỗi máy và mỗi project có giá trị riêng. Thiết lập áp dụng từ lần export Xcode tiếp theo:
+  - Local signing: `Team ID` và `Bundle ID` của máy này, ví dụ một personal team miễn phí, vốn không ký được bundle ID của publisher.
+    - Có team thì export chuyển target app và UnityFramework sang ký tự động: `Automatic`, `Apple Development`, bỏ provisioning profile thủ công.
+    - Bundle ID chỉ đổi cho target app. Ô để trống thì giữ Player Settings.
+    - `HDC > iOS > Clear local signing` xoá cả hai.
+  - Run on My Mac (Designed for iPad):
+    - `Xcode default` giữ nguyên như Unity export. Với Unity 2022.3.62 và Xcode 26.4.1, project export ra đã cho chạy trên My Mac, vì Unity không đặt `SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD` và Xcode mặc định là `YES`.
+    - `On` cho Xcode chạy app trên Mac chip Apple. Chỉ áp dụng cho export Device SDK.
+    - `Off` bỏ My Mac khỏi danh sách đích chạy của Xcode, giống mặc định của hệ thống cũ.
+  - Khác hệ thống cũ: hệ thống cũ lưu thiết lập chung cho cả máy (mọi project), và không có chỗ nhập team hay bundle ID trong Unity.
 - Build cho simulator:
   - Unity link UnityFramework bằng `-all_load`, để engine (ở simulator là thư viện động) tìm được IL2CPP theo tên. Nhưng `-all_load` nạp mọi phần của HDCAds, và các thư viện Skia bên trong lặp object nên link lỗi trùng symbol (HarfBuzz).
   - Post-process thay cờ đó bằng `-force_load` cho riêng `libil2cpp.a`, `libGameAssembly.a` và `baselib.a`.
@@ -552,6 +566,10 @@ Các giới hạn sau đến từ GMA, Meta và AndroidX, không phải từ HDC
 - Đã kiểm chứng bằng Unity 2022.3.62, với External Dependency Manager chạy `pod install`:
   - Simulator SDK: Xcode build xong. Trên simulator, SDK khởi tạo, lấy được hash test device của Meta và load được interstitial test của Google.
   - Device SDK: Xcode build bản Release cho máy thật (không ký) xong, không còn symbol nào của HDCAds chưa link.
+  - Thiết lập build iOS riêng của máy, với Xcode 26.4.1. Export Device SDK hai lần, Replace rồi Append, với team, bundle ID và My Mac = `On`:
+    - Project Xcode có đúng team và bundle ID, có `SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES`, và mỗi build phase của HDC chỉ có một bản.
+    - `xcodebuild` (không ký) build xong. App có đủ các framework động mà UnityFramework link tới: `AdjustSigSdk` và `FBAudienceNetwork`.
+  - Script nhúng framework động, chạy trên thư mục build có sẵn của một project có 24 framework pod: chỉ 3 framework động (`AdjustSigSdk`, `AppLovinSDK`, `FBAudienceNetwork`) được nhúng. Chạy lần hai thì không copy lại.
 
 ## Trạng thái
 
@@ -569,7 +587,7 @@ Các giới hạn sau đến từ GMA, Meta và AndroidX, không phải từ HDC
   - iOS: post-process tự thêm framework và bridge vào project Xcode.
   - Cài được như package (UPM).
   - Hỗ trợ tắt domain reload.
-- Menu `HDC` riêng trên thanh menu: bật/tắt Ads, sửa config mặc định trong cửa sổ có kiểm tra JSON.
+- Menu `HDC` riêng trên thanh menu: bật/tắt Ads, sửa config mặc định trong cửa sổ có kiểm tra JSON, thiết lập build iOS riêng của máy.
 - Bảng debug `HDCAdsDebugPanel`, bốn trang:
   - Ads: chọn kênh, group và vị trí theo config rồi gọi init/show/hide; group đang chọn hiện từng ad unit với trạng thái, mã lỗi kèm giải thích và số liệu. Native banner và popup cũng báo mã lỗi thật của SDK (từ thư viện Android 0.3.1 và framework iOS cùng đợt).
   - Remote Config: config lấy từ đâu, kiểm tra lỗi config, xem JSON theo Remote, Saved, Default, Applied và mọi key Remote Config.
