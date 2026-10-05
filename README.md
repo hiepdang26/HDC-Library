@@ -275,6 +275,12 @@ Prefab `Debug/HDCAdsDebugPanel.prefab` là bảng debug nằm đè lên game. Ch
   - `Make Test Device`: máy này thành test device. Request vẫn dùng ad unit thật, Google trả quảng cáo test, áp dụng cho các lần load sau.
   - `Test Ad Units: On/Off`: bật tắt việc thay mọi ad unit bằng ad unit mẫu của Google (`HDCAds.Testing.UseTestAdUnits`). Lựa chọn được lưu trên máy (PlayerPrefs `HDCAds.Debug.TestAdUnits`) và áp dụng từ lúc app mở, trước scene đầu tiên, cho tới khi tắt.
   - `Restart App` hiện ra sau khi đổi `Test Ad Units`, vì quảng cáo đã load vẫn giữ ad unit cũ. Trên Android nút mở lại app từ đầu; trong Editor nút thoát rồi vào lại Play Mode. iOS không cho app tự mở lại, nên nút thành `Quit App`: app thoát, rồi mở lại bằng tay.
+  - `Clear Data & Restart` (iOS: `Clear Data & Quit`) luôn có sẵn. Nút xoá toàn bộ dữ liệu của app rồi mở lại app như lần cài đầu. Phải bấm hai lần trong 4 giây; lần đầu chỉ đổi chữ thành `Tap Again To Clear`.
+    - Những gì bị xoá: PlayerPrefs, gồm cả Remote Config đã lưu và số lượt force ad; file và cache của app; dữ liệu của các SDK (Firebase, Google Mobile Ads, consent…).
+    - Android: mọi thứ trong thư mục dữ liệu của app và thư mục ngoài (`Android/data/<package>`), trừ thư viện native. App tự mở lại.
+    - iOS: toàn bộ `NSUserDefaults` của app, cùng `Documents`, `Library` và `tmp`. Keychain không bị xoá, giống như khi cài lại app. iOS không cho app tự mở lại, nên app thoát và phải mở lại bằng tay.
+    - Editor: PlayerPrefs của project, `persistentDataPath` và `temporaryCachePath`, rồi vào lại Play Mode.
+    - Công tắc `Test Ad Units` được giữ lại.
   - Khi `HDCAdsSetup > Google Test Ad Units` đang bật, prefab bật lại test ad unit mỗi lần mở app, nên nút trên bảng chỉ tắt được cho lần chạy hiện tại.
 - Mediation:
   - Số adapter mediation Google Mobile Ads đã khởi tạo xong, lấy từ kết quả `MobileAds.Initialize`.

@@ -45,6 +45,7 @@ Những thứ sau đã đổi so với 0.5.0:
 - Trang Device của bảng debug có thêm:
   - Nút `Test Ad Units: On/Off`, bật tắt ad unit test của Google. Lựa chọn được lưu trên máy và áp dụng từ lúc mở app.
   - Nút `Restart App`, hiện ra sau khi đổi lựa chọn trên. Nó mở lại app trên Android và vào lại Play Mode trong Editor. Trên iOS nút thành `Quit App`, vì iOS không cho app tự mở lại.
+  - Nút `Clear Data & Restart`, phải bấm hai lần. Nó xoá toàn bộ dữ liệu của app (PlayerPrefs, file, cache, dữ liệu SDK) nhưng giữ công tắc Test Ad Units, rồi mở lại app như lần cài đầu: trên Android tự mở lại, trong Editor vào lại Play Mode. Trên iOS nút thành `Clear Data & Quit`: xoá xong thì thoát, phải mở lại app bằng tay.
 - Bộ test Edit Mode và Play Mode, kèm:
   - test hợp đồng API và test luật tầng;
   - script `Tools~/compile-matrix.sh` và `Tools~/run-tests.sh`.

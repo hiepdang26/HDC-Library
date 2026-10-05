@@ -6,6 +6,12 @@ namespace HDC.Ads.DebugUI
     {
         internal static bool Relaunches => Application.isEditor || Application.platform == RuntimePlatform.Android;
 
+        internal static void ClearDataAndRestart()
+        {
+            HDCAppData.Clear();
+            Restart();
+        }
+
         internal static void Restart()
         {
 #if UNITY_EDITOR

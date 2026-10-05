@@ -191,6 +191,17 @@ namespace HDC.Ads.Tests
             Assert.IsFalse(HDCAds.Testing.UseTestAdUnits);
             Assert.IsFalse(HDCTestAdUnitsSwitch.IsSaved);
 
+            Transform clearData = deviceContent.Find("Library Card/Library Buttons/Clear Data Button");
+            Assert.IsTrue(clearData.gameObject.activeSelf, "always offered");
+            Assert.AreEqual("Clear Data & Restart", ButtonText(clearData));
+            Click(clearData);
+            yield return null;
+            Assert.IsTrue(Application.isPlaying, "the first tap only asks for a second one");
+            Assert.AreEqual("Tap Again To Clear", ButtonText(clearData));
+            StringAssert.Contains("Bấm lần nữa", AllText(deviceContent.Find("Library Card")));
+            yield return new WaitForSecondsRealtime(HDCDevicePage.ClearDataConfirmSeconds + 0.3f);
+            Assert.AreEqual("Clear Data & Restart", ButtonText(clearData), "the request lapses");
+
             Click(window.Find("Header/Close Button"));
             Assert.IsFalse(panel.IsOpen);
             yield return new ExitPlayMode();

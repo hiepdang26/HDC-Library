@@ -19,6 +19,7 @@ namespace HDC.Ads.DebugUI
     {
         private const string IpLookupUrl = "https://ipwho.is/";
         private const float ProbeCooldownSeconds = 60f;
+        internal const float ClearDataConfirmSeconds = 4f;
 
         [SerializeField] private HDCKeyValueList buildList;
         [SerializeField] private HDCKeyValueList libraryList;
@@ -26,6 +27,7 @@ namespace HDC.Ads.DebugUI
         [SerializeField] private Button testDeviceButton;
         [SerializeField] private Button testAdUnitsButton;
         [SerializeField] private Button restartButton;
+        [SerializeField] private Button clearDataButton;
         [SerializeField] private HDCKeyValueList mediationList;
         [SerializeField] private Button metaOnButton;
         [SerializeField] private Button metaOffButton;
@@ -43,6 +45,8 @@ namespace HDC.Ads.DebugUI
         private DateTime? lastProbeClock;
         private string probeError;
         private PublicInfo publicInfo;
+        private float clearDataArmedUntil = -1f;
+        private Coroutine disarmClearData;
 
         [Serializable]
         private sealed class PublicInfo
@@ -93,6 +97,21 @@ namespace HDC.Ads.DebugUI
                 Refresh();
             });
             restartButton.onClick.AddListener(HDCAppRestart.Restart);
+            clearDataButton.onClick.AddListener(() =>
+            {
+                if (ClearDataArmed)
+                {
+                    clearDataArmedUntil = -1f;
+                    HDCAppRestart.ClearDataAndRestart();
+                    return;
+                }
+
+                clearDataArmedUntil = Time.realtimeSinceStartup + ClearDataConfirmSeconds;
+                if (disarmClearData != null)
+                    StopCoroutine(disarmClearData);
+                disarmClearData = StartCoroutine(DisarmClearDataLater());
+                Refresh();
+            });
             metaOnButton.onClick.AddListener(() =>
             {
                 HDCAds.Testing.EnableMetaTestMode();
@@ -166,6 +185,10 @@ namespace HDC.Ads.DebugUI
                 libraryList.Note(HDCDebugStyle.Colored(HDCDebugStyle.WarnHex, HDCAppRestart.Relaunches
                     ? "Quảng cáo đã load vẫn giữ ad unit cũ. Bấm Restart App để mở lại app với lựa chọn mới ngay từ đầu."
                     : "Quảng cáo đã load vẫn giữ ad unit cũ. iOS không cho app tự mở lại: bấm Quit App rồi mở lại app."));
+            if (ClearDataArmed)
+                libraryList.Note(HDCDebugStyle.Colored(HDCDebugStyle.WarnHex,
+                    $"Bấm lần nữa trong {ClearDataConfirmSeconds:0} giây để xoá toàn bộ dữ liệu của app: PlayerPrefs, file, cache và Remote Config đã lưu. Công tắc Test Ad Units được giữ lại. " +
+                    (HDCAppRestart.Relaunches ? "App sẽ tự mở lại." : "iOS không cho app tự mở lại: app sẽ thoát, mở lại app bằng tay.")));
             libraryList.End();
 
             HDCDebugStyle.SetLabel(debugLogButton, HDCAdsSdk.DebugLog ? "Debug Log: On" : "Debug Log: Off");
@@ -175,6 +198,19 @@ namespace HDC.Ads.DebugUI
             HDCDebugStyle.Highlight(testAdUnitsButton, HDCAdsSdk.UseTestAdUnits);
             HDCDebugStyle.SetVisible(restartButton, HDCTestAdUnitsSwitch.ChangedThisSession);
             HDCDebugStyle.SetLabel(restartButton, HDCAppRestart.Relaunches ? "Restart App" : "Quit App");
+            HDCDebugStyle.SetLabel(clearDataButton, ClearDataArmed
+                ? "Tap Again To Clear"
+                : HDCAppRestart.Relaunches ? "Clear Data & Restart" : "Clear Data & Quit");
+        }
+
+        private bool ClearDataArmed => Time.realtimeSinceStartup < clearDataArmedUntil;
+
+        private IEnumerator DisarmClearDataLater()
+        {
+            yield return new WaitForSecondsRealtime(ClearDataConfirmSeconds);
+            disarmClearData = null;
+            clearDataArmedUntil = -1f;
+            Refresh();
         }
 
         private static string TestAdUnitsState
