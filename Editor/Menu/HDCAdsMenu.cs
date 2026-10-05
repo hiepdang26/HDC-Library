@@ -35,6 +35,12 @@ namespace HDC.Ads.Editor
         [MenuItem(Root + "Edit configs/Custom keys", false, 23)]
         private static void EditCustomKeys() => HDCAdsConfigWindow.Open(HDCAdsConfigWindow.CustomKeysPage);
 
+        [MenuItem(Root + "Edit configs/Country configs", false, 24)]
+        private static void EditCountryConfigs() => HDCAdsConfigWindow.Open(HDCAdsConfigWindow.CountryAdsAndroidPage);
+
+        [MenuItem(Root + "Edit configs/Country check", false, 25)]
+        private static void EditCountryCheck() => HDCAdsConfigWindow.Open(HDCAdsConfigWindow.CountryCheckPage);
+
         [MenuItem(Root + "Settings asset", false, 40)]
         private static void SelectSettings()
         {

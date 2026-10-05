@@ -128,8 +128,21 @@ namespace HDC.Ads.DebugUI
                 statusList.Row("Applied At", HDCConfigReport.AppliedClock.ToString("HH:mm:ss", CultureInfo.InvariantCulture));
             }
 
+            RedrawCountry();
             RedrawCustomKeys();
             statusList.End();
+        }
+
+        private void RedrawCountry()
+        {
+            HDCCountryResult country = HDCConfigReport.Country;
+            if (country == null)
+                return;
+            statusList.Row("Country Mode", (country.IsOn ? "On · " : "Off · ") + country.Reason,
+                country.IsOn ? HDCDebugStyle.WarnColor : HDCDebugStyle.TextColor);
+            if (country.Signals.Count > 1)
+                statusList.Row("Country Signals", string.Join(", ", country.Signals));
+            statusList.Row("Device ID", Dash(country.DeviceId));
         }
 
         private void RedrawCustomKeys()

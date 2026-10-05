@@ -144,7 +144,23 @@ namespace HDC.Ads
                         Save(coreKey, core);
                 }
 
-                ApplyCustomConfigs();
+                HDCAdsSettings settings = HDCAdsSettings.Load();
+                HDCCountryResult country = HDCCountry.Check(settings.CountryRulesJson(), RemoteDebugDevices());
+                HDCConfigReport.CountryChecked(country);
+                if (country.IsOn)
+                {
+                    ads = UseCountry(AdsConfigKey, settings.CountryAdsConfig, ads);
+                    string countryCoreKey = HDCAdsConfig.Parse(ads).selectedAdCoreName;
+                    if (!string.IsNullOrEmpty(countryCoreKey))
+                        coreKey = countryCoreKey;
+                    if (!string.IsNullOrEmpty(coreKey))
+                        core = UseCountry(coreKey, settings.CountryCoreConfig, core);
+                    HDCCustomConfig.UseCountry();
+                }
+                else
+                {
+                    ApplyCustomConfigs();
+                }
 
                 HDCConfigReport.LoadFinished(reason, coreKey);
                 if (HDCAdsSdk.DebugLog)
@@ -194,6 +210,30 @@ namespace HDC.Ads
                 else
                     Use(entry, entry.Default, HDCConfigSource.Default);
                 return entry.Used;
+            }
+
+            private static string UseCountry(string key, string countryValue, string current)
+            {
+                if (string.IsNullOrWhiteSpace(countryValue))
+                    return current;
+                HDCConfigEntry entry = HDCConfigReport.Entry(key);
+                Use(entry, countryValue, HDCConfigSource.Country);
+                return countryValue;
+            }
+
+            private IEnumerable<string> RemoteDebugDevices()
+            {
+                if (defaultsOnly || remoteConfig == null)
+                    return new string[0];
+                try
+                {
+                    return HDCCountry.RemoteDebugDevices(remoteConfig.GetValue(HDCCountry.DevicesKey).StringValue);
+                }
+                catch (Exception exception)
+                {
+                    Debug.LogWarning($"[HDCAds] cannot read remote config '{HDCCountry.DevicesKey}': {exception.Message}");
+                    return new string[0];
+                }
             }
 
             private void ApplyCustomConfigs()

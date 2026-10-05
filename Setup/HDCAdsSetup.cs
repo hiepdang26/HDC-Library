@@ -4,6 +4,8 @@ using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
 #if HDC_ADS
+using HDC.Ads.Diagnostics;
+using HDC.Ads.Infrastructure;
 using HDC.Ads.Logic;
 #endif
 
@@ -48,10 +50,23 @@ namespace HDC.Ads
 #if HDC_FIREBASE
             HDCRemoteConfig.FetchAndInitialize(defaults.AdsConfig, defaults.CoreConfigsByKey(), onReady);
 #else
+            HDCCountryResult country = HDCCountry.Check(defaults.CountryRulesJson());
+            HDCConfigReport.CountryChecked(country);
+            if (country.IsOn)
+            {
+                HDCCustomConfig.UseCountry();
+                HDCAds.Initialize(Pick(defaults.CountryAdsConfig, defaults.AdsConfig), Pick(defaults.CountryCoreConfig, defaults.CoreConfig), onReady);
+                return;
+            }
+
             HDCCustomConfig.UseDefaults();
             HDCAds.Initialize(defaults.AdsConfig, defaults.CoreConfig, onReady);
 #endif
         }
+#endif
+
+#if HDC_ADS && !HDC_FIREBASE
+        private static string Pick(string country, string fallback) => string.IsNullOrWhiteSpace(country) ? fallback : country;
 #endif
 
         private IEnumerator Start()

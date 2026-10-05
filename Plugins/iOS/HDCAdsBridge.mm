@@ -35,6 +35,17 @@ extern "C" {
         return strdup(utf8 != NULL ? utf8 : "");
     }
 
+    const char *HDCAds_LocaleInfo(void) {
+        NSLocale *locale = NSLocale.currentLocale;
+        NSString *language = [locale objectForKey:NSLocaleLanguageCode] ?: @"";
+        NSString *preferred = NSLocale.preferredLanguages.firstObject ?: @"";
+        NSString *region = [locale objectForKey:NSLocaleCountryCode] ?: @"";
+        NSString *zone = NSTimeZone.localTimeZone.name ?: @"";
+        NSString *info = [NSString stringWithFormat:@"%@|%@|%@|%@", language, preferred, region, zone];
+        const char *utf8 = info.UTF8String;
+        return strdup(utf8 != NULL ? utf8 : "");
+    }
+
     void HDCAds_ClearUserDefaults(void) {
         NSString *domain = NSBundle.mainBundle.bundleIdentifier;
         if (domain.length == 0) {

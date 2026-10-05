@@ -10,6 +10,7 @@ namespace HDC.Ads
         internal const string RemoteSource = "Remote";
         internal const string SavedSource = "Saved";
         internal const string DefaultSource = "Default";
+        internal const string CountrySource = "Country";
 
         private static readonly Dictionary<string, (string Value, string Source)> Applied =
             new Dictionary<string, (string, string)>(StringComparer.Ordinal);
@@ -107,6 +108,18 @@ namespace HDC.Ads
             {
                 string saved = SavedValue(pair.Key);
                 values[pair.Key] = saved.Length > 0 ? (saved, SavedSource) : (pair.Value, DefaultSource);
+            }
+
+            Apply(values, false);
+        }
+
+        internal static void UseCountry()
+        {
+            var values = new Dictionary<string, (string Value, string Source)>(StringComparer.Ordinal);
+            foreach (KeyValuePair<string, string> pair in HDCAdsSettings.Load().CustomCountryValues())
+            {
+                if (Defaults.ContainsKey(pair.Key))
+                    values[pair.Key] = (pair.Value, CountrySource);
             }
 
             Apply(values, false);

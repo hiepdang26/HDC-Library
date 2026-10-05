@@ -42,6 +42,11 @@ Những thứ sau đã đổi so với 0.5.0:
   - Events: các sự kiện quảng cáo.
   - Device: có thẻ Mediation, cho biết trạng thái từng adapter và Meta test mode.
 - Ad unit test của Google cho mọi định dạng (`UseTestAdUnits`).
+- Chế độ quốc gia như hệ thống cũ: máy ở nước đích (mặc định `vn`) dùng config quốc gia của project thay cho Remote Config.
+  - Config quốc gia: ads, ad core và giá trị quốc gia của custom key, sửa ở `HDC > Edit configs > Country configs` và `Custom keys`.
+  - Cách nhận nước đích sửa ở `Country check`, gồm ngôn ngữ hệ thống, ngôn ngữ và vùng của locale, tên múi giờ, độ lệch UTC, và SIM/mạng trên Android. Locale và múi giờ đọc thẳng từ hệ điều hành.
+  - Mặc định không tính theo UTC+7, vì múi giờ này cũng là của nước khác.
+  - Máy test (`debugDevices` trong project, hoặc key Remote Config `devices`) không vào chế độ quốc gia. Trang Device hiện ID của máy, trang Remote Config hiện trạng thái chế độ quốc gia.
 - Layout theo nguồn quảng cáo (thư viện `hdc-ads-android` 0.3.4 và framework iOS build lại):
   - Fullscreen: `adSourceGroups` trong layout group. HDCLib chọn layout theo `adSourceId` của quảng cáo đã load, giống hệ thống cũ.
   - Popup: `androidUnit.adSourceLayouts`. Thư viện native chọn layout cho từng quảng cáo theo nguồn, trên cả Android và iOS.

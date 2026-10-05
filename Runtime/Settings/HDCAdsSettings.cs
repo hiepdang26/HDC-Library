@@ -16,13 +16,30 @@ namespace HDC.Ads
         [SerializeField, TextArea(5, 30)] private string coreConfigAndroid = "{}";
         [SerializeField, TextArea(5, 30)] private string coreConfigIos = "";
         [SerializeField] private CustomKey[] customKeys = new CustomKey[0];
+        [SerializeField, TextArea(5, 30)] private string countryAdsConfigAndroid = "";
+        [SerializeField, TextArea(5, 30)] private string countryAdsConfigIos = "";
+        [SerializeField, TextArea(5, 30)] private string countryCoreConfigAndroid = "";
+        [SerializeField, TextArea(5, 30)] private string countryCoreConfigIos = "";
+        [SerializeField] private CountryCheck countryCheck = new CountryCheck();
 
         public string AdsConfig => ForPlatform(adsConfigAndroid, adsConfigIos);
 
         public string CoreConfig => ForPlatform(coreConfigAndroid, coreConfigIos);
 
+        internal string CountryAdsConfig => ForPlatform(countryAdsConfigAndroid, countryAdsConfigIos);
+
+        internal string CountryCoreConfig => ForPlatform(countryCoreConfigAndroid, countryCoreConfigIos);
+
+        internal string CountryRulesJson() => JsonUtility.ToJson(countryCheck ?? new CountryCheck());
+
+        internal bool ChecksCountry => countryCheck != null && countryCheck.enabled;
+
+        internal static HDCAdsSettings Override { get; set; }
+
         public static HDCAdsSettings Load()
         {
+            if (Override != null)
+                return Override;
             var settings = Resources.Load<HDCAdsSettings>(ResourceName);
             if (settings != null)
                 return settings;
@@ -74,17 +91,23 @@ namespace HDC.Ads
             return CustomKeyProblems(names);
         }
 
-        internal Dictionary<string, string> CustomDefaults()
+        internal Dictionary<string, string> CustomDefaults() => CustomValues(false);
+
+        internal Dictionary<string, string> CustomCountryValues() => CustomValues(true);
+
+        private Dictionary<string, string> CustomValues(bool country)
         {
-            var defaults = new Dictionary<string, string>(StringComparer.Ordinal);
+            var values = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (CustomKey custom in customKeys ?? new CustomKey[0])
             {
                 string name = custom?.key?.Trim();
-                if (!string.IsNullOrEmpty(name) && !defaults.ContainsKey(name))
-                    defaults[name] = ForPlatform(custom.android ?? "", custom.ios ?? "");
+                if (string.IsNullOrEmpty(name) || values.ContainsKey(name))
+                    continue;
+                string value = ForPlatform(custom.android ?? "", custom.ios ?? "");
+                values[name] = country && !string.IsNullOrWhiteSpace(custom.country) ? custom.country : value;
             }
 
-            return defaults;
+            return values;
         }
 
         private static string ForPlatform(string android, string ios)
@@ -121,6 +144,47 @@ namespace HDC.Ads
             [Tooltip("Value used on iOS until Remote Config has one. Leave it empty to use the Android value.")]
             [TextArea(2, 12)]
             public string ios = "";
+
+            [Tooltip("Value used in country mode, in place of Remote Config. Leave it empty to use the value of the platform.")]
+            [TextArea(2, 12)]
+            public string country = "";
+        }
+
+        [Serializable]
+        internal sealed class CountryCheck
+        {
+            [Tooltip("Country mode: a device in the target country gets the country configs of this asset instead of the Remote Config values.")]
+            public bool enabled;
+
+            [Tooltip("ISO 3166 code of the target country, such as vn.")]
+            public string targetCountry = "vn";
+
+            [Tooltip("Application.systemLanguage values that count as the target country.")]
+            public string[] systemLanguages = { "Vietnamese" };
+
+            [Tooltip("Language codes of the device locale that count as the target country.")]
+            public string[] languageCodes = { "vi" };
+
+            [Tooltip("Counts a device whose locale region is the target country.")]
+            public bool matchRegion = true;
+
+            [Tooltip("Parts of the time zone name that count as the target country, such as Ho_Chi_Minh.")]
+            public string[] timezoneNames = { "Ho_Chi_Minh", "Saigon" };
+
+            [Tooltip("UTC offsets in hours that count as the target country. Several countries share an offset (UTC+7 is also Thailand and western Indonesia), so it is empty by default.")]
+            public float[] utcOffsets = new float[0];
+
+            [Tooltip("Android: counts a device whose SIM card is from the target country.")]
+            public bool matchSimCountry = true;
+
+            [Tooltip("Android: counts a device on a mobile network of the target country.")]
+            public bool matchNetworkCountry = true;
+
+            [Tooltip("Device IDs that never get country mode, on top of the Remote Config key devices.debugDevices. The Device page of the debug panel shows the ID.")]
+            public string[] debugDevices = new string[0];
+
+            [Tooltip("Treats the Editor as a device in the target country, to try the country configs. The Editor never gets country mode otherwise.")]
+            public bool simulateInEditor;
         }
 
 #pragma warning disable 0649

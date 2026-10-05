@@ -6,5 +6,6 @@ namespace HDC.Ads.Diagnostics
         Remote,
         Saved,
         Default,
+        Country,
     }
 }

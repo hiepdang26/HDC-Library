@@ -214,6 +214,36 @@ Ngoài ads_config và ad core config, game khai báo được key Remote Config 
   - Project không có Firebase (`HDC_FIREBASE` tắt) thì HDCAdsSetup dùng giá trị lưu trên máy hoặc giá trị mặc định.
 - `HDCCustomConfig` nằm trong assembly `HDC.Ads.Settings`, luôn được biên dịch, nên game gọi được kể cả khi tắt HDC ads.
 
+### Chế độ quốc gia
+
+Giống hệ thống cũ, máy ở nước đích (mặc định Việt Nam) có thể nhận bộ config riêng của project thay cho giá trị trên Remote Config:
+
+- Config quốc gia sửa ở `HDC > Edit configs > Country configs`, gồm 4 trang:
+  - `Country ads` và `Country core`, mỗi loại cho Android và cho iOS. Trang iOS để trống thì dùng bản Android.
+  - Trang Android để trống thì máy ở nước đích vẫn dùng config thường.
+- Giá trị quốc gia của custom key nằm ở trường `country` trong trang `Custom keys`. Để trống thì dùng giá trị mặc định của key.
+- Cách nhận nước đích sửa ở `HDC > Edit configs > Country check`, mặc định là tắt:
+  - `targetCountry`: mã quốc gia, ví dụ `vn`.
+  - Máy được coi là ở nước đích khi có một tín hiệu khớp:
+    - ngôn ngữ hệ thống (`systemLanguages`);
+    - ngôn ngữ của locale (`languageCodes`);
+    - vùng của locale (`matchRegion`);
+    - tên múi giờ chứa `timezoneNames`, ví dụ `Ho_Chi_Minh`;
+    - độ lệch UTC trong `utcOffsets`;
+    - trên Android, quốc gia của SIM và của mạng di động.
+  - Locale và múi giờ đọc thẳng từ hệ điều hành (Java trên Android, `NSLocale`/`NSTimeZone` trên iOS), không chỉ từ .NET.
+  - Khác hệ thống cũ: hệ thống cũ coi mọi máy UTC+7 là Việt Nam, nên Thái Lan và tây Indonesia cũng bị tính. HDC để `utcOffsets` trống theo mặc định; muốn giống hệ thống cũ thì thêm `7`.
+- Máy test không bao giờ vào chế độ quốc gia. Danh sách máy test lấy từ hai chỗ:
+  - `debugDevices` trong trang Country check;
+  - key Remote Config `devices`, dạng `{"debugDevices":["..."]}`, giống hệ thống cũ.
+  - ID của máy là ANDROID_ID trên Android và `SystemInfo.deviceUniqueIdentifier` ở nơi khác. Trang Device của bảng debug hiện ID này ở dòng `Device ID`.
+- Editor không bao giờ vào chế độ quốc gia, trừ khi bật `simulateInEditor` để thử config quốc gia.
+- Ở chế độ quốc gia:
+  - `HDCRemoteConfig` dùng config quốc gia cho ads_config, ad core config và custom key, rồi khởi tạo HDCAds bằng chúng.
+  - Giá trị Remote Config vẫn được đọc và lưu cho lần sau như thường; config quốc gia thì không lưu.
+  - Project không có Firebase thì HDCAdsSetup cũng làm như vậy, nhưng không đọc được key `devices`.
+- Trang Remote Config của bảng debug cho biết có đang ở chế độ quốc gia hay không, tín hiệu nào khớp, ID của máy, và ghi nguồn `Country` cho các config đã thay.
+
 ## API cho game
 
 ```csharp
@@ -328,7 +358,7 @@ Hành vi các kênh:
   - `Show` lúc quảng cáo đang load cũng trả `true` và hiện khi load xong. `Hide` huỷ lần hiện đang chờ đó.
   - `disablePostInitReload` (dòng `Reload After Show` trên bảng debug) chỉ quyết định popup có tự đổi quảng cáo mới theo `reloadTime` trong lúc đang hiện hay không. Load quảng cáo mới sau khi đóng luôn chờ game gọi `Show` hoặc `Initialize`.
 - Rewarded vẫn hiện khi đã gỡ quảng cáo. Các kênh còn lại đều bị chặn.
-- Chưa hỗ trợ: collapsible banner, config theo quốc gia. HDCLib không tự gửi doanh thu lên Firebase; game nhận `HDCAds.Revenue` rồi tự gửi. Doanh thu lên Adjust do prefab `HDCAdjust` gửi.
+- Chưa hỗ trợ: collapsible banner. HDCLib không tự gửi doanh thu lên Firebase; game nhận `HDCAds.Revenue` rồi tự gửi. Doanh thu lên Adjust do prefab `HDCAdjust` gửi.
 
 ## Bảng debug
 

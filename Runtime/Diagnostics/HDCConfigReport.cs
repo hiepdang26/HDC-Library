@@ -62,6 +62,10 @@ namespace HDC.Ads.Diagnostics
             Firebase = defaultsOnly ? "Not used in the Editor" : "Checking";
         }
 
+        internal static HDCCountryResult Country { get; private set; }
+
+        internal static void CountryChecked(HDCCountryResult result) => Country = result;
+
         internal static void FirebaseChecked(string status) => Firebase = status ?? "";
 
         internal static void FetchDone(string status, DateTime? fetchTime, DateTime? throttledUntil)
@@ -113,6 +117,7 @@ namespace HDC.Ads.Diagnostics
             LoadSeconds = -1f;
             Outcome = Firebase = FetchStatus = Activation = CoreKey = "";
             FetchTime = ThrottledUntil = null;
+            Country = null;
             if (!applied)
                 return;
             AppliedAds = AppliedCore = null;

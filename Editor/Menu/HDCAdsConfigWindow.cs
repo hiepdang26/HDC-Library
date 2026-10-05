@@ -9,9 +9,13 @@ namespace HDC.Ads.Editor
         internal const int AdsAndroidPage = 0;
         internal const int CoreAndroidPage = 2;
         internal const int CoreIosPage = 3;
-        internal const int CustomKeysPage = 4;
+        internal const int CustomKeysPage = 8;
+        internal const int CountryCheckPage = 9;
+        internal const int CountryAdsAndroidPage = 4;
 
         private const string CustomKeysTitle = "Custom keys";
+        private const string CountryCheckTitle = "Country check";
+        private const int TabsPerRow = 5;
 
         private static readonly Page[] Pages =
         {
@@ -23,6 +27,14 @@ namespace HDC.Ads.Editor
                 "Default ad core config on Android, for the key ads_config names in selectedAdCoreName."),
             new Page("Ad core (iOS)", "coreConfigIos", HDCConfigJson.Kind.Core, true,
                 "Default ad core config on iOS. Leave it empty to use the Android one."),
+            new Page("Country ads (Android)", "countryAdsConfigAndroid", HDCConfigJson.Kind.Ads, true,
+                "ads_config a device in the target country gets in country mode, on Android, in place of Remote Config. Leave it empty to keep the usual ads_config."),
+            new Page("Country ads (iOS)", "countryAdsConfigIos", HDCConfigJson.Kind.Ads, true,
+                "ads_config in country mode on iOS. Leave it empty to use the Android one."),
+            new Page("Country core (Android)", "countryCoreConfigAndroid", HDCConfigJson.Kind.Core, true,
+                "Ad core config in country mode on Android, in place of Remote Config. Leave it empty to keep the usual ad core config."),
+            new Page("Country core (iOS)", "countryCoreConfigIos", HDCConfigJson.Kind.Core, true,
+                "Ad core config in country mode on iOS. Leave it empty to use the Android one."),
         };
 
         [SerializeField] private int page;
@@ -44,7 +56,7 @@ namespace HDC.Ads.Editor
                 settings = new SerializedObject(HDCAdsSettingsAsset.LoadOrCreate());
             settings.Update();
 
-            int selected = GUILayout.Toolbar(page, Titles());
+            int selected = GUILayout.SelectionGrid(page, Titles(), TabsPerRow);
             if (selected != page)
             {
                 page = selected;
@@ -55,6 +67,12 @@ namespace HDC.Ads.Editor
             if (page == CustomKeysPage)
             {
                 DrawCustomKeys();
+                return;
+            }
+
+            if (page == CountryCheckPage)
+            {
+                DrawCountryCheck();
                 return;
             }
 
@@ -132,6 +150,42 @@ namespace HDC.Ads.Editor
                 EditorGUIUtility.PingObject(settings.targetObject);
         }
 
+        private void DrawCountryCheck()
+        {
+            EditorGUILayout.HelpBox("Country mode: a device in the target country gets the Country ads and Country core configs of this " +
+                                    "asset, and the country value of each custom key, instead of the Remote Config values. A device counts " +
+                                    "as in the country when any of the signals below matches. Devices in debugDevices here or in the Remote " +
+                                    "Config key devices ({\"debugDevices\":[...]}) never get it. The Editor gets it only with Simulate In Editor.",
+                MessageType.None);
+            SerializedProperty country = settings.FindProperty("countryCheck");
+            scroll = EditorGUILayout.BeginScrollView(scroll);
+            EditorGUI.BeginChangeCheck();
+            SerializedProperty field = country.Copy();
+            SerializedProperty end = country.GetEndProperty();
+            if (field.NextVisible(true))
+            {
+                do
+                {
+                    if (SerializedProperty.EqualContents(field, end))
+                        break;
+                    EditorGUILayout.PropertyField(field, true);
+                }
+                while (field.NextVisible(false));
+            }
+
+            if (EditorGUI.EndChangeCheck())
+                settings.ApplyModifiedProperties();
+            EditorGUILayout.EndScrollView();
+
+            if (country.FindPropertyRelative("enabled").boolValue && string.IsNullOrWhiteSpace(settings.FindProperty("countryAdsConfigAndroid").stringValue))
+                EditorGUILayout.HelpBox("Country mode is on but Country ads (Android) is empty: devices in the country keep the usual ads_config.", MessageType.Warning);
+
+            GUI.enabled = EditorUtility.IsDirty(settings.targetObject);
+            if (GUILayout.Button("Save"))
+                SaveCustomKeys();
+            GUI.enabled = true;
+        }
+
         private void SaveCustomKeys()
         {
             if (settings != null && settings.targetObject != null && EditorUtility.IsDirty(settings.targetObject))
@@ -140,10 +194,11 @@ namespace HDC.Ads.Editor
 
         private string[] Titles()
         {
-            var titles = new string[Pages.Length + 1];
+            var titles = new string[Pages.Length + 2];
             for (int i = 0; i < Pages.Length; i++)
                 titles[i] = IsChanged(i) ? Pages[i].Title + " *" : Pages[i].Title;
             titles[CustomKeysPage] = CustomKeysTitle;
+            titles[CountryCheckPage] = CountryCheckTitle;
             return titles;
         }
 
