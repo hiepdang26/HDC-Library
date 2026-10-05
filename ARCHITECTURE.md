@@ -58,8 +58,9 @@ Các assembly khác:
 | `HDC.Ads.Settings` | `Runtime/Settings` | Config mặc định của project (`HDC > Edit configs`). Build ở mọi cấu hình. |
 | `HDC.Ads.Firebase` | `Runtime/Firebase` | `HDCRemoteConfig` lấy config từ Remote Config. Cần define `HDC_FIREBASE`. |
 | `HDC.Ads.Setup` | `Setup` | Prefab `HDCAdsSetup` khởi tạo ads ở scene đầu. Build được cả khi tắt HDC ads. |
+| `HDC.Ads.Adjust` | `Adjust` | Prefab `HDCAdjust`: khởi động Adjust, đọc attribution, gửi doanh thu quảng cáo và mua hàng lên Adjust. Build ở mọi cấu hình. Phần gọi Adjust SDK cần define `HDC_ADJUST`, phần nghe `HDCAds.Revenue` cần thêm `HDC_ADS`. |
 | `HDC.Ads.Debug` | `Debug` | Bảng debug (uGUI). `Debug/Editor` dựng prefab của bảng. |
-| `HDC.Ads.Editor` | `Editor` | Menu HDC, bật và tắt `HDC_ADS`, post-process cho iOS. |
+| `HDC.Ads.Editor` | `Editor` | Menu HDC, bật và tắt `HDC_ADS`, tự đặt `HDC_ADJUST` theo Adjust SDK, inspector của `HDCAdjust`, post-process cho iOS. |
 | `HDC.Ads.Demo` | `Demo` | Scene demo. Không có `InternalsVisibleTo`, nên chỉ dùng được API public. |
 | `HDC.Ads.Tests` | `Tests/Editor` | Test Edit Mode và Play Mode. |
 
@@ -119,7 +120,7 @@ Các tầng trong `Runtime/` cố ý nằm chung assembly `HDC.Ads`, không tác
 
 ## Kiểm thử
 
-- `Tools~/compile-matrix.sh` biên dịch mọi cấu hình (Editor, iOS, Android, không Firebase, Input System, tắt HDC) trong vài giây, không cần mở Unity.
+- `Tools~/compile-matrix.sh` biên dịch mọi cấu hình (Editor, iOS, Android, không Firebase, Input System, tắt HDC, có và không có Adjust) trong vài giây, không cần mở Unity.
 - `Tools~/run-tests.sh` chạy test ở batch mode. Xem phần "Kiểm thử" trong README.
 - Test logic chạy trên port giả trong `Tests/Editor/Fakes`, không cần Play Mode. `HDCFakeAds` dựng runtime với đồng hồ, lưu trữ, SDK và mạng đều là đồ giả.
 - `HDCPublicApiTests` so API public với `PublicApi.txt`. Khi cố ý đổi API, chạy test với `HDC_ACCEPT_API=1` rồi commit file đó cùng thay đổi.

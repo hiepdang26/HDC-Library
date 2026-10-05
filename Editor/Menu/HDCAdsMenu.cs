@@ -9,6 +9,7 @@ namespace HDC.Ads.Editor
         private const string Root = "HDC/";
 
         private const string SetupPrefabGuid = "10e1a444d69fc4f72a856e51d2def004";
+        private const string AdjustPrefabGuid = "13fb02986b6ae448a95246f7eb8bf7d5";
 
         [MenuItem(Root + "Ads/Enable", false, 1)]
         private static void Enable() => HDCAdsActivation.SetEnabled(true);
@@ -40,17 +41,38 @@ namespace HDC.Ads.Editor
         }
 
         [MenuItem(Root + "Setup/Add to open scene", false, 50)]
-        private static void AddSetup()
+        private static void AddSetup() => AddPrefab(SetupPrefabGuid, "HDCAdsSetup", "Add HDC ads setup");
+
+        [MenuItem(Root + "Adjust/Add to open scene", false, 60)]
+        private static void AddAdjust()
         {
-            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(AssetDatabase.GUIDToAssetPath(SetupPrefabGuid));
+#if UNITY_2023_1_OR_NEWER
+            HDCAdjust existing = Object.FindAnyObjectByType<HDCAdjust>();
+#else
+            HDCAdjust existing = Object.FindObjectOfType<HDCAdjust>();
+#endif
+            if (existing != null)
+            {
+                Selection.activeGameObject = existing.gameObject;
+                EditorGUIUtility.PingObject(existing.gameObject);
+                Debug.Log("[HDCAdjust] The open scene already has HDCAdjust.");
+                return;
+            }
+
+            AddPrefab(AdjustPrefabGuid, "HDCAdjust", "Add HDC Adjust");
+        }
+
+        private static void AddPrefab(string guid, string name, string undo)
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(AssetDatabase.GUIDToAssetPath(guid));
             if (prefab == null)
             {
-                Debug.LogError("[HDCAds] The HDCAdsSetup prefab is missing from HDCLib.");
+                Debug.LogError("[HDCAds] The " + name + " prefab is missing from HDCLib.");
                 return;
             }
 
             var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
-            Undo.RegisterCreatedObjectUndo(instance, "Add HDC ads setup");
+            Undo.RegisterCreatedObjectUndo(instance, undo);
             Selection.activeGameObject = instance;
             EditorSceneManager.MarkSceneDirty(instance.scene);
         }

@@ -14,7 +14,7 @@ namespace HDC.Ads.Tests
         private const string AcceptVariable = "HDC_ACCEPT_API";
         private const int ListedChanges = 40;
 
-        private static readonly string[] AssemblyNames = { "HDC.Ads", "HDC.Ads.Settings", "HDC.Ads.Firebase", "HDC.Ads.Setup", "HDC.Ads.Debug" };
+        private static readonly string[] AssemblyNames = { "HDC.Ads", "HDC.Ads.Settings", "HDC.Ads.Firebase", "HDC.Ads.Setup", "HDC.Ads.Adjust", "HDC.Ads.Debug" };
 
         private const string FileHeader =
             "# The public API of HDCLib's runtime assemblies: what game code can compile against.\n" +

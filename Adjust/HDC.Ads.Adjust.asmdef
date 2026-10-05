@@ -1,13 +1,11 @@
 {
-    "name": "HDC.Ads.Editor",
-    "rootNamespace": "HDC.Ads.Editor",
+    "name": "HDC.Ads.Adjust",
+    "rootNamespace": "HDC.Ads",
     "references": [
-        "HDC.Ads.Settings",
-        "HDC.Ads.Adjust"
+        "HDC.Ads",
+        "AdjustSdk.Scripts"
     ],
-    "includePlatforms": [
-        "Editor"
-    ],
+    "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,

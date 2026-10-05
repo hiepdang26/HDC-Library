@@ -157,6 +157,45 @@ sealed class HDC.Ads.HDCAdsSetup : UnityEngine.MonoBehaviour
   ctor()
   static void InitializeAds(System.Action onReady = null)
 
+[HDC.Ads.Adjust]
+sealed class HDC.Ads.HDCAdjust : UnityEngine.MonoBehaviour
+  const field string AdMobRevenueSource = "admob_sdk"
+  const field string CampaignKey = "user_campaign"
+  const field string CostKey = "user_cost"
+  const field string CreativeKey = "user_creative"
+  const field string NetworkKey = "user_network"
+  const field string TimedOutNetwork = "time_out"
+  ctor()
+  static bool TrackPurchaseRevenue(double amount, string currency, string transactionId = null)
+  static event System.Action<HDC.Ads.HDCAdjustAttribution> AttributionChanged
+  static property HDC.Ads.HDCAdjustAttribution Attribution { get; }
+  static property bool IsAttributionReady { get; }
+  static property string Network { get; }
+sealed class HDC.Ads.HDCAdjustAttribution
+  override string ToString()
+  property double? CostAmount { get; }
+  property string Adgroup { get; }
+  property string Campaign { get; }
+  property string ClickLabel { get; }
+  property string CostCurrency { get; }
+  property string CostType { get; }
+  property string Creative { get; }
+  property string Network { get; }
+  property string TrackerName { get; }
+  property string TrackerToken { get; }
+enum HDC.Ads.HDCAdjustEnvironment
+  Auto = 0
+  Production = 2
+  Sandbox = 1
+enum HDC.Ads.HDCAdjustLogLevel
+  Assert = 6
+  Debug = 2
+  Error = 5
+  Info = 3
+  Suppress = 7
+  Verbose = 1
+  Warn = 4
+
 [HDC.Ads.Debug]
 sealed class HDC.Ads.DebugUI.HDCAdsDebugPanel : UnityEngine.MonoBehaviour
   ctor()

@@ -6,6 +6,7 @@
         "HDC.Ads.Firebase",
         "HDC.Ads.Settings",
         "HDC.Ads.Debug",
+        "HDC.Ads.Adjust",
         "UnityEngine.UI",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"

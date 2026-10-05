@@ -42,6 +42,14 @@ Những thứ sau đã đổi so với 0.5.0:
   - Events: các sự kiện quảng cáo.
   - Device: có thẻ Mediation, cho biết trạng thái từng adapter và Meta test mode.
 - Ad unit test của Google cho mọi định dạng (`UseTestAdUnits`).
+- Prefab `HDCAdjust` (assembly `HDC.Ads.Adjust`), thay cho prefab Adjust của SDK:
+  - Khởi động Adjust bằng cài đặt trên inspector, đủ các trường của prefab SDK. App token riêng cho Android và iOS. Môi trường `Auto` chạy Sandbox ở bản Development và Production ở bản release.
+  - Tự gửi doanh thu của mọi quảng cáo HDC lên Adjust (source `admob_sdk`, network là nguồn mediation, unit là ad unit, placement là position), giống hệ thống cũ.
+  - Đọc attribution, lưu vào PlayerPrefs `user_network`, `user_campaign`, `user_creative`, `user_cost`, và đưa cho game qua `HDCAdjust.Attribution`, `HDCAdjust.Network` (`time_out` sau 7 giây chờ) và sự kiện `HDCAdjust.AttributionChanged`.
+  - `HDCAdjust.TrackPurchaseRevenue` gửi doanh thu mua hàng bằng event token của từng nền tảng.
+  - Android: chuyển deep link mở app cho Adjust, như prefab của SDK.
+  - Menu `HDC > Adjust > Add to open scene`. Define `HDC_ADJUST` tự bật khi project có Adjust SDK 5 và tự tắt khi SDK bị xoá.
+  - Trang Device của bảng debug cho biết trạng thái của HDCAdjust.
 - Trang Device của bảng debug có thêm:
   - Nút `Test Ad Units: On/Off`, bật tắt ad unit test của Google. Lựa chọn được lưu trên máy và áp dụng từ lúc mở app.
   - Nút `Restart App`, hiện ra sau khi đổi lựa chọn trên. Nó mở lại app trên Android và vào lại Play Mode trong Editor. Trên iOS nút thành `Quit App`, vì iOS không cho app tự mở lại.

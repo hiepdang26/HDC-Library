@@ -337,6 +337,8 @@ namespace HDC.Ads.DebugUI
         private void RedrawAdjust()
         {
             adjustList.Begin();
+            foreach ((string label, string value, Color color) in HDCAdjustStatus.Rows())
+                adjustList.Row(label, value, color);
             string state = HDCAdjustProbe.State;
             adjustList.Row("State", state, state == "OK" ? HDCDebugStyle.GoodColor : state.StartsWith("Không có phản hồi") ? HDCDebugStyle.WarnColor : HDCDebugStyle.MutedColor);
             foreach (KeyValuePair<string, string> pair in HDCAdjustProbe.Ordered())

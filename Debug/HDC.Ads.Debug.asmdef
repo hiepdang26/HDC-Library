@@ -5,6 +5,7 @@
         "HDC.Ads",
         "HDC.Ads.Settings",
         "HDC.Ads.Setup",
+        "HDC.Ads.Adjust",
         "UnityEngine.UI",
         "Unity.InputSystem"
     ],

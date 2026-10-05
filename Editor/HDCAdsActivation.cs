@@ -15,8 +15,10 @@ namespace HDC.Ads.Editor
     {
         internal const string Define = "HDC_ADS";
         internal const string FirebaseDefine = "HDC_FIREBASE";
+        internal const string AdjustDefine = "HDC_ADJUST";
 
         private const string EditorAssembly = "HDC.Ads.Editor";
+        private const string AdjustAssembly = "AdjustSdk.Scripts";
         private const string RootToken = "{HDC_ROOT}";
         private const string DependenciesName = "HDCAdsDependencies.xml";
 
@@ -30,7 +32,12 @@ namespace HDC.Ads.Editor
             NamedBuildTarget.Standalone,
         };
 
-        static HDCAdsActivation() => EditorApplication.delayCall += RefreshDependencies;
+        static HDCAdsActivation()
+        {
+            EditorApplication.delayCall += RefreshDependencies;
+            EditorApplication.delayCall += SyncAdjustDefine;
+            CompilationPipeline.compilationFinished += _ => EditorApplication.delayCall += SyncAdjustDefine;
+        }
 
         internal static string Root
         {
@@ -97,7 +104,11 @@ namespace HDC.Ads.Editor
         {
             public int callbackOrder => int.MinValue;
 
-            public void OnPreprocessBuild(BuildReport report) => RefreshDependencies();
+            public void OnPreprocessBuild(BuildReport report)
+            {
+                SyncAdjustDefine();
+                RefreshDependencies();
+            }
         }
 
         private static void DeleteDependencies()
@@ -114,6 +125,23 @@ namespace HDC.Ads.Editor
                     AssetDatabase.DeleteAsset(folder);
             }
         }
+
+        internal static bool HasAdjust =>
+            !string.IsNullOrEmpty(CompilationPipeline.GetAssemblyDefinitionFilePathFromAssemblyName(AdjustAssembly));
+
+        internal static void SyncAdjustDefine()
+        {
+            bool adjust = HasAdjust;
+            foreach (NamedBuildTarget target in DefineTargets)
+            {
+                List<string> defines = SplitDefines(PlayerSettings.GetScriptingDefineSymbols(target));
+                if (SetAdjustDefine(defines, adjust))
+                    PlayerSettings.SetScriptingDefineSymbols(target, string.Join(";", defines));
+            }
+        }
+
+        internal static bool SetAdjustDefine(List<string> defines, bool adjust) =>
+            adjust ? AddMissing(defines, AdjustDefine) : defines.Remove(AdjustDefine);
 
         private static bool HasFirebaseRemoteConfig() =>
             AppDomain.CurrentDomain.GetAssemblies().Any(assembly => assembly.GetName().Name == "Firebase.RemoteConfig");

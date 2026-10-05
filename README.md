@@ -43,6 +43,8 @@ Plugins/iOS/                   HDCAds.xcframework, HDCAdsBridge.mm (post-process
 Plugins/Android/Repository~/   Maven repo chứa thư viện Android hdc-ads-android (Unity bỏ qua thư mục có đuôi "~")
 Editor/                        Menu HDC (bật/tắt, sửa config), post-process Xcode, mẫu Dependencies.xml
 Setup/                         HDCAdsSetup.prefab: khởi động ads ở scene đầu (assembly HDC.Ads.Setup, luôn được biên dịch)
+Adjust/                        HDCAdjust.prefab: khởi động Adjust, đọc attribution, gửi doanh thu quảng cáo lên Adjust
+                               (assembly HDC.Ads.Adjust, luôn được biên dịch)
 Debug/                         Bảng debug HDCAdsDebugPanel.prefab (assembly HDC.Ads.Debug, cần define HDC_ADS)
 Demo/                          HDCAdsDemo: mỗi kênh một hàng nút, gọi đúng API như code game
 Tests/Editor/                  Test Edit Mode (assembly HDC.Ads.Tests, chỉ có trong Editor) và PublicApi.txt
@@ -69,6 +71,7 @@ Mặc định HDCLib ở trạng thái **tắt**, và không có gì của HDCLi
   - Thêm define `HDC_ADS` cho Android, iOS và Standalone. Nếu project có Firebase Remote Config thì thêm cả `HDC_FIREBASE`.
   - Tạo file `HDCAdsDependencies.xml` cho External Dependency Manager, với đường dẫn repo Maven theo vị trí thật của HDCLib. File nằm ở `<HDCLib>/Editor/`, hoặc ở `Assets/HDCAds/Editor/` khi HDCLib là package. Khi HDC đang bật, file này tự cập nhật theo template mỗi lần Unity nạp lại script, nên bản HDCLib mới đổi version thư viện Android thì project nhận ngay.
 - `HDC > Ads > Disable` hoàn tác các bước trên.
+- Define `HDC_ADJUST` không cần bật tay. Khi project có Adjust Unity SDK 5 (assembly `AdjustSdk.Scripts`), HDCLib tự thêm define này cho Android, iOS và Standalone mỗi lần Unity nạp lại script, biên dịch xong hoặc bắt đầu build, và tự gỡ khi SDK bị xoá. Define này không phụ thuộc HDC ads, nên Adjust vẫn khởi động khi HDC ads tắt.
 - Plugin iOS (`HDCAds.xcframework`, `HDCAdsBridge.mm`) luôn để tắt trong importer. Khi build iOS có `HDC_ADS`, post-process copy framework vào `Frameworks/HDCAds/` và file bridge vào `Libraries/HDCAds/` của project Xcode, rồi thêm cả hai vào target UnityFramework.
   - Cách này chạy giống nhau trên mọi bản Unity, kể cả khi HDCLib là package chỉ đọc.
   - Nếu build không có `HDC_ADS` đè lên (Append) một bản export cũ, post-process gỡ hai file đó ra.
@@ -106,6 +109,73 @@ Các trường của prefab:
 Assembly của prefab luôn được biên dịch. Khi HDC tắt, prefab chỉ mở scene tiếp theo, nên scene đầu không bị kẹt. Nếu HDCAds đã khởi tạo rồi (ví dụ quay lại scene đầu), prefab bỏ qua bước khởi tạo.
 
 Scene chạy riêng mà không có prefab, như scene test, thì gọi `HDCAdsSetup.InitializeAds()`.
+
+## Adjust: prefab HDCAdjust
+
+Prefab `Adjust/HDCAdjust.prefab` thay cho prefab Adjust của SDK. Nó khởi động Adjust bằng cài đặt trên inspector, đọc attribution và tự gửi doanh thu quảng cáo của HDC lên Adjust. Cần Adjust Unity SDK 5 trong project (đã thử 5.4.2).
+
+Cách dùng:
+
+1. Kéo prefab vào scene đầu tiên, cạnh `HDCAdsSetup`, hoặc dùng `HDC > Adjust > Add to open scene`.
+2. Điền app token Android và iOS trên instance của prefab trong scene. Đừng sửa prefab gốc trong HDCLib.
+3. Xoá prefab Adjust của SDK khỏi scene nếu còn. Nếu prefab đó vẫn tự khởi động Adjust, HDCAdjust để nó khởi động với cài đặt của nó và log cảnh báo; HDCAdjust vẫn gửi doanh thu và đọc attribution.
+
+Prefab tự giữ mình qua các scene (`DontDestroyOnLoad`). Khi scene đầu được mở lại, bản thứ hai tự huỷ, nên Adjust chỉ khởi động một lần.
+
+Các trường giống prefab Adjust của SDK:
+
+| Trường | Mặc định | Ý nghĩa |
+|---|---|---|
+| `startManually` | tắt | Bật khi game tự gọi `Adjust.InitSdk`. HDCAdjust bỏ qua cài đặt SDK, chỉ đọc attribution và gửi doanh thu. |
+| `androidAppToken`, `iosAppToken` | trống | App token của từng nền tảng trên dashboard Adjust. Token trống thì Adjust không khởi động trên nền tảng đó, và log báo lỗi. |
+| `environment` | `Auto` | `Auto`: Sandbox trong Editor và bản Development build, Production ở các bản build khác. Có thể chọn cố định `Sandbox` hoặc `Production`. Bản release chạy Sandbox thì log cảnh báo. |
+| `logLevel` | `Info` | Mức log của Adjust SDK. `Suppress` tắt log. |
+| `coppaCompliance` | tắt | App dành cho trẻ em (COPPA). |
+| `sendInBackground` | tắt | Cho Adjust gửi request khi app ở nền. |
+| `launchDeferredDeeplink` | bật | Mở deferred deep link của chiến dịch cài đặt. |
+| `costDataInAttribution` | tắt | Thêm cost type, amount và currency vào attribution. |
+| `linkMe` | tắt | LinkMe: deferred deep link trên iOS, đọc từ clipboard. |
+| `defaultTracker` | trống | Tracker cho lượt cài không thuộc chiến dịch nào, ví dụ bản cài sẵn. |
+| `preinstallTracking`, `preinstallFilePath` | tắt, trống | Android: đọc chiến dịch cài sẵn của nhà sản xuất máy. |
+| `adServices`, `idfaReading`, `skanAttribution` | bật | iOS: Apple Search Ads, đọc IDFA khi người chơi cho phép, SKAdNetwork. |
+
+Các trường riêng của HDC:
+
+| Trường | Mặc định | Ý nghĩa |
+|---|---|---|
+| `sendAdRevenue` | bật | Gửi doanh thu của mọi quảng cáo HDC lên Adjust. |
+| `attributionTimeoutSeconds` | 7 | Số giây chờ attribution sau khi Adjust chạy. Quá thời gian thì `HDCAdjust.Network` là `time_out`. |
+| `androidPurchaseEventToken`, `iosPurchaseEventToken` | trống | Event token mà `HDCAdjust.TrackPurchaseRevenue` gửi trên từng nền tảng. |
+
+HDCAdjust làm giống hệ thống cũ:
+
+- Deep link trên Android: link mở app (`Application.absoluteURL` lúc mở và `Application.deepLinkActivated` sau đó) được chuyển cho Adjust, như prefab của SDK. Trên iOS, SDK tự xử lý.
+- Doanh thu quảng cáo: mỗi sự kiện `HDCAds.Revenue` thành một `AdjustAdRevenue`:
+  - source `admob_sdk`, và `SetRevenue(Value, Currency)`;
+  - network là `AdSource` (nguồn mediation, ví dụ `Meta Audience Network`), hoặc `AdMob` khi nguồn trống;
+  - unit là `AdUnitId`, placement là `Position`.
+- Attribution: HDCAdjust chờ Adjust báo đã bật rồi gọi `Adjust.GetAttribution`. Khi chính HDCAdjust khởi động Adjust, nó nghe thêm `AttributionChangedDelegate`. Mỗi attribution mới thì:
+  - lưu vào PlayerPrefs `user_network`, `user_campaign`, `user_creative`, và `user_cost` khi có cost;
+  - đặt `HDCAdjust.Network` là tên network đã chuẩn hoá: chữ thường, khoảng trắng thành `_`, bỏ ký tự không phải chữ, số hay `_`, bỏ chữ số đầu, tối đa 30 ký tự. Ví dụ `Facebook Installs` thành `facebook_installs`;
+  - phát sự kiện `HDCAdjust.AttributionChanged`.
+- Chưa gửi attribution lên Firebase làm user property. Phần này làm cùng Firebase tracking sau.
+
+API:
+
+```csharp
+using HDC.Ads;
+
+if (HDCAdjust.IsAttributionReady)
+    Debug.Log(HDCAdjust.Network);                              // "facebook_installs", "organic"…
+HDCAdjust.AttributionChanged += attribution => Debug.Log(attribution.Campaign);
+HDCAdjust.TrackPurchaseRevenue(0.99, "USD", transactionId);    // event token của nền tảng đang chạy
+```
+
+- `HDCAdjust.Attribution` (`HDCAdjustAttribution`): `Network`, `Campaign`, `Adgroup`, `Creative`, `ClickLabel`, `TrackerName`, `TrackerToken`, `CostType`, `CostAmount`, `CostCurrency`. Giá trị là `null` cho tới khi có attribution.
+- `HDCAdjust.Network`: rỗng khi đang chờ, `time_out` khi quá `attributionTimeoutSeconds`, và thành network thật nếu attribution tới muộn.
+- `TrackPurchaseRevenue` trả `false` khi không gửi: thiếu token, scene không có prefab, hoặc không chạy trên Android hay iOS.
+
+Trong Editor, Adjust không chạy. HDCAdjust vẫn nhận doanh thu, và khi bật Debug Log thì log ra thứ nó sẽ gửi. Inspector của prefab báo khi token còn trống hay project chưa có Adjust SDK. Với `Auto`, inspector cho biết bản build tới chạy Sandbox hay Production. Trang Device của bảng debug có trạng thái của HDCAdjust.
 
 ## Config mặc định
 
@@ -222,7 +292,7 @@ Hành vi các kênh:
   - `Show` lúc quảng cáo đang load cũng trả `true` và hiện khi load xong. `Hide` huỷ lần hiện đang chờ đó.
   - `disablePostInitReload` (dòng `Reload After Show` trên bảng debug) chỉ quyết định popup có tự đổi quảng cáo mới theo `reloadTime` trong lúc đang hiện hay không. Load quảng cáo mới sau khi đóng luôn chờ game gọi `Show` hoặc `Initialize`.
 - Rewarded vẫn hiện khi đã gỡ quảng cáo. Các kênh còn lại đều bị chặn.
-- Chưa hỗ trợ: collapsible banner, config theo quốc gia. HDCLib không tự gửi doanh thu lên Firebase hay Adjust; game nhận `HDCAds.Revenue` rồi tự gửi.
+- Chưa hỗ trợ: collapsible banner, config theo quốc gia. HDCLib không tự gửi doanh thu lên Firebase; game nhận `HDCAds.Revenue` rồi tự gửi. Doanh thu lên Adjust do prefab `HDCAdjust` gửi.
 
 ## Bảng debug
 
@@ -288,7 +358,9 @@ Prefab `Debug/HDCAdsDebugPanel.prefab` là bảng debug nằm đè lên game. Ch
   - Các adapter khác trong build: tên và trạng thái.
 - Device: model, hệ điều hành, CPU, RAM, GPU, màn hình, safe area, pin.
 - Network: kết nối, và IP công khai, quốc gia, nhà mạng (tra từ ipwho.is khi mở trang lần đầu hoặc bấm `Check Public IP`), để biết điều kiện quốc gia của Remote Config nhận máy là ở đâu.
-- Adjust: phiên bản SDK, adid và attribution, nếu game có Adjust SDK (HDC Ads không dùng Adjust nên đọc qua reflection).
+- Adjust:
+  - Trạng thái HDCAdjust: ai khởi động Adjust, ở môi trường nào, `HDCAdjust.Network`, số lần gửi doanh thu, doanh thu gần nhất và purchase token. Thiếu prefab hay thiếu app token thì dòng đầu báo vàng hoặc đỏ.
+  - Phiên bản SDK, adid và attribution, đọc thẳng từ Adjust SDK qua reflection.
 
 ### Khác
 
@@ -334,6 +406,7 @@ Các nhóm test:
   - Thêm mạng hay kênh mới thì viết test kiểu này trước: `HDCFakeAds` dựng runtime với đồng hồ, lưu trữ, SDK và mạng giả do test điều khiển.
 - Bảng debug, tracker, ID test của Google, post-process iOS: chạy Play Mode với phần giả lập của Editor. Trong giả lập, ad unit có chữ `fail` trong ID load lỗi no fill.
   - Một kênh giả (`HDCFakeChannel`) đăng ký từ test hiện đủ tab, nút, ad unit, trạng thái, cảnh báo config và bản đồ ad unit: bảng debug không có code riêng cho kênh nào.
+- Adjust (`HDCAdjustTests`): chuẩn hoá network, chọn môi trường, chuyển doanh thu sang Adjust, attribution, giá trị mặc định của prefab, define `HDC_ADJUST`. Một test Play Mode kiểm tra doanh thu của quảng cáo tới được HDCAdjust.
 - Hợp đồng API (`HDCPublicApiTests`):
   - So mọi type và member public của các assembly runtime với `Tests/Editor/PublicApi.txt`.
   - Type hay member public mà file chưa có làm test fail, mục trong file mà code không còn cũng vậy.
@@ -345,7 +418,7 @@ Các nhóm test:
 
 `Tools~/compile-matrix.sh` biên dịch mọi assembly bằng Roslyn của đúng bản Unity của project, không cần mở Unity:
 
-- Các cấu hình: Editor, iOS, Android, không Firebase, Input System, tắt HDC, assembly Editor theo từng build target, và assembly test.
+- Các cấu hình: Editor, iOS và Android (có Adjust), không Firebase (không Adjust), Input System, tắt HDC (HDCAdjust có và không có Adjust), assembly Editor theo từng build target, và assembly test.
 - Chạy sau mỗi thay đổi có `#if`. Mất khoảng 15 giây.
 - Mặc định tìm Unity theo đường dẫn Unity Hub trên macOS. Máy khác thì đặt `UNITY_EDITOR_DIR`.
 
@@ -354,6 +427,7 @@ Các nhóm test:
 - Unity 2021.3 trở lên, tới Unity 6000.6. Xem bảng bên dưới.
 - Plugin Google Mobile Ads của Unity, bản 11.x (đã thử 11.4.0). Plugin này ghi App ID của AdMob vào `Info.plist` và `AndroidManifest.xml`. Nó cũng phục vụ rewarded, app open và banner view. Assembly `HDC.Ads` dùng trực tiếp các DLL của plugin.
 - External Dependency Manager 1.2.151 trở lên. Bản này mới đọc được repo Maven nằm trong package.
+- Adjust Unity SDK 5 (đã thử 5.4.2), nếu dùng prefab `HDCAdjust`. Không bắt buộc.
 - iOS 15.0 trở lên. Post-process tự nâng deployment target của project Xcode và Podfile. Pod: GMA iOS 13.9, Meta adapter 6.22.0.0.
 - Android minSdk 24.
 
