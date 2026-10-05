@@ -42,6 +42,10 @@ Những thứ sau đã đổi so với 0.5.0:
   - Events: các sự kiện quảng cáo.
   - Device: có thẻ Mediation, cho biết trạng thái từng adapter và Meta test mode.
 - Ad unit test của Google cho mọi định dạng (`UseTestAdUnits`).
+- Custom key Remote Config của game, như custom remote config của hệ thống cũ:
+  - Khai báo ở `HDC > Edit configs > Custom keys`, mỗi key có giá trị mặc định cho Android và iOS. Cửa sổ cảnh báo key trống, trùng, trùng key của HDC hoặc sai quy tắc tên.
+  - Game đọc bằng `HDCCustomConfig.Get(key)`. Giá trị lấy theo thứ tự Remote Config, giá trị lưu trên máy (`HDCAds.Custom.<key>`), rồi mặc định, và đọc xong trước khi HDCAds khởi tạo. Có `IsReady` và sự kiện `Updated`.
+  - Trang Remote Config của bảng debug hiện nguồn và giá trị của từng custom key.
 - Native sau interstitial cho group force ad (`androidInterstitials.useNativeAfterInterstitial`, `nativeAfterInterstitialId`, `nativeAfterInterstitialLayout`), trên Android, giống hệ thống cũ:
   - Native full-screen hiện ngay dưới interstitial lúc interstitial hiện. Lệnh show được gọi thẳng trên luồng Android, không chờ Unity đang bị pause.
   - Native chưa load thì load ở lần interstitial đầu và hiện khi load xong. Sau mỗi lần đóng thì tự load lại, nhưng không tự hiện.

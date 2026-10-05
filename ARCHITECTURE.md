@@ -55,8 +55,8 @@ Các assembly khác:
 
 | Assembly | Thư mục | Vai trò |
 |---|---|---|
-| `HDC.Ads.Settings` | `Runtime/Settings` | Config mặc định của project (`HDC > Edit configs`). Build ở mọi cấu hình. |
-| `HDC.Ads.Firebase` | `Runtime/Firebase` | `HDCRemoteConfig` lấy config từ Remote Config. Cần define `HDC_FIREBASE`. |
+| `HDC.Ads.Settings` | `Runtime/Settings` | Config mặc định và custom key của project (`HDC > Edit configs`), cùng `HDCCustomConfig` để game đọc custom key. Build ở mọi cấu hình. |
+| `HDC.Ads.Firebase` | `Runtime/Firebase` | `HDCRemoteConfig` lấy config và custom key từ Remote Config. Cần define `HDC_FIREBASE`. |
 | `HDC.Ads.Setup` | `Setup` | Prefab `HDCAdsSetup` khởi tạo ads ở scene đầu. Build được cả khi tắt HDC ads. |
 | `HDC.Ads.Adjust` | `Adjust` | Prefab `HDCAdjust`: khởi động Adjust, đọc attribution, gửi doanh thu quảng cáo và mua hàng lên Adjust. Build ở mọi cấu hình. Phần gọi Adjust SDK cần define `HDC_ADJUST`, phần nghe `HDCAds.Revenue` cần thêm `HDC_ADS`. |
 | `HDC.Ads.Debug` | `Debug` | Bảng debug (uGUI). `Debug/Editor` dựng prefab của bảng. |

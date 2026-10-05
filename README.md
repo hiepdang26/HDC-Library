@@ -195,6 +195,25 @@ HDCRemoteConfig.FetchAndInitialize(defaults.AdsConfig, defaults.CoreConfigsByKey
 
 `CoreConfigsByKey()` đặt core config mặc định dưới mọi key mà ads_config có thể chọn: `adcore_main_android`, `adcore_main_ios` và key ghi trong `selectedAdCoreName`.
 
+### Custom key của game
+
+Ngoài ads_config và ad core config, game khai báo được key Remote Config của riêng mình, như danh sách custom remote config trong configs SO của hệ thống cũ:
+
+- Khai báo ở `HDC > Edit configs > Custom keys`. Mỗi key có giá trị mặc định cho Android và cho iOS; iOS để trống thì dùng giá trị Android.
+  - Cửa sổ cảnh báo key không tên, key trùng, key trùng với key HDC đang đọc (`ads_config`, `adcore_main_android`, `adcore_main_ios`), và tên sai quy tắc của Remote Config (chữ, số và `_`, không bắt đầu bằng số).
+  - Thay đổi được lưu vào asset khi bấm `Save`, hoặc khi cửa sổ mất focus.
+- Game đọc giá trị bằng `HDCCustomConfig.Get("key")`, kết quả là chuỗi; giá trị JSON thì game tự parse, ví dụ bằng `JsonUtility`. Gọi trên main thread.
+  - `TryGet` trả `false` cho key chưa khai báo. Key chưa khai báo đọc ra chuỗi rỗng, và log cảnh báo một lần.
+  - `HDCCustomConfig.Keys` liệt kê các key đã khai báo.
+- Giá trị lấy theo thứ tự: Remote Config, giá trị lần trước lưu trên máy, rồi giá trị mặc định. Giống hệ thống cũ, chuỗi rỗng trên Remote Config được coi là chưa có giá trị.
+  - Giá trị lưu trên máy nằm ở PlayerPrefs `HDCAds.Custom.<key>`. Hệ thống cũ lưu dưới đúng tên key, nên có thể đè PlayerPrefs trùng tên của game.
+  - Trong Editor chỉ dùng giá trị mặc định, giống ads_config, trừ khi bật `HDCRemoteConfig.FetchInEditor`.
+- `HDCRemoteConfig` đọc các key này cùng lúc với ads_config, trước khi khởi tạo HDCAds. Vì vậy trong `onAdsReady` của HDCAdsSetup và ở scene sau, giá trị đã là giá trị mới.
+  - `HDCCustomConfig.IsReady` cho biết đã đọc xong. Sự kiện `HDCCustomConfig.Updated` chạy mỗi lần đọc xong; handler ném lỗi thì các handler khác vẫn chạy.
+  - Trước khi đọc xong, `Get` trả giá trị lần trước lưu trên máy, hoặc giá trị mặc định.
+  - Project không có Firebase (`HDC_FIREBASE` tắt) thì HDCAdsSetup dùng giá trị lưu trên máy hoặc giá trị mặc định.
+- `HDCCustomConfig` nằm trong assembly `HDC.Ads.Settings`, luôn được biên dịch, nên game gọi được kể cả khi tắt HDC ads.
+
 ## API cho game
 
 ```csharp
@@ -333,6 +352,7 @@ Prefab `Debug/HDCAdsDebugPanel.prefab` là bảng debug nằm đè lên game. Ch
 ### Trang Remote Config
 
 - Thẻ Remote Config: config lấy từ đâu (Remote Config, giá trị lưu trên máy, hay mặc định), trạng thái Firebase, lần fetch gần nhất, thời gian tải, ad core key, nguồn của từng key và lúc áp dụng vào HDCAds.
+  - Mỗi custom key có một dòng `Custom: <key>`, gồm nguồn (`Remote`, `Saved`, `Default`) và đầu giá trị đang dùng.
 - Thẻ Config Check: lỗi và cảnh báo của config, bằng tiếng Việt: Firebase không chạy, fetch lỗi, key không có trên Remote Config, ad core config rỗng `{}`, kênh bật mà không có ad unit, position không thuộc group nào, layout group không tồn tại, tên layout không tồn tại, position trùng tên...
 - Thẻ Config Viewer: xem `ads_config`, ad core config hoặc mọi key Remote Config đang có (`All Keys`), theo 4 nguồn:
   - `Remote`: giá trị trên Remote Config; `Saved`: giá trị lần trước lưu trên máy; `Default`: config mặc định trong `HDC > Edit configs`; `Applied`: config HDCAds đang chạy.

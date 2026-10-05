@@ -2,7 +2,8 @@
     "name": "HDC.Ads.Firebase",
     "rootNamespace": "HDC.Ads",
     "references": [
-        "HDC.Ads"
+        "HDC.Ads",
+        "HDC.Ads.Settings"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

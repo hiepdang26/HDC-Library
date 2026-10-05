@@ -116,7 +116,7 @@ for setup in editor ios android nofirebase; do
   FB=
   runtime | run $setup/HDC.Ads "$D" bcl engine $E gma common/HDC.Ads.Settings
   if [ $setup != nofirebase ]; then
-    src "$SRC/Runtime/Firebase" | run $setup/HDC.Ads.Firebase "$D" bcl engine $E gma firebase $setup/HDC.Ads
+    src "$SRC/Runtime/Firebase" | run $setup/HDC.Ads.Firebase "$D" bcl engine $E gma firebase $setup/HDC.Ads common/HDC.Ads.Settings
     FB="firebase $setup/HDC.Ads.Firebase"
   fi
   src "$SRC/Setup" | run $setup/HDC.Ads.Setup "$D" bcl engine $E $setup/HDC.Ads common/HDC.Ads.Settings $FB

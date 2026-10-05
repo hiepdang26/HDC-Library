@@ -144,6 +144,12 @@ sealed class HDC.Ads.HDCAdsSettings : UnityEngine.ScriptableObject
   property string CoreConfig { get; }
   static HDC.Ads.HDCAdsSettings Load()
   static readonly field string[] CoreConfigKeys
+static class HDC.Ads.HDCCustomConfig
+  static bool TryGet(string key, out string value)
+  static event System.Action Updated
+  static property System.Collections.Generic.IReadOnlyCollection<string> Keys { get; }
+  static property bool IsReady { get; }
+  static string Get(string key)
 
 [HDC.Ads.Firebase]
 static class HDC.Ads.HDCRemoteConfig

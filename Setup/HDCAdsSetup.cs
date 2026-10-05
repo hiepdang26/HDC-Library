@@ -48,6 +48,7 @@ namespace HDC.Ads
 #if HDC_FIREBASE
             HDCRemoteConfig.FetchAndInitialize(defaults.AdsConfig, defaults.CoreConfigsByKey(), onReady);
 #else
+            HDCCustomConfig.UseDefaults();
             HDCAds.Initialize(defaults.AdsConfig, defaults.CoreConfig, onReady);
 #endif
         }

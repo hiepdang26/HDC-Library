@@ -144,6 +144,8 @@ namespace HDC.Ads
                         Save(coreKey, core);
                 }
 
+                ApplyCustomConfigs();
+
                 HDCConfigReport.LoadFinished(reason, coreKey);
                 if (HDCAdsSdk.DebugLog)
                     Debug.Log($"[HDCAds] remote config ready ({reason}): core config '{coreKey}'");
@@ -192,6 +194,40 @@ namespace HDC.Ads
                 else
                     Use(entry, entry.Default, HDCConfigSource.Default);
                 return entry.Used;
+            }
+
+            private void ApplyCustomConfigs()
+            {
+                var values = new Dictionary<string, (string Value, string Source)>(StringComparer.Ordinal);
+                foreach (KeyValuePair<string, string> custom in HDCCustomConfig.Defaults)
+                    values[custom.Key] = ReadCustom(custom.Key, custom.Value);
+                HDCCustomConfig.Apply(values, !defaultsOnly);
+            }
+
+            private (string Value, string Source) ReadCustom(string key, string fallback)
+            {
+                if (!defaultsOnly && remoteConfig != null)
+                {
+                    try
+                    {
+                        string remote = remoteConfig.GetValue(key).StringValue;
+                        if (!string.IsNullOrEmpty(remote))
+                            return (remote, HDCCustomConfig.RemoteSource);
+                    }
+                    catch (Exception exception)
+                    {
+                        Debug.LogWarning($"[HDCAds] cannot read remote config '{key}': {exception.Message}");
+                    }
+                }
+
+                if (!defaultsOnly)
+                {
+                    string saved = HDCCustomConfig.SavedValue(key);
+                    if (saved.Length > 0)
+                        return (saved, HDCCustomConfig.SavedSource);
+                }
+
+                return (fallback ?? "", HDCCustomConfig.DefaultSource);
             }
 
             private static void Use(HDCConfigEntry entry, string value, HDCConfigSource source)

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
@@ -8,6 +9,9 @@ namespace HDC.Ads.Editor
         internal const int AdsAndroidPage = 0;
         internal const int CoreAndroidPage = 2;
         internal const int CoreIosPage = 3;
+        internal const int CustomKeysPage = 4;
+
+        private const string CustomKeysTitle = "Custom keys";
 
         private static readonly Page[] Pages =
         {
@@ -48,6 +52,12 @@ namespace HDC.Ads.Editor
                 GUI.FocusControl(null);
             }
 
+            if (page == CustomKeysPage)
+            {
+                DrawCustomKeys();
+                return;
+            }
+
             Page current = Pages[page];
             EditorGUILayout.HelpBox(current.Help, MessageType.None);
 
@@ -84,11 +94,56 @@ namespace HDC.Ads.Editor
                 EditorGUIUtility.PingObject(settings.targetObject);
         }
 
+        private void OnLostFocus() => SaveCustomKeys();
+
+        private void OnDisable() => SaveCustomKeys();
+
+        private void DrawCustomKeys()
+        {
+            EditorGUILayout.HelpBox("Remote Config keys of the game itself, read with HDCCustomConfig.Get(key). Each value is used until " +
+                                    "Remote Config has one for the key, then the last fetched value is kept on the device. iOS uses the " +
+                                    "Android value when its own is empty.", MessageType.None);
+            SerializedProperty keys = settings.FindProperty("customKeys");
+            scroll = EditorGUILayout.BeginScrollView(scroll);
+            EditorGUI.BeginChangeCheck();
+            EditorGUILayout.PropertyField(keys, new GUIContent(CustomKeysTitle), true);
+            if (EditorGUI.EndChangeCheck())
+                settings.ApplyModifiedProperties();
+            EditorGUILayout.EndScrollView();
+
+            var names = new List<string>();
+            for (int i = 0; i < keys.arraySize; i++)
+                names.Add(keys.GetArrayElementAtIndex(i).FindPropertyRelative("key").stringValue);
+            bool anyProblem = false;
+            foreach (string problem in HDCAdsSettings.CustomKeyProblems(names))
+            {
+                anyProblem = true;
+                EditorGUILayout.HelpBox(problem, MessageType.Warning);
+            }
+
+            if (!anyProblem)
+                EditorGUILayout.HelpBox(keys.arraySize == 0 ? "No custom keys." : keys.arraySize + " custom keys.", MessageType.Info);
+
+            GUI.enabled = EditorUtility.IsDirty(settings.targetObject);
+            if (GUILayout.Button("Save"))
+                SaveCustomKeys();
+            GUI.enabled = true;
+            if (GUILayout.Button("Select settings asset", EditorStyles.miniButton))
+                EditorGUIUtility.PingObject(settings.targetObject);
+        }
+
+        private void SaveCustomKeys()
+        {
+            if (settings != null && settings.targetObject != null && EditorUtility.IsDirty(settings.targetObject))
+                AssetDatabase.SaveAssetIfDirty(settings.targetObject);
+        }
+
         private string[] Titles()
         {
-            var titles = new string[Pages.Length];
+            var titles = new string[Pages.Length + 1];
             for (int i = 0; i < Pages.Length; i++)
                 titles[i] = IsChanged(i) ? Pages[i].Title + " *" : Pages[i].Title;
+            titles[CustomKeysPage] = CustomKeysTitle;
             return titles;
         }
 

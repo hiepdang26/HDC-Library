@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using UnityEngine;
 
 namespace HDC.Ads
@@ -14,6 +15,7 @@ namespace HDC.Ads
         [SerializeField, TextArea(5, 30)] private string adsConfigIos = "";
         [SerializeField, TextArea(5, 30)] private string coreConfigAndroid = "{}";
         [SerializeField, TextArea(5, 30)] private string coreConfigIos = "";
+        [SerializeField] private CustomKey[] customKeys = new CustomKey[0];
 
         public string AdsConfig => ForPlatform(adsConfigAndroid, adsConfigIos);
 
@@ -41,6 +43,50 @@ namespace HDC.Ads
             return configs;
         }
 
+        internal static IEnumerable<string> CustomKeyProblems(IEnumerable<string> keys)
+        {
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            int index = 0;
+            foreach (string raw in keys)
+            {
+                index++;
+                string name = raw?.Trim() ?? "";
+                if (name.Length == 0)
+                {
+                    yield return $"Custom key #{index} has no name, so it is skipped.";
+                    continue;
+                }
+
+                if (!seen.Add(name))
+                    yield return $"Custom key '{name}' appears more than once: only the first one counts.";
+                else if (Array.IndexOf(CoreConfigKeys, name) >= 0 || name == "ads_config")
+                    yield return $"Custom key '{name}' is a key HDC itself reads: pick another name.";
+                else if (!Regex.IsMatch(name, "^[A-Za-z_][A-Za-z0-9_]*$"))
+                    yield return $"Custom key '{name}' is not a valid Remote Config key: use letters, digits and underscores, starting with a letter or an underscore.";
+            }
+        }
+
+        internal IEnumerable<string> CustomKeyProblems()
+        {
+            var names = new List<string>();
+            foreach (CustomKey custom in customKeys ?? new CustomKey[0])
+                names.Add(custom?.key);
+            return CustomKeyProblems(names);
+        }
+
+        internal Dictionary<string, string> CustomDefaults()
+        {
+            var defaults = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (CustomKey custom in customKeys ?? new CustomKey[0])
+            {
+                string name = custom?.key?.Trim();
+                if (!string.IsNullOrEmpty(name) && !defaults.ContainsKey(name))
+                    defaults[name] = ForPlatform(custom.android ?? "", custom.ios ?? "");
+            }
+
+            return defaults;
+        }
+
         private static string ForPlatform(string android, string ios)
         {
 #if UNITY_IOS
@@ -60,6 +106,21 @@ namespace HDC.Ads
             {
                 return null;
             }
+        }
+
+        [Serializable]
+        internal sealed class CustomKey
+        {
+            [Tooltip("Remote Config key: letters, digits and underscores.")]
+            public string key = "";
+
+            [Tooltip("Value used on Android until Remote Config has one.")]
+            [TextArea(2, 12)]
+            public string android = "";
+
+            [Tooltip("Value used on iOS until Remote Config has one. Leave it empty to use the Android value.")]
+            [TextArea(2, 12)]
+            public string ios = "";
         }
 
 #pragma warning disable 0649

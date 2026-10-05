@@ -32,6 +32,9 @@ namespace HDC.Ads.Editor
         [MenuItem(Root + "Edit configs/Ad core iOS configs", false, 22)]
         private static void EditCoreIosConfigs() => HDCAdsConfigWindow.Open(HDCAdsConfigWindow.CoreIosPage);
 
+        [MenuItem(Root + "Edit configs/Custom keys", false, 23)]
+        private static void EditCustomKeys() => HDCAdsConfigWindow.Open(HDCAdsConfigWindow.CustomKeysPage);
+
         [MenuItem(Root + "Settings asset", false, 40)]
         private static void SelectSettings()
         {

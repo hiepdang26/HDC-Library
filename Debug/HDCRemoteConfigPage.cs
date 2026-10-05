@@ -128,7 +128,31 @@ namespace HDC.Ads.DebugUI
                 statusList.Row("Applied At", HDCConfigReport.AppliedClock.ToString("HH:mm:ss", CultureInfo.InvariantCulture));
             }
 
+            RedrawCustomKeys();
             statusList.End();
+        }
+
+        private void RedrawCustomKeys()
+        {
+            foreach (string problem in HDCAdsSettings.CustomKeyProblems(HDCCustomConfig.Keys))
+                statusList.Row("Custom Keys", problem, HDCDebugStyle.WarnColor);
+            foreach (string customKey in HDCCustomConfig.Keys)
+            {
+                string source = HDCCustomConfig.SourceOf(customKey);
+                string value = HDCCustomConfig.Get(customKey);
+                Color color = source == HDCCustomConfig.RemoteSource ? HDCDebugStyle.GoodColor
+                    : source.Length == 0 ? HDCDebugStyle.MutedColor
+                    : HDCConfigReport.DefaultsOnly ? HDCDebugStyle.TextColor : HDCDebugStyle.WarnColor;
+                statusList.Row("Custom: " + customKey, (source.Length == 0 ? "Not loaded yet" : source) + " · " + ShortValue(value), color);
+            }
+        }
+
+        private static string ShortValue(string value)
+        {
+            string line = (value ?? string.Empty).Replace("\r", " ").Replace("\n", " ").Trim();
+            if (line.Length == 0)
+                return "(empty)";
+            return line.Length > 60 ? line.Substring(0, 57) + "..." : line;
         }
 
         private static string ConfigsFrom(out HDCDebugTone tone)
