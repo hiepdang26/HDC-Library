@@ -1,11 +1,12 @@
 using System;
+using System.Collections.Generic;
 using HDC.Ads.Domain;
 using HDC.Ads.Ports;
 using UnityEngine;
 
 namespace HDC.Ads.Tests
 {
-    internal sealed class HDCFakeAd : IFullscreenAd, IViewAd, IFullscreenCompanion
+    internal sealed class HDCFakeAd : IFullscreenAd, IViewAd, IFullscreenCompanion, IShowWithLeader
     {
         private readonly HDCFakeSdk sdk;
 
@@ -21,11 +22,15 @@ namespace HDC.Ads.Tests
 
         public event Action<HDCAdEvent> Event;
 
-        public event Action CompanionOpening;
-
         internal HDCFakeAd CompanionAd { get; set; }
 
         IFullscreenAd IFullscreenCompanion.Companion => CompanionAd;
+
+        internal List<string> ArmedLeaders { get; } = new List<string>();
+
+        internal int LeaderCancels { get; private set; }
+
+        internal bool ShownByLeader { get; set; }
 
         internal HDCAdUse Use { get; }
 
@@ -79,9 +84,15 @@ namespace HDC.Ads.Tests
 
         internal void Loaded() => Send(HDCAdEventType.Loaded);
 
-        internal void OpenCompanion() => CompanionOpening?.Invoke();
-
         internal void FailedToLoad() => Send(HDCAdEventType.LoadFailed);
+
+        internal void FailedToShow() => Send(HDCAdEventType.ShowFailed);
+
+        public void ShowWithLeader(string leaderId) => ArmedLeaders.Add(leaderId);
+
+        public void CancelShowWithLeader(string leaderId) => LeaderCancels++;
+
+        public bool ShownWithLeader(string leaderId) => ShownByLeader;
 
         internal void Displayed() => Send(HDCAdEventType.Shown);
 

@@ -8,6 +8,7 @@ namespace HDC.Ads.Logic
     internal sealed class HDCFullscreenSource
     {
         private readonly IFullscreenAd ad;
+        private readonly HDCCompanionShow companion;
         private Action onDisplayed;
         private Action<bool> onClosed;
         private bool showing;
@@ -23,17 +24,16 @@ namespace HDC.Ads.Logic
             ad.Event += OnAdEvent;
             if (ad is IFullscreenCompanion withCompanion && withCompanion.Companion != null)
             {
-                Companion = withCompanion.Companion;
-                Companion.Event += OnCompanionEvent;
-                withCompanion.CompanionOpening += () => SetCompanionShowing(true);
+                companion = new HDCCompanionShow(ad.Id, withCompanion.Companion);
+                companion.OnScreenChanged += () => CompanionShowingChanged?.Invoke(this);
             }
         }
 
         internal IAdNetwork Network { get; }
 
-        internal IFullscreenAd Companion { get; }
+        internal IFullscreenAd Companion => companion?.Ad;
 
-        internal bool CompanionShowing { get; private set; }
+        internal bool CompanionShowing => companion?.OnScreen ?? false;
 
         internal event Action<HDCFullscreenSource> CompanionShowingChanged;
 
@@ -62,6 +62,7 @@ namespace HDC.Ads.Logic
             bool started;
             try
             {
+                companion?.BeforeLeaderShow();
                 started = ad.Show();
             }
             catch (Exception exception)
@@ -76,6 +77,7 @@ namespace HDC.Ads.Logic
 
             if (!started)
             {
+                companion?.LeaderNotShown();
                 showing = false;
                 onDisplayed = null;
                 onClosed = null;
@@ -93,25 +95,11 @@ namespace HDC.Ads.Logic
                 return;
             destroyed = true;
             ad.Event -= OnAdEvent;
+            companion?.LeaderNotShown();
+            companion?.Destroy();
             ad.Destroy();
             if (showing)
                 Finish(false);
-        }
-
-        private void OnCompanionEvent(HDCAdEvent adEvent)
-        {
-            if (adEvent.type == HDCAdEventType.Shown)
-                SetCompanionShowing(true);
-            else if (adEvent.type == HDCAdEventType.Closed || adEvent.type == HDCAdEventType.ShowFailed)
-                SetCompanionShowing(false);
-        }
-
-        private void SetCompanionShowing(bool value)
-        {
-            if (Companion == null || CompanionShowing == value)
-                return;
-            CompanionShowing = value;
-            CompanionShowingChanged?.Invoke(this);
         }
 
         private void OnAdEvent(HDCAdEvent adEvent)
@@ -122,6 +110,7 @@ namespace HDC.Ads.Logic
                     Failed?.Invoke(this);
                     break;
                 case HDCAdEventType.Shown:
+                    companion?.LeaderShown();
                     if (showing)
                     {
                         Action displayed = onDisplayed;
@@ -138,6 +127,7 @@ namespace HDC.Ads.Logic
                         Finish(rewardEarned || RewardsOnClose);
                     break;
                 case HDCAdEventType.ShowFailed:
+                    companion?.LeaderNotShown();
                     if (starting)
                         failedWhileStarting = true;
                     else if (showing)

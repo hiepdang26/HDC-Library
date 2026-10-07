@@ -30,14 +30,14 @@ Assembly `HDC.Ads` nằm trong `Runtime/`. Mỗi thư mục con là một tầng
 | `Logic` | `HDC.Ads.Logic` | Các quy tắc quảng cáo, xem chi tiết dưới bảng. |
 | `Domain` | `HDC.Ads.Domain` | Dữ liệu: `HDCAdsConfig` và `HDCAdCoreConfig` (đúng schema JSON trên Remote Config), `HDCAdEvent`, các tùy chọn, `HDCAdNames` (instance id và khóa lưu trữ), `HDCAdUnitKeys`, `HDCAdUnitSpec`, `HDCAdLayouts` (tên layout native hợp lệ, kèm tên cũ; phải khớp danh sách layout của thư viện native). |
 | `Diagnostics` | `HDC.Ads.Diagnostics` | Thứ bảng debug đọc: tracker sự kiện, báo cáo config và mediation, `HDCDebugInfo`, `IChannelDiagnostics`, `IConfigRule`, `HDCDebugAction`. |
-| `Ports` | `HDC.Ads.Ports` | Interface mà Logic gọi và Infrastructure hiện thực: `IAdNetwork`, `IFullscreenAd`, `IFullscreenCompanion`, `IViewAd`, `IPopupAd`, `IMediationPartner`, `IAdsSdk`, `IAdsTesting`, `IClock`, `IKeyValueStore`, `IMainThread`, `IAdsLog`, `IRemoteConfigValues`, `IDeviceRegionSource`. |
+| `Ports` | `HDC.Ads.Ports` | Interface mà Logic gọi và Infrastructure hiện thực: `IAdNetwork`, `IFullscreenAd`, `IFullscreenCompanion`, `IViewAd`, `IPopupAd`, `IMediationPartner`, `IAdsSdk`, `IAdsTesting`, `IClock`, `IKeyValueStore`, `IMainThread`, `IAdsLog`, `IRemoteConfigValues`, `IDeviceRegionSource`, `IShowWithLeader`. |
 | `Infrastructure` | `HDC.Ads.Infrastructure` | Code chạm vào SDK, xem chi tiết dưới bảng. |
 | `Composition` | `HDC.Ads.Composition` | `HDCAdsRuntime`: lắp port, mạng, partner, context và kênh lại với nhau. Đây là chỗ duy nhất biết cả Logic lẫn Infrastructure. |
 
 Tầng `Logic` gồm:
 
 - 7 kênh trong `Channels/`. Module debug của mỗi kênh nằm ngay cạnh kênh, trong file `*.Debug.cs`.
-- Group và nguồn ad trong `Groups/`.
+- Group và nguồn ad trong `Groups/`. `HDCCompanionShow` giữ chính sách của ad đi kèm, như native sau interstitial.
 - Chọn config trong `Config/`:
   - `HDCConfigSelection` chọn `ads_config`, ad core config và custom key từ Remote Config, giá trị đã lưu hoặc mặc định, rồi áp chế độ quốc gia.
   - `HDCCountryMode` quyết định máy có vào chế độ quốc gia không.
@@ -157,7 +157,10 @@ Ví dụ thêm AppLovin MAX. Một mạng phục vụ những unit mà config đ
      - `CreateFullscreen`, `CreateView` và `CreatePopup`.
    - Mỗi định dạng một adapter, hiện thực `IFullscreenAd` hoặc `IViewAd`. Kế thừa `HDCSdkAd` để chỉ nhận các sự kiện có instance id và định dạng của ad đó.
    - `IViewAd.RefreshSeconds` là chu kỳ tự refresh của view, tính bằng giây: `-1` khi SDK tự quyết (như AdMob), `0` khi view không tự refresh. Group banner dùng giá trị dương để coi một view im lặng quá lâu là refresh lỗi.
-   - Một ad full-screen có thể kéo theo một ad đi kèm (`IFullscreenCompanion`), như native sau interstitial. Adapter tự quyết khi nào ad đi kèm hiện; Logic chỉ ghi position cho doanh thu của nó, và giữ app resume không hiện trong lúc nó đang trên màn hình.
+   - Một ad full-screen có thể kéo theo một ad đi kèm (`IFullscreenCompanion`), như native sau interstitial.
+     - Adapter chỉ tạo ad đi kèm. `HDCCompanionShow` (Logic) quyết khi nào nó load, hiện và bị huỷ.
+     - Logic ghi position cho doanh thu của ad đi kèm, và giữ app resume không hiện trong lúc nó đang trên màn hình.
+     - Nếu ad đi kèm hiện được ngay lúc ad chính hiện, không cần chờ Unity, thì nó hiện thực thêm `IShowWithLeader`. Bản native làm việc này trên luồng Android.
    - Đổi callback của SDK thành `HDCAdEvent`: `type` lấy theo `HDCAdEventType`, doanh thu ghi vào `valueMicros` và `currency`. Gọi `HDCAdsSdk.Emit` trên main thread (`HDCMainThread.Post`). Nhờ vậy tracker, doanh thu, capping và backup chạy giống mọi mạng khác.
    - Khởi động SDK của mạng trong `HDCAdsSdk.Initialize`, giống `HDCGma.Initialize()`.
    - Nếu muốn `HDCAds.Testing.UseTestAdUnits` thay được unit của mạng này, thêm ad unit test vào `HDCTestAdUnits`.

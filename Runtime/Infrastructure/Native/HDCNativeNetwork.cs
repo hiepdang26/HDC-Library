@@ -68,13 +68,13 @@ namespace HDC.Ads.Infrastructure
         public IPopupAd CreatePopup(HDCAdPlan plan) =>
             new HDCNativePopupAd(plan.InstanceId, (HDCAdCoreConfig.NativeUnit)plan.Spec.Unit, plan.Spec.ReloadAfterShow);
 
-        private static HDCNativeAfterInterstitial AfterInterstitial(HDCAdPlan plan, HDCAdCoreConfig.Interstitials interstitials)
+        private static IFullscreenAd AfterInterstitial(HDCAdPlan plan, HDCAdCoreConfig.Interstitials interstitials)
         {
 #if UNITY_ANDROID
             if (plan.Use == HDCAdUse.ForceAd && interstitials.HasNativeAfterInterstitial)
             {
-                return new HDCNativeAfterInterstitial(HDCAdNames.NativeAfterInterstitial(plan.Spec.SlotName), interstitials.nativeAfterInterstitialId.Trim(),
-                    new HDCLayoutPicker(plan.Spec.CoreConfig, interstitials.nativeAfterInterstitialLayout));
+                return new HDCNativeFullscreenAd(HDCAdNames.NativeAfterInterstitial(plan.Spec.SlotName), interstitials.nativeAfterInterstitialId.Trim(),
+                    true, new HDCLayoutPicker(plan.Spec.CoreConfig, interstitials.nativeAfterInterstitialLayout));
             }
 #endif
             return null;

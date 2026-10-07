@@ -98,6 +98,7 @@ Những thứ sau đã đổi so với 0.5.0:
 - Dọn kiến trúc, không đổi hành vi:
   - Việc chọn config (Remote Config, giá trị đã lưu, mặc định) và chế độ quốc gia nằm ở một use case trong Logic (`HDCConfigSelection`). Trước đây chúng nằm trong `HDCRemoteConfig` và lặp lại một phần trong `HDCAdsSetup`.
   - Phần đọc vùng và ngôn ngữ của máy tách khỏi phần quyết định, và đứng sau port `IDeviceRegionSource`.
+  - Chính sách của native sau interstitial chuyển lên Logic (`HDCCompanionShow`): load ở lần đầu, hiện khi load xong, chờ native đóng rồi mới huỷ. Infrastructure chỉ giữ đường show trên luồng Android, qua port `IShowWithLeader`.
 - Mã nguồn C# của HDCLib không còn comment. Tài liệu nằm trong `README.md`, `ARCHITECTURE.md` và `CHANGELOG.md`.
 - Post-process iOS nhúng mọi framework động của pod mà app chưa có, ví dụ `AppLovinSDK` và `AdjustSigSdk`. Trước đây nó chỉ nhúng `FBAudienceNetwork`. Export kiểu Append thay build phase cũ của HDC thay vì thêm phase thứ hai.
 

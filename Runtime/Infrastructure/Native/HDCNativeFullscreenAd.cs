@@ -3,7 +3,7 @@ using HDC.Ads.Ports;
 
 namespace HDC.Ads.Infrastructure
 {
-    internal sealed class HDCNativeFullscreenAd : HDCSdkAd, IFullscreenAd
+    internal sealed class HDCNativeFullscreenAd : HDCSdkAd, IFullscreenAd, IShowWithLeader
     {
         private readonly bool reloadAfterShow;
         private readonly HDCLayoutPicker layouts;
@@ -26,6 +26,12 @@ namespace HDC.Ads.Infrastructure
         public void Load() => HDCAdsSdk.LoadFullscreen(Id, new[] { AdUnitId }, reloadAfterShow);
 
         public bool Show() => HDCAdsSdk.ShowFullscreen(Id, layouts.Next(AdSourceId));
+
+        public void ShowWithLeader(string leaderId) => HDCAdsSdk.ShowFullscreenWithInterstitial(leaderId, Id, layouts.Next(AdSourceId));
+
+        public void CancelShowWithLeader(string leaderId) => HDCAdsSdk.CancelShowWithInterstitial(leaderId);
+
+        public bool ShownWithLeader(string leaderId) => HDCAdsSdk.TakeShownWithInterstitial(leaderId);
 
         public void Destroy()
         {

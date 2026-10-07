@@ -2,41 +2,44 @@ using System;
 using HDC.Ads.Domain;
 using HDC.Ads.Ports;
 
-namespace HDC.Ads.Infrastructure
+namespace HDC.Ads.Logic
 {
-    internal sealed class HDCNativeAfterInterstitial
+    internal sealed class HDCCompanionShow
     {
-        private readonly HDCNativeFullscreenAd ad;
-        private readonly HDCLayoutPicker layouts;
+        private readonly string leaderId;
+        private readonly IShowWithLeader withLeader;
         private bool loading;
         private bool showWhenLoaded;
         private bool showing;
         private bool destroyWhenClosed;
 
-        internal HDCNativeAfterInterstitial(string id, string adUnitId, HDCLayoutPicker layouts)
+        internal HDCCompanionShow(string leaderId, IFullscreenAd ad)
         {
-            this.layouts = layouts;
-            ad = new HDCNativeFullscreenAd(id, adUnitId, true, layouts);
+            this.leaderId = leaderId;
+            Ad = ad;
+            withLeader = ad as IShowWithLeader;
             ad.Event += OnEvent;
         }
 
-        internal IFullscreenAd Ad => ad;
+        internal IFullscreenAd Ad { get; }
 
-        internal event Action Opening;
+        internal bool OnScreen { get; private set; }
 
-        internal void BeforeInterstitialShow(string interstitialId)
+        internal event Action OnScreenChanged;
+
+        internal void BeforeLeaderShow()
         {
-            if (ad.IsReady)
-                HDCAdsSdk.ShowFullscreenWithInterstitial(interstitialId, ad.Id, layouts.Next(ad.AdSourceId));
+            if (Ad.IsReady)
+                withLeader?.ShowWithLeader(leaderId);
         }
 
-        internal void InterstitialNotShown(string interstitialId) => HDCAdsSdk.CancelShowWithInterstitial(interstitialId);
+        internal void LeaderNotShown() => withLeader?.CancelShowWithLeader(leaderId);
 
-        internal void InterstitialShown(string interstitialId)
+        internal void LeaderShown()
         {
-            if (HDCAdsSdk.TakeShownWithInterstitial(interstitialId))
+            if (withLeader != null && withLeader.ShownWithLeader(leaderId))
                 return;
-            if (ad.IsReady)
+            if (Ad.IsReady)
             {
                 ShowNow();
                 return;
@@ -46,7 +49,7 @@ namespace HDC.Ads.Infrastructure
             if (loading)
                 return;
             loading = true;
-            ad.Load();
+            Ad.Load();
         }
 
         internal void Destroy()
@@ -58,14 +61,14 @@ namespace HDC.Ads.Infrastructure
                 return;
             }
 
-            ad.Event -= OnEvent;
-            ad.Destroy();
+            Ad.Event -= OnEvent;
+            Ad.Destroy();
         }
 
         private void ShowNow()
         {
-            Opening?.Invoke();
-            ad.Show();
+            SetOnScreen(true);
+            Ad.Show();
         }
 
         private void OnEvent(HDCAdEvent adEvent)
@@ -85,17 +88,28 @@ namespace HDC.Ads.Infrastructure
                     break;
                 case HDCAdEventType.Shown:
                     showing = true;
+                    SetOnScreen(true);
                     break;
                 case HDCAdEventType.ShowFailed:
                     showing = false;
+                    SetOnScreen(false);
                     break;
                 case HDCAdEventType.Closed:
                     showing = false;
                     loading = true;
+                    SetOnScreen(false);
                     if (destroyWhenClosed)
                         Destroy();
                     break;
             }
+        }
+
+        private void SetOnScreen(bool value)
+        {
+            if (OnScreen == value)
+                return;
+            OnScreen = value;
+            OnScreenChanged?.Invoke();
         }
     }
 }

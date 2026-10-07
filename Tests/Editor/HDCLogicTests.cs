@@ -201,11 +201,14 @@ namespace HDC.Ads.Tests
             ad.Loaded();
 
             Assert.IsTrue(ads.Channels.ForceAd.Show("pos"));
+            Assert.IsEmpty(companion.ArmedLeaders, "a companion that is not loaded cannot follow its leader");
             ad.Displayed();
+            Assert.AreEqual(1, companion.Loads, "the first companion loads once its leader has shown");
             ads.MainThread.Pause(true);
             ad.Closed();
             ads.MainThread.Pause(false);
-            ad.OpenCompanion();
+            companion.Loaded();
+            Assert.AreEqual(1, companion.Shows, "and shows as soon as it has loaded");
             Assert.IsTrue(ads.Context.HasOverlayAd, "the companion is on screen before its own Shown event");
             companion.Displayed();
             companion.Paid(1200);
@@ -243,8 +246,75 @@ namespace HDC.Ads.Tests
 
             Assert.IsTrue(ad.Destroyed, "the group ran out of shows");
             Assert.IsTrue(ads.Context.HasOverlayAd, "the companion is still on screen");
+            Assert.IsFalse(ad.CompanionAd.Destroyed, "it is destroyed once it closes");
             ad.CompanionAd.Closed();
             Assert.IsFalse(ads.Context.HasOverlayAd);
+            Assert.IsTrue(ad.CompanionAd.Destroyed);
+        }
+
+        [Test]
+        public void ALoadedCompanionFollowsItsLeaderOnTheNativeSide()
+        {
+            HDCFakeAd ad = StartWithCompanion(out HDCFakeAds ads);
+            ad.CompanionAd.Loaded();
+
+            Assert.IsTrue(ads.Channels.ForceAd.Show("pos"));
+            CollectionAssert.AreEqual(new[] { ad.Id }, ad.CompanionAd.ArmedLeaders);
+            ad.CompanionAd.ShownByLeader = true;
+            ad.Displayed();
+
+            Assert.AreEqual(0, ad.CompanionAd.Shows, "the native side already showed it with its leader");
+        }
+
+        [Test]
+        public void ACompanionTheLeaderDidNotShowIsShownFromHere()
+        {
+            HDCFakeAd ad = StartWithCompanion(out HDCFakeAds ads);
+            ad.CompanionAd.Loaded();
+
+            Assert.IsTrue(ads.Channels.ForceAd.Show("pos"));
+            ad.Displayed();
+
+            Assert.AreEqual(1, ad.CompanionAd.Shows);
+            Assert.IsTrue(ads.Context.HasOverlayAd);
+        }
+
+        [Test]
+        public void ALeaderThatFailsToShowCancelsItsCompanion()
+        {
+            HDCFakeAd ad = StartWithCompanion(out HDCFakeAds ads);
+            ad.CompanionAd.Loaded();
+
+            Assert.IsTrue(ads.Channels.ForceAd.Show("pos"));
+            ad.FailedToShow();
+
+            Assert.AreEqual(1, ad.CompanionAd.LeaderCancels);
+            Assert.AreEqual(0, ad.CompanionAd.Shows);
+        }
+
+        [Test]
+        public void ACompanionThatFailedToLoadWaitsForTheNextLeader()
+        {
+            HDCFakeAd ad = StartWithCompanion(out HDCFakeAds ads);
+
+            Assert.IsTrue(ads.Channels.ForceAd.Show("pos"));
+            ad.Displayed();
+            ad.CompanionAd.FailedToLoad();
+            ad.CompanionAd.Loaded();
+
+            Assert.AreEqual(1, ad.CompanionAd.Loads);
+            Assert.AreEqual(0, ad.CompanionAd.Shows, "a later load does not show it on its own");
+        }
+
+        private static HDCFakeAd StartWithCompanion(out HDCFakeAds ads)
+        {
+            ads = new HDCFakeAds();
+            ads.Native.ForceAdsHaveCompanions = true;
+            ads.Start(ForceAdAds, NativeGroupCore);
+            ads.Channels.ForceAd.Initialize("g");
+            HDCFakeAd ad = ads.Native.Ad(HDCAdUse.ForceAd);
+            ad.Loaded();
+            return ad;
         }
 
         private static HDCFakeAds StartLaunch()
