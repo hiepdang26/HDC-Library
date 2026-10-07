@@ -57,7 +57,7 @@ namespace HDC.Ads.DebugUI
         [Tooltip("Keep the panel when another scene loads.")]
         [SerializeField] private bool keepAcrossScenes;
 
-        private static HDCAdsDebugPanel kept;
+        private static HDCAdsDebugPanel current;
         private int taps;
         private float lastTapTime = float.MinValue;
         private float lastToggleTime = float.MinValue;
@@ -72,15 +72,22 @@ namespace HDC.Ads.DebugUI
 
         private void Awake()
         {
-            if (keepAcrossScenes)
+            if (current != null && current != this)
             {
-                if (kept != null && kept != this)
+                if (!keepAcrossScenes || current.keepAcrossScenes)
                 {
                     Destroy(gameObject);
                     return;
                 }
 
-                kept = this;
+                Destroy(current.gameObject);
+            }
+
+            current = this;
+            if (keepAcrossScenes)
+            {
+                if (transform.parent != null)
+                    transform.SetParent(null, false);
                 DontDestroyOnLoad(gameObject);
             }
 
@@ -108,8 +115,8 @@ namespace HDC.Ads.DebugUI
 
         private void OnDestroy()
         {
-            if (kept == this)
-                kept = null;
+            if (current == this)
+                current = null;
         }
 
         private void Update()

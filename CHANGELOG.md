@@ -107,6 +107,11 @@ Những thứ sau đã đổi so với 0.5.0:
   - `HDCAdjust` được chia nhỏ: component chỉ giữ cài đặt, API public và việc chọn cách khởi động; cấu hình SDK, attribution, doanh thu quảng cáo và mua hàng nằm ở các lớp riêng. API public giữ nguyên.
   - Chính sách của native sau interstitial chuyển lên Logic (`HDCCompanionShow`): load ở lần đầu, hiện khi load xong, chờ native đóng rồi mới huỷ. Infrastructure chỉ giữ đường show trên luồng Android, qua port `IShowWithLeader`.
 - Mã nguồn C# của HDCLib không còn comment. Tài liệu nằm trong `README.md`, `ARCHITECTURE.md` và `CHANGELOG.md`.
+- Prefab `HDCAdsSetup` chứa sẵn `HDCAdjust` và bảng debug (bật `keepAcrossScenes`) làm object con: kéo Setup vào scene đầu là có đủ ba phần. Scene test `HDCAdsTestBoot` giờ chỉ có `HDCAdsSetup`.
+  - Lúc chạy, hai object con tự tách ra làm object gốc rồi giữ qua các scene.
+  - Khi có nhiều `HDCAdjust`, bản đã cấu hình (có app token của nền tảng đang chạy, hoặc `startManually`) được dùng, bản chưa cấu hình tự rút. Trước đây bản chạy `Awake` trước thắng, nên `HDCAdjust` trống có thể lấn bản đã điền token.
+  - Mỗi lúc chỉ một bảng debug chạy, bảng giữ qua scene được ưu tiên. Menu `HDC > Adjust` và `HDC > Debug panel > Add to open scene` chọn bản có sẵn thay vì thêm bản thứ hai.
+  - Scene cũ đã đặt `HDCAdjust` hoặc bảng debug riêng cạnh `HDCAdsSetup` nên chuyển cài đặt sang object con rồi xoá bản riêng.
 - Thư mục `Demo` (assembly `HDC.Ads.Demo`) được thay bằng scene test trong `Tests/Scenes`. Demo cũ tự nạp config giả, nên không thử được `HDCAdsSetup` hay config của project.
   - Assembly của scene test chỉ vào bản build khi Build Settings có scene test. Trước đây `HDC.Ads.Demo` vào mọi bản build của game có bật HDC.
 - Post-process iOS nhúng mọi framework động của pod mà app chưa có, ví dụ `AppLovinSDK` và `AdjustSigSdk`. Trước đây nó chỉ nhúng `FBAudienceNetwork`. Export kiểu Append thay build phase cũ của HDC thay vì thêm phase thứ hai.

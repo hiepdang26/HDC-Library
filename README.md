@@ -42,7 +42,8 @@ Runtime/                       Assembly HDC.Ads, chỉ compile khi có define HD
 Plugins/iOS/                   HDCAds.xcframework, HDCAdsBridge.mm (post-process Xcode tự thêm vào project)
 Plugins/Android/Repository~/   Maven repo chứa thư viện Android hdc-ads-android (Unity bỏ qua thư mục có đuôi "~")
 Editor/                        Menu HDC (bật/tắt, sửa config), post-process Xcode, mẫu Dependencies.xml
-Setup/                         HDCAdsSetup.prefab: khởi động ads ở scene đầu (assembly HDC.Ads.Setup, luôn được biên dịch)
+Setup/                         HDCAdsSetup.prefab: khởi động ads ở scene đầu, chứa sẵn HDCAdjust và bảng debug
+                               (assembly HDC.Ads.Setup, luôn được biên dịch)
 Adjust/                        HDCAdjust.prefab: khởi động Adjust, đọc attribution, gửi doanh thu quảng cáo lên Adjust
                                (assembly HDC.Ads.Adjust, luôn được biên dịch)
 Debug/                         Bảng debug HDCAdsDebugPanel.prefab (assembly HDC.Ads.Debug, cần define HDC_ADS)
@@ -87,7 +88,18 @@ Tính năng native dùng framework đó không chạy trong bản build này, v�
 
 ## Scene đầu tiên: prefab HDCAdsSetup
 
-Kéo prefab `Setup/HDCAdsSetup.prefab` vào scene đầu tiên của game, hoặc dùng `HDC > Setup > Add to open scene`. Không cần viết code khởi động. Prefab làm lần lượt:
+Kéo prefab `Setup/HDCAdsSetup.prefab` vào scene đầu tiên của game, hoặc dùng `HDC > Setup > Add to open scene`. Không cần viết code khởi động.
+
+Prefab có sẵn hai prefab con, nên kéo Setup vào là có đủ:
+
+- `HDCAdjust`: điền app token trên object con này trong scene (xem [phần Adjust](#adjust-prefab-hdcadjust)).
+- `HDCAdsDebugPanel`: bảng debug, bật `keepAcrossScenes` để dùng được ở mọi scene sau.
+- Lúc chạy, hai object con tự tách ra làm object gốc rồi giữ qua các scene, nên vẫn còn khi scene đầu đóng lại.
+- Không dùng phần nào thì bỏ tick object con đó trên instance trong scene.
+- Scene cũ đã có `HDCAdjust` hoặc bảng debug đặt riêng cạnh `HDCAdsSetup`: chuyển cài đặt (token, `startManually`…) sang object con rồi xoá bản riêng. Nếu vẫn để cả hai, xem cách chọn ở phần Adjust và phần bảng debug.
+- Script của bảng debug chỉ được biên dịch khi bật HDC (`HDC_ADS`). Khi tắt HDC, Unity báo thiếu script trên object con `HDCAdsDebugPanel`; bật lại HDC thì hết.
+
+Prefab làm lần lượt:
 
 1. Load `nextScene` ở nền.
 2. Lấy config. Trên máy thật, config đến từ Remote Config (cần `HDC_FIREBASE`; bước này cũng khởi tạo Firebase), chỗ nào thiếu thì dùng config mặc định. Trong Editor, prefab dùng config mặc định.
@@ -117,11 +129,13 @@ Prefab `Adjust/HDCAdjust.prefab` thay cho prefab Adjust của SDK. Nó khởi đ
 
 Cách dùng:
 
-1. Kéo prefab vào scene đầu tiên, cạnh `HDCAdsSetup`, hoặc dùng `HDC > Adjust > Add to open scene`.
-2. Điền app token Android và iOS trên instance của prefab trong scene. Đừng sửa prefab gốc trong HDCLib.
+1. `HDCAdjust` có sẵn trong `HDCAdsSetup`. Scene không dùng `HDCAdsSetup` thì kéo prefab vào scene đầu tiên, hoặc dùng `HDC > Adjust > Add to open scene` (scene đã có HDCAdjust thì menu chọn bản đó).
+2. Điền app token Android và iOS trên object `HDCAdjust` trong scene (con của `HDCAdsSetup`). Đừng sửa prefab gốc trong HDCLib.
 3. Xoá prefab Adjust của SDK khỏi scene nếu còn. Nếu prefab đó vẫn tự khởi động Adjust, HDCAdjust để nó khởi động với cài đặt của nó và log cảnh báo; HDCAdjust vẫn gửi doanh thu và đọc attribution.
 
-Prefab tự giữ mình qua các scene (`DontDestroyOnLoad`). Khi scene đầu được mở lại, bản thứ hai tự huỷ, nên Adjust chỉ khởi động một lần.
+Prefab tự giữ mình qua các scene (`DontDestroyOnLoad`); nằm trong `HDCAdsSetup` thì nó tách ra làm object gốc trước. Khi scene đầu được mở lại, bản thứ hai tự huỷ, nên Adjust chỉ khởi động một lần.
+
+Khi có nhiều `HDCAdjust`, bản đã cấu hình (có app token của nền tảng đang chạy, hoặc bật `startManually`) được dùng. Bản chưa cấu hình tự rút, kể cả khi nó chạy trước, nên `HDCAdjust` trống trong `HDCAdsSetup` không lấn bản đã điền token đặt riêng.
 
 Các trường giống prefab Adjust của SDK:
 
@@ -375,7 +389,8 @@ Hành vi các kênh:
 
 Prefab `Debug/HDCAdsDebugPanel.prefab` là bảng debug nằm đè lên game. Chức năng bám theo bảng debug của hệ thống cũ (ad systems, configs, tracking, diagnostics, Adjust, build/device/network), giao diện làm mới, và thêm trạng thái của từng ad unit.
 
-- Thêm vào scene: `HDC > Debug panel > Add to open scene`, hoặc kéo prefab vào scene.
+- Bảng có sẵn trong `HDCAdsSetup` và giữ qua các scene. Scene không có `HDCAdsSetup` thì dùng `HDC > Debug panel > Add to open scene` (scene đã có bảng thì menu chọn bảng đó), hoặc kéo prefab vào scene.
+- Mỗi lúc chỉ một bảng chạy. Bảng mới tự huỷ khi đã có bảng khác, trừ khi bảng mới giữ qua scene còn bảng đang chạy thì không: khi đó bảng giữ qua scene thay chỗ.
 - Bảng ẩn khi vào scene. Mở bằng cách chạm nhanh 3 lần vào góc trên bên trái (14% chiều rộng và chiều cao, trong 0,9 giây), hoặc nhấn F10; đóng bằng nút `Close`.
   - Chạy được với Input Manager cũ lẫn Input System mới. Scene thiếu EventSystem thì bảng tự tạo, với input module hợp loại input của project. Bảng giữ qua scene (`keepAcrossScenes`) cũng tự tạo lại EventSystem khi mở ở scene sau.
   - Bảng nằm trong safe area, và tự đổi tỉ lệ khi màn hình nằm ngang.

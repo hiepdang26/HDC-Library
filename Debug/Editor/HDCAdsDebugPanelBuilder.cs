@@ -49,6 +49,19 @@ namespace HDC.Ads.DebugUI.Editor
         [MenuItem("HDC/Debug panel/Add to open scene", false, 60)]
         private static void AddToOpenScene()
         {
+#if UNITY_2023_1_OR_NEWER
+            HDCAdsDebugPanel existing = UnityEngine.Object.FindAnyObjectByType<HDCAdsDebugPanel>();
+#else
+            HDCAdsDebugPanel existing = UnityEngine.Object.FindObjectOfType<HDCAdsDebugPanel>();
+#endif
+            if (existing != null)
+            {
+                Selection.activeGameObject = existing.gameObject;
+                EditorGUIUtility.PingObject(existing.gameObject);
+                Debug.Log("[HDCAds] The open scene already has the debug panel. HDCAdsSetup carries one.");
+                return;
+            }
+
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
             if (prefab == null)
             {

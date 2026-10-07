@@ -142,10 +142,19 @@ namespace HDC.Ads
         {
             if (instance != null && instance != this)
             {
-                if (GetComponents<Component>().Length > 2)
-                    Destroy(this);
-                else
-                    Destroy(gameObject);
+                if (!IsConfigured || instance.IsConfigured)
+                {
+                    Remove(this);
+                    return;
+                }
+
+                HDCAdjust replaced = instance;
+                replaced.Leave();
+                Remove(replaced);
+            }
+            else if (!IsConfigured && ConfiguredOneIsLoaded())
+            {
+                Remove(this);
                 return;
             }
 
@@ -164,12 +173,44 @@ namespace HDC.Ads
             if (instance != this)
                 return;
             instance = null;
+            Leave();
+        }
+
+        private void Leave()
+        {
+            StopAllCoroutines();
 #if HDC_ADS && HDC_ADJUST
             HDCAds.Revenue -= OnAdRevenue;
 #endif
 #if HDC_ADJUST
             HDCAdjustSdk.StopListeningForDeeplinks();
 #endif
+        }
+
+        private bool IsConfigured => startManually || AppToken.Length > 0;
+
+        private bool ConfiguredOneIsLoaded()
+        {
+#if UNITY_2023_1_OR_NEWER
+            HDCAdjust[] loaded = FindObjectsByType<HDCAdjust>(FindObjectsSortMode.None);
+#else
+            HDCAdjust[] loaded = FindObjectsOfType<HDCAdjust>();
+#endif
+            foreach (HDCAdjust other in loaded)
+            {
+                if (other != this && other.IsConfigured)
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static void Remove(HDCAdjust adjust)
+        {
+            if (adjust.GetComponents<Component>().Length > 2)
+                Destroy(adjust);
+            else
+                Destroy(adjust.gameObject);
         }
 
         private HDCAdjustStart Begin()

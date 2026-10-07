@@ -31,11 +31,11 @@ namespace HDC.Ads.Tests
                 Assert.AreEqual(GameScene, settings.FindProperty("nextScene").stringValue);
                 Assert.IsTrue(settings.FindProperty("googleTestAds").boolValue, "the test scenes ask Google for test ads");
 
-                Component adjust = Single(roots, nameof(HDCAdjust));
-                Assert.IsTrue(PrefabUtility.IsPartOfPrefabInstance(adjust), "HDCAdjust is the Adjust prefab");
-
-                var panel = (HDCAdsDebugPanel)Single(roots, nameof(HDCAdsDebugPanel));
-                Assert.IsTrue(PrefabUtility.IsPartOfPrefabInstance(panel), "the debug panel is its prefab");
+                CollectionAssert.AreEqual(new[] { setup.gameObject }, roots.Where(root => root.GetComponent<Camera>() == null),
+                    "only HDCAdsSetup, which carries HDCAdjust and the debug panel");
+                Assert.IsNotNull(setup.GetComponentInChildren<HDCAdjust>(true), "HDCAdjust comes with the Setup prefab");
+                var panel = setup.GetComponentInChildren<HDCAdsDebugPanel>(true);
+                Assert.IsNotNull(panel, "the debug panel comes with the Setup prefab");
                 Assert.IsTrue(new SerializedObject(panel).FindProperty("keepAcrossScenes").boolValue, "the debug panel stays in the game scene");
             });
         }
