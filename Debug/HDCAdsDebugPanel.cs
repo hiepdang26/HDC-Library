@@ -129,6 +129,7 @@ namespace HDC.Ads.DebugUI
 
         public void Open()
         {
+            EnsureEventSystem();
             taps = 0;
             lastToggleTime = Time.unscaledTime;
             window.SetActive(true);

@@ -9,6 +9,7 @@ using HDC.Ads.Domain;
 using HDC.Ads.Logic;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.TestTools;
 using static HDC.Ads.Tests.HDCTestUi;
 using Object = UnityEngine.Object;
@@ -204,6 +205,28 @@ namespace HDC.Ads.Tests
 
             Click(window.Find("Header/Close Button"));
             Assert.IsFalse(panel.IsOpen);
+            yield return new ExitPlayMode();
+        }
+
+        [UnityTest]
+        public IEnumerator APanelKeptAcrossScenesStillTakesTapsWhenTheNextSceneHasNoEventSystem()
+        {
+            yield return new EnterPlayMode();
+            GameObject panelObject = Object.Instantiate(HDCTestPaths.DebugPanelPrefab());
+            var panel = panelObject.GetComponent<HDCAdsDebugPanel>();
+            yield return null;
+            Assert.IsNotNull(EventSystem.current, "the panel adds an EventSystem to a scene that has none");
+
+            Object.Destroy(EventSystem.current.gameObject);
+            yield return null;
+            Assert.IsNull(EventSystem.current, "the scene that held the EventSystem is gone");
+            panel.Open();
+            yield return null;
+
+            Assert.IsNotNull(EventSystem.current, "opening the panel brings an EventSystem back, so its buttons take taps");
+            panel.Close();
+            Object.Destroy(panelObject);
+            Object.Destroy(EventSystem.current.gameObject);
             yield return new ExitPlayMode();
         }
 

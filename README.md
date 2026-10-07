@@ -376,7 +376,7 @@ Prefab `Debug/HDCAdsDebugPanel.prefab` là bảng debug nằm đè lên game. Ch
 
 - Thêm vào scene: `HDC > Debug panel > Add to open scene`, hoặc kéo prefab vào scene.
 - Bảng ẩn khi vào scene. Mở bằng cách chạm nhanh 3 lần vào góc trên bên trái (14% chiều rộng và chiều cao, trong 0,9 giây), hoặc nhấn F10; đóng bằng nút `Close`.
-  - Chạy được với Input Manager cũ lẫn Input System mới. Scene thiếu EventSystem thì bảng tự tạo, với input module hợp loại input của project.
+  - Chạy được với Input Manager cũ lẫn Input System mới. Scene thiếu EventSystem thì bảng tự tạo, với input module hợp loại input của project. Bảng giữ qua scene (`keepAcrossScenes`) cũng tự tạo lại EventSystem khi mở ở scene sau.
   - Bảng nằm trong safe area, và tự đổi tỉ lệ khi màn hình nằm ngang.
   - Các tùy chọn trên prefab: góc mở (`activationCorner`), số lần chạm, `startOpen`, `keepAcrossScenes`.
 - Đầu bảng: trạng thái SDK và ad core đang dùng, nút `Refresh`, `Close`, và `Init SDK` khi HDCAds chưa khởi tạo (mở thẳng scene không có HDCAdsSetup; nút gọi `HDCAdsSetup.InitializeAds()`). Bốn trang: Ads, Remote Config, Events, Device.

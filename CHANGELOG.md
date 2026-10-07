@@ -106,6 +106,7 @@ Những thứ sau đã đổi so với 0.5.0:
 
 ### Sửa
 
+- Bảng debug giữ qua các scene (`keepAcrossScenes`) bấm được nút ở scene sau. Trước đây EventSystem do bảng tự tạo nằm ở scene đầu, nên mất khi chuyển scene, và nút của bảng không nhận chạm nữa. Giờ mỗi lần mở, bảng tạo lại EventSystem nếu scene đang chạy không có. Lỗi này lộ ra khi chạy scene test trên emulator.
 - Android (thư viện `hdc-ads-android` 0.3.5): game không còn đứng 2 giây khi hỏi trạng thái quảng cáo đúng lúc Unity đang bị pause, ví dụ gọi `CanShow` ngay sau khi show interstitial, hoặc khi người chơi bấm Home.
   - Trước đây luồng Android pause Unity rồi chờ luồng Unity, còn luồng Unity lại chờ luồng Android trả lời câu hỏi. Hai bên chờ nhau đủ 2 giây. Sau đó câu hỏi nhận "chưa sẵn sàng", và Unity log `Timeout (2000 ms) while trying to pause the Unity Engine`.
   - Giờ trong lúc Unity đang bị pause, câu hỏi nhận ngay giá trị mặc định, tức cùng kết quả mà trước đây phải chờ 2 giây mới có.
