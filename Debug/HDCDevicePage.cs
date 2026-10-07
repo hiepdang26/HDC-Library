@@ -291,7 +291,7 @@ namespace HDC.Ads.DebugUI
             deviceList.Begin();
             deviceList.Row("Device Name", SystemInfo.deviceName);
             deviceList.Row("Device Model", SystemInfo.deviceModel);
-            deviceList.Row("Device ID", HDCCountry.DeviceId());
+            deviceList.Row("Device ID", HDCAdsRuntime.DeviceRegion.DeviceId);
             deviceList.Row("Device Type", SystemInfo.deviceType.ToString());
             deviceList.Row("Operating System", SystemInfo.operatingSystem);
             deviceList.Row("CPU", $"{SystemInfo.processorType} · {SystemInfo.processorCount} cores");

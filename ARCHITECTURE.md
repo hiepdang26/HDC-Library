@@ -30,7 +30,7 @@ Assembly `HDC.Ads` nằm trong `Runtime/`. Mỗi thư mục con là một tầng
 | `Logic` | `HDC.Ads.Logic` | Các quy tắc quảng cáo, xem chi tiết dưới bảng. |
 | `Domain` | `HDC.Ads.Domain` | Dữ liệu: `HDCAdsConfig` và `HDCAdCoreConfig` (đúng schema JSON trên Remote Config), `HDCAdEvent`, các tùy chọn, `HDCAdNames` (instance id và khóa lưu trữ), `HDCAdUnitKeys`, `HDCAdUnitSpec`, `HDCAdLayouts` (tên layout native hợp lệ, kèm tên cũ; phải khớp danh sách layout của thư viện native). |
 | `Diagnostics` | `HDC.Ads.Diagnostics` | Thứ bảng debug đọc: tracker sự kiện, báo cáo config và mediation, `HDCDebugInfo`, `IChannelDiagnostics`, `IConfigRule`, `HDCDebugAction`. |
-| `Ports` | `HDC.Ads.Ports` | Interface mà Logic gọi và Infrastructure hiện thực: `IAdNetwork`, `IFullscreenAd`, `IFullscreenCompanion`, `IViewAd`, `IPopupAd`, `IMediationPartner`, `IAdsSdk`, `IAdsTesting`, `IClock`, `IKeyValueStore`, `IMainThread`, `IAdsLog`. |
+| `Ports` | `HDC.Ads.Ports` | Interface mà Logic gọi và Infrastructure hiện thực: `IAdNetwork`, `IFullscreenAd`, `IFullscreenCompanion`, `IViewAd`, `IPopupAd`, `IMediationPartner`, `IAdsSdk`, `IAdsTesting`, `IClock`, `IKeyValueStore`, `IMainThread`, `IAdsLog`, `IRemoteConfigValues`, `IDeviceRegionSource`. |
 | `Infrastructure` | `HDC.Ads.Infrastructure` | Code chạm vào SDK, xem chi tiết dưới bảng. |
 | `Composition` | `HDC.Ads.Composition` | `HDCAdsRuntime`: lắp port, mạng, partner, context và kênh lại với nhau. Đây là chỗ duy nhất biết cả Logic lẫn Infrastructure. |
 
@@ -38,6 +38,14 @@ Tầng `Logic` gồm:
 
 - 7 kênh trong `Channels/`. Module debug của mỗi kênh nằm ngay cạnh kênh, trong file `*.Debug.cs`.
 - Group và nguồn ad trong `Groups/`.
+- Chọn config trong `Config/`:
+  - `HDCConfigSelection` chọn `ads_config`, ad core config và custom key từ Remote Config, giá trị đã lưu hoặc mặc định, rồi áp chế độ quốc gia.
+  - `HDCCountryMode` quyết định máy có vào chế độ quốc gia không.
+  - `HDCConfigMode` ghi rõ 3 cách chọn:
+    - `RemoteConfig`: máy thật có Firebase.
+    - `EditorDefaults`: Editor không fetch.
+    - `NoRemoteConfig`: build không có Firebase.
+  - `HDCRemoteConfig` và `HDCAdsSetup` chỉ đưa dữ liệu vào và dùng kết quả. Chúng không tự quyết thứ tự ưu tiên hay chế độ quốc gia.
 - `HDCAdsContext`: config, cờ gỡ quảng cáo, mốc của quảng cáo full-screen gần nhất.
 - `HDCAdGroups`: plan của từng slot.
 - `IUnitOrderPolicy` và bản hiện thực `HDCPriorityOrder`.
@@ -50,6 +58,7 @@ Tầng `Infrastructure` gồm:
 - `Mediation/`: các partner mediation.
 - `HDCAdsSdk`: khởi động SDK và luồng sự kiện.
 - Các port hiện thực bằng Unity, như `PlayerPrefs` và `Time`.
+- `HDCDeviceRegionReader`: đọc ngôn ngữ, vùng, múi giờ, SIM và mạng của máy cho chế độ quốc gia (JNI trên Android, `DllImport` trên iOS).
 
 Các assembly khác:
 

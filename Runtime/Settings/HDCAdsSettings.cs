@@ -32,8 +32,6 @@ namespace HDC.Ads
 
         internal string CountryRulesJson() => JsonUtility.ToJson(countryCheck ?? new CountryCheck());
 
-        internal bool ChecksCountry => countryCheck != null && countryCheck.enabled;
-
         internal static HDCAdsSettings Override { get; set; }
 
         public static HDCAdsSettings Load()

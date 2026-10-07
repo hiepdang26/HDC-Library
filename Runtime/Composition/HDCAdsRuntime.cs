@@ -38,6 +38,10 @@ namespace HDC.Ads.Composition
 
         internal static void Use(HDCAdsRuntime runtime) => Current = runtime;
 
+        internal static IDeviceRegionSource DeviceRegion { get; } = new HDCDeviceRegionReader();
+
+        internal static HDCConfigSelection ConfigSelection() => new HDCConfigSelection(new HDCCountryMode(DeviceRegion, new HDCUnityAdsLog()));
+
 #if UNITY_EDITOR
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetForPlayMode()

@@ -72,7 +72,7 @@ namespace HDC.Ads.Tests
             HDCCustomConfig.Updated += () => calls++;
             LogAssert.Expect(LogType.Exception, new Regex("a game handler failed"));
 
-            HDCCustomConfig.UseDefaults();
+            HDCCustomConfig.Apply(new Dictionary<string, (string, string)> { { Key, ("default", HDCCustomConfig.DefaultSource) } }, false);
 
             Assert.AreEqual(1, calls);
             Assert.AreEqual(HDCCustomConfig.DefaultSource, HDCCustomConfig.SourceOf(Key));

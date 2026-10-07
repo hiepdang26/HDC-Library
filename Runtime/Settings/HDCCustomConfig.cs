@@ -101,30 +101,6 @@ namespace HDC.Ads
             }
         }
 
-        internal static void UseDefaults()
-        {
-            var values = new Dictionary<string, (string Value, string Source)>(StringComparer.Ordinal);
-            foreach (KeyValuePair<string, string> pair in Defaults)
-            {
-                string saved = SavedValue(pair.Key);
-                values[pair.Key] = saved.Length > 0 ? (saved, SavedSource) : (pair.Value, DefaultSource);
-            }
-
-            Apply(values, false);
-        }
-
-        internal static void UseCountry()
-        {
-            var values = new Dictionary<string, (string Value, string Source)>(StringComparer.Ordinal);
-            foreach (KeyValuePair<string, string> pair in HDCAdsSettings.Load().CustomCountryValues())
-            {
-                if (Defaults.ContainsKey(pair.Key))
-                    values[pair.Key] = (pair.Value, CountrySource);
-            }
-
-            Apply(values, false);
-        }
-
         internal static void Reset()
         {
             Applied.Clear();

@@ -95,6 +95,9 @@ Những thứ sau đã đổi so với 0.5.0:
 - Khi SDK sẵn sàng, các kênh khởi động theo thứ tự AL, AR, RW, FA, BN, MREC, PU. Trước đây FA khởi động trước RW.
 - Bảng debug bỏ tab CL (collapsible banner), vì HDCLib chưa có kênh này.
 - Bảng debug không còn hỏi phía native mỗi giây.
+- Dọn kiến trúc, không đổi hành vi:
+  - Việc chọn config (Remote Config, giá trị đã lưu, mặc định) và chế độ quốc gia nằm ở một use case trong Logic (`HDCConfigSelection`). Trước đây chúng nằm trong `HDCRemoteConfig` và lặp lại một phần trong `HDCAdsSetup`.
+  - Phần đọc vùng và ngôn ngữ của máy tách khỏi phần quyết định, và đứng sau port `IDeviceRegionSource`.
 - Mã nguồn C# của HDCLib không còn comment. Tài liệu nằm trong `README.md`, `ARCHITECTURE.md` và `CHANGELOG.md`.
 - Post-process iOS nhúng mọi framework động của pod mà app chưa có, ví dụ `AppLovinSDK` và `AdjustSigSdk`. Trước đây nó chỉ nhúng `FBAudienceNetwork`. Export kiểu Append thay build phase cũ của HDC thay vì thêm phase thứ hai.
 

@@ -4,9 +4,10 @@ using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
 #if HDC_ADS
-using HDC.Ads.Diagnostics;
-using HDC.Ads.Infrastructure;
 using HDC.Ads.Logic;
+#endif
+#if HDC_ADS && !HDC_FIREBASE
+using HDC.Ads.Composition;
 #endif
 
 namespace HDC.Ads
@@ -50,23 +51,22 @@ namespace HDC.Ads
 #if HDC_FIREBASE
             HDCRemoteConfig.FetchAndInitialize(defaults.AdsConfig, defaults.CoreConfigsByKey(), onReady);
 #else
-            HDCCountryResult country = HDCCountry.Check(defaults.CountryRulesJson());
-            HDCConfigReport.CountryChecked(country);
-            if (country.IsOn)
+            HDCConfigChoice choice = HDCAdsRuntime.ConfigSelection().Select(new HDCConfigInputs
             {
-                HDCCustomConfig.UseCountry();
-                HDCAds.Initialize(Pick(defaults.CountryAdsConfig, defaults.AdsConfig), Pick(defaults.CountryCoreConfig, defaults.CoreConfig), onReady);
-                return;
-            }
-
-            HDCCustomConfig.UseDefaults();
-            HDCAds.Initialize(defaults.AdsConfig, defaults.CoreConfig, onReady);
+                Mode = HDCConfigMode.NoRemoteConfig,
+                DefaultAds = defaults.AdsConfig,
+                DefaultCore = defaults.CoreConfig,
+                CustomDefaults = HDCCustomConfig.Defaults,
+                SavedCustom = HDCCustomConfig.SavedValue,
+                CountryRules = defaults.CountryRulesJson(),
+                CountryAds = defaults.CountryAdsConfig,
+                CountryCore = defaults.CountryCoreConfig,
+                CustomCountry = defaults.CustomCountryValues(),
+            });
+            HDCCustomConfig.Apply(choice.CustomValues(), choice.SaveCustom);
+            HDCAds.Initialize(choice.Ads, choice.Core, onReady);
 #endif
         }
-#endif
-
-#if HDC_ADS && !HDC_FIREBASE
-        private static string Pick(string country, string fallback) => string.IsNullOrWhiteSpace(country) ? fallback : country;
 #endif
 
         private IEnumerator Start()

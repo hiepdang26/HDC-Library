@@ -3,16 +3,18 @@ using System.Collections.Generic;
 using Firebase;
 using Firebase.Extensions;
 using Firebase.RemoteConfig;
+using HDC.Ads.Composition;
 using HDC.Ads.Diagnostics;
-using HDC.Ads.Domain;
 using HDC.Ads.Infrastructure;
+using HDC.Ads.Logic;
+using HDC.Ads.Ports;
 using UnityEngine;
 
 namespace HDC.Ads
 {
     public static class HDCRemoteConfig
     {
-        public const string AdsConfigKey = "ads_config";
+        public const string AdsConfigKey = HDCConfigSelection.AdsConfigKey;
 
         public static bool FetchInEditor { get; set; }
 
@@ -131,149 +133,37 @@ namespace HDC.Ads
                     return;
                 finished = true;
 
-                string ads = Read(AdsConfigKey, defaultAdsConfig);
-                string coreKey = HDCAdsConfig.Parse(ads).selectedAdCoreName;
-                string core = string.IsNullOrEmpty(coreKey)
-                    ? ""
-                    : Read(coreKey, defaultCoreConfigs.TryGetValue(coreKey, out string fallback) ? fallback : "");
-                ReportRemoteValues();
-                if (!defaultsOnly)
-                {
-                    Save(AdsConfigKey, ads);
-                    if (!string.IsNullOrEmpty(coreKey))
-                        Save(coreKey, core);
-                }
-
                 HDCAdsSettings settings = HDCAdsSettings.Load();
-                HDCCountryResult country = HDCCountry.Check(settings.CountryRulesJson(), RemoteDebugDevices());
-                HDCConfigReport.CountryChecked(country);
-                if (country.IsOn)
+                HDCConfigChoice choice = HDCAdsRuntime.ConfigSelection().Select(new HDCConfigInputs
                 {
-                    ads = UseCountry(AdsConfigKey, settings.CountryAdsConfig, ads);
-                    string countryCoreKey = HDCAdsConfig.Parse(ads).selectedAdCoreName;
-                    if (!string.IsNullOrEmpty(countryCoreKey))
-                        coreKey = countryCoreKey;
-                    if (!string.IsNullOrEmpty(coreKey))
-                        core = UseCountry(coreKey, settings.CountryCoreConfig, core);
-                    HDCCustomConfig.UseCountry();
-                }
-                else
-                {
-                    ApplyCustomConfigs();
-                }
+                    Mode = defaultsOnly ? HDCConfigMode.EditorDefaults : HDCConfigMode.RemoteConfig,
+                    Remote = defaultsOnly || remoteConfig == null ? null : new FirebaseValues(remoteConfig),
+                    DefaultAds = defaultAdsConfig,
+                    DefaultCores = defaultCoreConfigs,
+                    Saved = Saved,
+                    CustomDefaults = HDCCustomConfig.Defaults,
+                    SavedCustom = HDCCustomConfig.SavedValue,
+                    CountryRules = settings.CountryRulesJson(),
+                    CountryAds = settings.CountryAdsConfig,
+                    CountryCore = settings.CountryCoreConfig,
+                    CustomCountry = settings.CustomCountryValues(),
+                });
+                ReportRemoteValues();
+                foreach (KeyValuePair<string, string> save in choice.Saves)
+                    Save(save.Key, save.Value);
+                HDCCustomConfig.Apply(choice.CustomValues(), choice.SaveCustom);
 
-                HDCConfigReport.LoadFinished(reason, coreKey);
+                HDCConfigReport.LoadFinished(reason, choice.CoreKey);
                 if (HDCAdsSdk.DebugLog)
-                    Debug.Log($"[HDCAds] remote config ready ({reason}): core config '{coreKey}'");
+                    Debug.Log($"[HDCAds] remote config ready ({reason}): core config '{choice.CoreKey}'");
                 try
                 {
-                    onLoaded?.Invoke(ads, core);
+                    onLoaded?.Invoke(choice.Ads, choice.Core);
                 }
                 catch (Exception exception)
                 {
                     Debug.LogException(exception);
                 }
-            }
-
-            private string Read(string key, string fallback)
-            {
-                HDCConfigEntry entry = HDCConfigReport.Entry(key);
-                entry.Default = fallback ?? "";
-                entry.Saved = Saved(key);
-                if (defaultsOnly)
-                {
-                    entry.RemoteOrigin = "Not fetched in the Editor";
-                }
-                else if (remoteConfig == null)
-                {
-                    entry.RemoteOrigin = "Firebase not ready";
-                }
-                else
-                {
-                    try
-                    {
-                        ConfigValue value = remoteConfig.GetValue(key);
-                        entry.Remote = value.StringValue ?? "";
-                        entry.RemoteOrigin = value.Source.ToString();
-                    }
-                    catch (Exception exception)
-                    {
-                        entry.RemoteOrigin = "Read failed: " + exception.Message;
-                        Debug.LogWarning($"[HDCAds] cannot read remote config '{key}': {exception.Message}");
-                    }
-                }
-
-                if (!defaultsOnly && !string.IsNullOrEmpty(entry.Remote))
-                    Use(entry, entry.Remote, HDCConfigSource.Remote);
-                else if (!defaultsOnly && !string.IsNullOrEmpty(entry.Saved))
-                    Use(entry, entry.Saved, HDCConfigSource.Saved);
-                else
-                    Use(entry, entry.Default, HDCConfigSource.Default);
-                return entry.Used;
-            }
-
-            private static string UseCountry(string key, string countryValue, string current)
-            {
-                if (string.IsNullOrWhiteSpace(countryValue))
-                    return current;
-                HDCConfigEntry entry = HDCConfigReport.Entry(key);
-                Use(entry, countryValue, HDCConfigSource.Country);
-                return countryValue;
-            }
-
-            private IEnumerable<string> RemoteDebugDevices()
-            {
-                if (defaultsOnly || remoteConfig == null)
-                    return new string[0];
-                try
-                {
-                    return HDCCountry.RemoteDebugDevices(remoteConfig.GetValue(HDCCountry.DevicesKey).StringValue);
-                }
-                catch (Exception exception)
-                {
-                    Debug.LogWarning($"[HDCAds] cannot read remote config '{HDCCountry.DevicesKey}': {exception.Message}");
-                    return new string[0];
-                }
-            }
-
-            private void ApplyCustomConfigs()
-            {
-                var values = new Dictionary<string, (string Value, string Source)>(StringComparer.Ordinal);
-                foreach (KeyValuePair<string, string> custom in HDCCustomConfig.Defaults)
-                    values[custom.Key] = ReadCustom(custom.Key, custom.Value);
-                HDCCustomConfig.Apply(values, !defaultsOnly);
-            }
-
-            private (string Value, string Source) ReadCustom(string key, string fallback)
-            {
-                if (!defaultsOnly && remoteConfig != null)
-                {
-                    try
-                    {
-                        string remote = remoteConfig.GetValue(key).StringValue;
-                        if (!string.IsNullOrEmpty(remote))
-                            return (remote, HDCCustomConfig.RemoteSource);
-                    }
-                    catch (Exception exception)
-                    {
-                        Debug.LogWarning($"[HDCAds] cannot read remote config '{key}': {exception.Message}");
-                    }
-                }
-
-                if (!defaultsOnly)
-                {
-                    string saved = HDCCustomConfig.SavedValue(key);
-                    if (saved.Length > 0)
-                        return (saved, HDCCustomConfig.SavedSource);
-                }
-
-                return (fallback ?? "", HDCCustomConfig.DefaultSource);
-            }
-
-            private static void Use(HDCConfigEntry entry, string value, HDCConfigSource source)
-            {
-                entry.Used = value;
-                entry.Source = source;
             }
 
             private void ReportFetch(string problem)
@@ -318,6 +208,33 @@ namespace HDC.Ads
                 if (root == null)
                     return "canceled";
                 return root is DllNotFoundException ? "native library " + root.Message.Split(' ')[0] + " not found" : root.Message;
+            }
+
+            private sealed class FirebaseValues : IRemoteConfigValues
+            {
+                private readonly FirebaseRemoteConfig remoteConfig;
+
+                internal FirebaseValues(FirebaseRemoteConfig remoteConfig)
+                {
+                    this.remoteConfig = remoteConfig;
+                }
+
+                public string Read(string key, out string origin)
+                {
+                    try
+                    {
+                        ConfigValue value = remoteConfig.GetValue(key);
+                        string text = value.StringValue ?? "";
+                        origin = value.Source.ToString();
+                        return text;
+                    }
+                    catch (Exception exception)
+                    {
+                        origin = "Read failed: " + exception.Message;
+                        Debug.LogWarning($"[HDCAds] cannot read remote config '{key}': {exception.Message}");
+                        return "";
+                    }
+                }
             }
 
             private static string Saved(string key)

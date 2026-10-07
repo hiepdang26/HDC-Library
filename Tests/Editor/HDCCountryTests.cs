@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using HDC.Ads.Diagnostics;
 using HDC.Ads.Domain;
-using HDC.Ads.Infrastructure;
+using HDC.Ads.Logic;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
@@ -34,31 +34,31 @@ namespace HDC.Ads.Tests
             HDCCountryRules rules = Rules();
             var region = new HDCDeviceRegion { SimCountry = "vn", TimezoneName = "Asia/Bangkok", UtcOffsetHours = 7 };
 
-            HDCCountryResult on = HDCCountry.Decide(rules, "device-1", null, region, false);
+            HDCCountryResult on = HDCCountryMode.Decide(rules, "device-1", null, region, false);
             Assert.IsTrue(on.IsOn);
             Assert.AreEqual("SIM country VN", on.Reason);
 
-            Assert.IsFalse(HDCCountry.Decide(rules, "device-1", new[] { " DEVICE-1 " }, region, false).IsOn, "a Remote Config debug device");
+            Assert.IsFalse(HDCCountryMode.Decide(rules, "device-1", new[] { " DEVICE-1 " }, region, false).IsOn, "a Remote Config debug device");
             rules.debugDevices = new[] { "device-1" };
-            Assert.AreEqual("Debug device", HDCCountry.Decide(rules, "device-1", null, region, false).Reason);
+            Assert.AreEqual("Debug device", HDCCountryMode.Decide(rules, "device-1", null, region, false).Reason);
         }
 
         [Test]
         public void EachSignalCountsAndUtcOffsetOnlyWhenListed()
         {
             HDCCountryRules rules = Rules();
-            Assert.IsTrue(HDCCountry.Decide(rules, "d", null, new HDCDeviceRegion { SystemLanguage = "Vietnamese" }, false).IsOn);
-            Assert.IsTrue(HDCCountry.Decide(rules, "d", null, new HDCDeviceRegion { LanguageCodes = new[] { "en", "vi" } }, false).IsOn);
-            Assert.IsTrue(HDCCountry.Decide(rules, "d", null, new HDCDeviceRegion { Regions = new[] { "VN" } }, false).IsOn);
-            Assert.IsTrue(HDCCountry.Decide(rules, "d", null, new HDCDeviceRegion { TimezoneName = "Asia/Ho_Chi_Minh" }, false).IsOn);
-            Assert.IsTrue(HDCCountry.Decide(rules, "d", null, new HDCDeviceRegion { NetworkCountry = "vn" }, false).IsOn);
+            Assert.IsTrue(HDCCountryMode.Decide(rules, "d", null, new HDCDeviceRegion { SystemLanguage = "Vietnamese" }, false).IsOn);
+            Assert.IsTrue(HDCCountryMode.Decide(rules, "d", null, new HDCDeviceRegion { LanguageCodes = new[] { "en", "vi" } }, false).IsOn);
+            Assert.IsTrue(HDCCountryMode.Decide(rules, "d", null, new HDCDeviceRegion { Regions = new[] { "VN" } }, false).IsOn);
+            Assert.IsTrue(HDCCountryMode.Decide(rules, "d", null, new HDCDeviceRegion { TimezoneName = "Asia/Ho_Chi_Minh" }, false).IsOn);
+            Assert.IsTrue(HDCCountryMode.Decide(rules, "d", null, new HDCDeviceRegion { NetworkCountry = "vn" }, false).IsOn);
 
             var bangkok = new HDCDeviceRegion { TimezoneName = "Asia/Bangkok", UtcOffsetHours = 7, Regions = new[] { "th" }, LanguageCodes = new[] { "th" } };
-            HDCCountryResult off = HDCCountry.Decide(rules, "d", null, bangkok, false);
+            HDCCountryResult off = HDCCountryMode.Decide(rules, "d", null, bangkok, false);
             Assert.IsFalse(off.IsOn, "UTC+7 alone is also Thailand");
             Assert.AreEqual("No signal of VN", off.Reason);
             rules.utcOffsets = new[] { 7f };
-            Assert.IsTrue(HDCCountry.Decide(rules, "d", null, bangkok, false).IsOn, "listed on purpose");
+            Assert.IsTrue(HDCCountryMode.Decide(rules, "d", null, bangkok, false).IsOn, "listed on purpose");
         }
 
         [Test]
@@ -66,19 +66,19 @@ namespace HDC.Ads.Tests
         {
             HDCCountryRules rules = Rules();
             var region = new HDCDeviceRegion { SimCountry = "vn" };
-            Assert.IsFalse(HDCCountry.Decide(rules, "d", null, region, true).IsOn);
+            Assert.IsFalse(HDCCountryMode.Decide(rules, "d", null, region, true).IsOn);
             rules.simulateInEditor = true;
-            Assert.IsTrue(HDCCountry.Decide(rules, "d", null, new HDCDeviceRegion(), true).IsOn, "simulated in the Editor");
+            Assert.IsTrue(HDCCountryMode.Decide(rules, "d", null, new HDCDeviceRegion(), true).IsOn, "simulated in the Editor");
             rules.enabled = false;
-            Assert.IsFalse(HDCCountry.Decide(rules, "d", null, region, false).IsOn);
+            Assert.IsFalse(HDCCountryMode.Decide(rules, "d", null, region, false).IsOn);
         }
 
         [Test]
         public void RemoteDebugDevicesComeFromTheDevicesKey()
         {
-            CollectionAssert.AreEqual(new[] { "a", "b" }, HDCCountry.RemoteDebugDevices("{\"debugDevices\":[\"a\",\" b \",\"\"]}"));
-            Assert.IsEmpty(HDCCountry.RemoteDebugDevices("not json"));
-            Assert.IsEmpty(HDCCountry.RemoteDebugDevices(""));
+            CollectionAssert.AreEqual(new[] { "a", "b" }, HDCDebugDevices.Parse("{\"debugDevices\":[\"a\",\" b \",\"\"]}"));
+            Assert.IsEmpty(HDCDebugDevices.Parse("not json"));
+            Assert.IsEmpty(HDCDebugDevices.Parse(""));
         }
 
         [Test]
