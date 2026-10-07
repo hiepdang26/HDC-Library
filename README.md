@@ -287,6 +287,7 @@ HDCAds.Testing.EnableTestDevice();                  // chỉ cho bản test
 - App open quá 4 giờ kể từ lúc load thì coi là chưa sẵn sàng.
 - `HDCAds.Testing.EnableTestDevice()` đăng ký máy đang chạy là test device của Google Mobile Ads, áp dụng cho mọi định dạng.
 - Trên iOS, sự kiện tới ngay cả khi quảng cáo fullscreen đang pause Unity. Trên Android, sự kiện phát ra trong lúc quảng cáo fullscreen che game sẽ tới khi Unity chạy lại.
+- Trên Android, việc hỏi interstitial hay popup đã sẵn sàng chưa (ví dụ `CanShow`) chờ luồng Android trả lời, tối đa 2 giây. Lúc Unity đang bị pause, ví dụ ngay sau khi interstitial mở hoặc khi người chơi bấm Home, câu hỏi nhận ngay "chưa sẵn sàng" mà không phải chờ.
 - Hỗ trợ tắt domain reload (Enter Play Mode Options, mặc định của project Unity 6.6 mới). Mọi state tĩnh của HDCLib (ad, callback, subscriber, kênh) được reset mỗi lần vào Play Mode.
 - Trong Editor, SDK được giả lập:
   - Load mất 0,5 giây. Ad unit có chữ `fail` trong ID thì load lỗi với mã 3 (no fill).

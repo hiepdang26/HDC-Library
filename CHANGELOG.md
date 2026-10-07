@@ -106,6 +106,10 @@ Những thứ sau đã đổi so với 0.5.0:
 
 ### Sửa
 
+- Android (thư viện `hdc-ads-android` 0.3.5): game không còn đứng 2 giây khi hỏi trạng thái quảng cáo đúng lúc Unity đang bị pause, ví dụ gọi `CanShow` ngay sau khi show interstitial, hoặc khi người chơi bấm Home.
+  - Trước đây luồng Android pause Unity rồi chờ luồng Unity, còn luồng Unity lại chờ luồng Android trả lời câu hỏi. Hai bên chờ nhau đủ 2 giây. Sau đó câu hỏi nhận "chưa sẵn sàng", và Unity log `Timeout (2000 ms) while trying to pause the Unity Engine`.
+  - Giờ trong lúc Unity đang bị pause, câu hỏi nhận ngay giá trị mặc định, tức cùng kết quả mà trước đây phải chờ 2 giây mới có.
+  - Lệnh đã nhận giá trị mặc định, vì Unity đang pause hoặc vì chờ quá 2 giây, không bao giờ chạy muộn nữa. Trước đây `interstitial.show` quá 2 giây vẫn có thể hiện quảng cáo sau khi HDCLib đã nhận "không hiện".
 - Android (thư viện `hdc-ads-android` 0.3.2):
   - Lệnh show của native full-screen và popup trả lời ngay sau khi kiểm tra ad sẵn sàng, không chờ ad hiện xong. Trước đây, trên máy chậm, việc hiện ad kéo dài quá 2 giây thì lệnh trả về "không hiện" trong khi ad vẫn hiện. Khi đó `ForceAd.Show` trả false, `onDone` chạy ngay, và capping không tính lượt đó.
   - Show không thực hiện được (ví dụ không còn ad đã load) giờ báo ShowFailed, thay vì LoadFailed.
