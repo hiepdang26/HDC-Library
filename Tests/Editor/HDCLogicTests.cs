@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using HDC.Ads.Domain;
@@ -304,6 +305,27 @@ namespace HDC.Ads.Tests
 
             Assert.AreEqual(1, ad.CompanionAd.Loads);
             Assert.AreEqual(0, ad.CompanionAd.Shows, "a later load does not show it on its own");
+        }
+
+        [Test]
+        public void InvalidConfigsAndFailingGameHandlersGoToTheLog()
+        {
+            var ads = new HDCFakeAds();
+            ads.Start("{not json", "{not json either");
+            Assert.AreEqual(2, ads.Log.Warnings.Count);
+            StringAssert.StartsWith("invalid ads config: ", ads.Log.Warnings[0]);
+            StringAssert.StartsWith("invalid ad core config: ", ads.Log.Warnings[1]);
+
+            ads = new HDCFakeAds();
+            ads.Start(ForceAdAds, NativeGroupCore);
+            ads.Channels.ForceAd.Initialize("g");
+            int calls = 0;
+            ads.Context.Revenue += revenue => throw new InvalidOperationException("a game handler failed");
+            ads.Context.Revenue += revenue => calls++;
+            ads.Native.Ad(HDCAdUse.ForceAd).Paid(1000);
+
+            Assert.AreEqual("a game handler failed", ads.Log.Exceptions.Single().Message);
+            Assert.AreEqual(1, calls, "the other handlers still run");
         }
 
         private static HDCFakeAd StartWithCompanion(out HDCFakeAds ads)

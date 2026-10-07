@@ -1,13 +1,13 @@
 using System;
 using HDC.Ads.Domain;
 using HDC.Ads.Ports;
-using UnityEngine;
 
 namespace HDC.Ads.Logic
 {
     internal sealed class HDCFullscreenSource
     {
         private readonly IFullscreenAd ad;
+        private readonly IAdsLog log;
         private readonly HDCCompanionShow companion;
         private Action onDisplayed;
         private Action<bool> onClosed;
@@ -17,9 +17,10 @@ namespace HDC.Ads.Logic
         private bool rewardEarned;
         private bool destroyed;
 
-        internal HDCFullscreenSource(IFullscreenAd ad, IAdNetwork network)
+        internal HDCFullscreenSource(IFullscreenAd ad, IAdNetwork network, IAdsLog log)
         {
             this.ad = ad;
+            this.log = log;
             Network = network;
             ad.Event += OnAdEvent;
             if (ad is IFullscreenCompanion withCompanion && withCompanion.Companion != null)
@@ -67,7 +68,7 @@ namespace HDC.Ads.Logic
             }
             catch (Exception exception)
             {
-                Debug.LogException(exception);
+                log.Exception(exception);
                 started = false;
             }
             finally
@@ -149,7 +150,7 @@ namespace HDC.Ads.Logic
             }
             catch (Exception exception)
             {
-                Debug.LogException(exception);
+                log.Exception(exception);
             }
         }
     }

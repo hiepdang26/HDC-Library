@@ -40,7 +40,11 @@ namespace HDC.Ads.Composition
 
         internal static IDeviceRegionSource DeviceRegion { get; } = new HDCDeviceRegionReader();
 
-        internal static HDCConfigSelection ConfigSelection() => new HDCConfigSelection(new HDCCountryMode(DeviceRegion, new HDCUnityAdsLog()));
+        internal static HDCConfigSelection ConfigSelection()
+        {
+            var log = new HDCUnityAdsLog();
+            return new HDCConfigSelection(new HDCCountryMode(DeviceRegion, log), log);
+        }
 
 #if UNITY_EDITOR
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]

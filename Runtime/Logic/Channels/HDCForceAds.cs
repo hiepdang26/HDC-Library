@@ -298,11 +298,11 @@ namespace HDC.Ads.Logic
                 breakAttempting = false;
         }
 
-        private static void Run(Action action) => HDCCallbacks.Run(action);
+        private void Run(Action action) => HDCCallbacks.Run(action, context.Log);
 
-        private static void Raise(Action<string> handler, string position) => HDCCallbacks.Run(() => handler?.Invoke(position));
+        private void Raise(Action<string> handler, string position) => HDCCallbacks.Run(() => handler?.Invoke(position), context.Log);
 
-        private static void Raise<T>(Action<string, T> handler, string position, T value) =>
-            HDCCallbacks.Run(() => handler?.Invoke(position, value));
+        private void Raise<T>(Action<string, T> handler, string position, T value) =>
+            HDCCallbacks.Run(() => handler?.Invoke(position, value), context.Log);
     }
 }

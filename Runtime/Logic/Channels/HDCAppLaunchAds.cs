@@ -1,6 +1,5 @@
 using System;
 using HDC.Ads.Domain;
-using UnityEngine;
 
 namespace HDC.Ads.Logic
 {
@@ -162,7 +161,7 @@ namespace HDC.Ads.Logic
                 context.MainThread.Ticked -= Tick;
             }
 
-            HDCCallbacks.Run(Completed);
+            HDCCallbacks.Run(Completed, context.Log);
         }
 
         private void RaiseBeforeShow()
@@ -170,7 +169,7 @@ namespace HDC.Ads.Logic
             if (IsBeforeShowRaised)
                 return;
             IsBeforeShowRaised = true;
-            HDCCallbacks.Run(BeforeShow);
+            HDCCallbacks.Run(BeforeShow, context.Log);
         }
 
         private HDCFullscreenGroup Group()

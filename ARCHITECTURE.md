@@ -98,15 +98,20 @@ flowchart TD
 
 | Tầng | Không được dùng |
 |---|---|
-| `Api` | SDK, `Infrastructure` |
-| `Logic` | SDK, `Infrastructure`, `Composition` |
-| `Domain` | SDK, `Logic`, `Diagnostics`, `Ports`, `Infrastructure`, `Composition` |
-| `Diagnostics` | SDK, `Logic`, `Composition` |
-| `Ports` | SDK, `Logic`, `Diagnostics`, `Infrastructure`, `Composition` |
+| `Api` | SDK, log Unity, `Infrastructure` |
+| `Logic` | SDK, log Unity, `Infrastructure`, `Composition` |
+| `Domain` | SDK, log Unity, `Logic`, `Diagnostics`, `Ports`, `Infrastructure`, `Composition` |
+| `Diagnostics` | SDK, log Unity, `Logic`, `Composition` |
+| `Ports` | SDK, log Unity, `Logic`, `Diagnostics`, `Infrastructure`, `Composition` |
 | `Infrastructure` | `Logic`, `Composition` |
 | `Composition` | SDK |
 
-Ở bảng trên, "SDK" là bất kỳ thứ nào sau đây: `GoogleMobileAds`, Firebase, `PlayerPrefs`, JNI (`AndroidJavaObject`…) hoặc `DllImport`. Chỉ Infrastructure được chạm vào SDK.
+Ở bảng trên:
+
+- "SDK" là bất kỳ thứ nào sau đây: `GoogleMobileAds`, Firebase, `PlayerPrefs`, JNI (`AndroidJavaObject`…) hoặc `DllImport`. Chỉ Infrastructure được chạm vào SDK.
+- "Log Unity" là lời gọi `Debug.Log…`.
+  - Logic log qua port `IAdsLog`: `Info` chỉ in khi bật `DebugLog`, còn `Warning` và `Exception` luôn in.
+  - Domain không log. Ví dụ, `HDCAdsConfig.Parse(json, out error)` trả lỗi về, và Logic là bên quyết định có log hay không.
 
 Code mới đặt ở đâu:
 

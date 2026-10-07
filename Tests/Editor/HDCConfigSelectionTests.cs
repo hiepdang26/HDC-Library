@@ -213,7 +213,7 @@ namespace HDC.Ads.Tests
             Assert.AreEqual(("v", HDCCustomConfig.SavedSource), choice.CustomValues()["k"]);
         }
 
-        private HDCConfigChoice Select(HDCConfigInputs inputs) => new HDCConfigSelection(new HDCCountryMode(region, log)).Select(inputs);
+        private HDCConfigChoice Select(HDCConfigInputs inputs) => new HDCConfigSelection(new HDCCountryMode(region, log), log).Select(inputs);
 
         private static HDCConfigInputs Inputs(HDCConfigMode mode, IRemoteConfigValues remote) =>
             new HDCConfigInputs

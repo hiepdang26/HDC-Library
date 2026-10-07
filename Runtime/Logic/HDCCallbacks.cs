@@ -1,11 +1,11 @@
 using System;
-using UnityEngine;
+using HDC.Ads.Ports;
 
 namespace HDC.Ads.Logic
 {
     internal static class HDCCallbacks
     {
-        internal static void Run(Action action)
+        internal static void Run(Action action, IAdsLog log)
         {
             if (action == null)
                 return;
@@ -15,7 +15,7 @@ namespace HDC.Ads.Logic
             }
             catch (Exception exception)
             {
-                Debug.LogException(exception);
+                log.Exception(exception);
             }
         }
     }

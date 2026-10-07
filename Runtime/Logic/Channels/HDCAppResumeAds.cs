@@ -1,6 +1,5 @@
 using HDC.Ads.Domain;
 using HDC.Ads.Ports;
-using UnityEngine;
 
 namespace HDC.Ads.Logic
 {
@@ -68,7 +67,7 @@ namespace HDC.Ads.Logic
             HDCAdPlan plan = context.Groups.ResumePlan();
             if (plan == null)
                 return;
-            source = new HDCFullscreenSource(plan.Network.CreateFullscreen(plan), plan.Network);
+            source = new HDCFullscreenSource(plan.Network.CreateFullscreen(plan), plan.Network, context.Log);
             context.MainThread.ApplicationPaused += OnApplicationPaused;
         }
 

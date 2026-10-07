@@ -18,6 +18,7 @@ namespace HDC.Ads.Logic
         private readonly bool useBackup;
         private readonly IClock clock;
         private readonly IMainThread mainThread;
+        private readonly IAdsLog log;
         private int started;
         private bool showing;
         private bool ticking;
@@ -25,9 +26,10 @@ namespace HDC.Ads.Logic
         private int swaps;
         private HDCRectSource visible;
 
-        internal HDCRectGroup(List<HDCRectSource> sources, bool useBackup, IClock clock = null, IMainThread mainThread = null)
+        internal HDCRectGroup(List<HDCRectSource> sources, bool useBackup, IAdsLog log, IClock clock = null, IMainThread mainThread = null)
         {
             this.sources = sources;
+            this.log = log;
             this.useBackup = useBackup;
             this.clock = clock;
             this.mainThread = mainThread;
@@ -241,7 +243,7 @@ namespace HDC.Ads.Logic
                     Display(source);
             }
 
-            HDCCallbacks.Run(Loaded);
+            HDCCallbacks.Run(Loaded, log);
         }
 
         private void StartNext() => sources[started++].Load();

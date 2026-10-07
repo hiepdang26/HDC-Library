@@ -16,8 +16,11 @@ namespace HDC.Ads.Domain
         public MrecChannel mrecChannel = new MrecChannel();
         public PopupChannel popupChannel = new PopupChannel();
 
-        public static HDCAdsConfig Parse(string json)
+        public static HDCAdsConfig Parse(string json) => Parse(json, out _);
+
+        public static HDCAdsConfig Parse(string json, out string error)
         {
+            error = null;
             if (string.IsNullOrWhiteSpace(json))
                 return new HDCAdsConfig();
             try
@@ -26,7 +29,7 @@ namespace HDC.Ads.Domain
             }
             catch (Exception exception)
             {
-                Debug.LogWarning("[HDCAds] invalid ads config: " + exception.Message);
+                error = exception.Message;
                 return new HDCAdsConfig();
             }
         }

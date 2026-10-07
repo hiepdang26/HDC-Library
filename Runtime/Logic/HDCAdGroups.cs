@@ -77,7 +77,7 @@ namespace HDC.Ads.Logic
             if (config == null)
                 return null;
 
-            group = new HDCFullscreenGroup(context, groupName, FullscreenSources(ForceAdPlans(groupName)), config.useBackup, config.maxShowCount);
+            group = new HDCFullscreenGroup(context, groupName, FullscreenSources(ForceAdPlans(groupName), context.Log), config.useBackup, config.maxShowCount);
             forceAdGroups[groupName] = group;
             return group;
         }
@@ -105,7 +105,7 @@ namespace HDC.Ads.Logic
                 return rewardedGroup;
 
             HDCAdCoreConfig.FullscreenUnit config = CoreConfig.rewardedUnit ?? new HDCAdCoreConfig.FullscreenUnit();
-            List<HDCFullscreenSource> sources = FullscreenSources(RewardedPlans());
+            List<HDCFullscreenSource> sources = FullscreenSources(RewardedPlans(), context.Log);
             foreach (HDCFullscreenSource source in sources)
                 source.RewardsOnClose = source.Format != HDCAdFormat.Rewarded;
             rewardedGroup = new HDCFullscreenGroup(context, "rewarded", sources, config.useBackup, 0);
@@ -118,12 +118,12 @@ namespace HDC.Ads.Logic
                 return appOpenGroup;
 
             HDCAdCoreConfig.FullscreenUnit config = CoreConfig.appOpenUnit ?? new HDCAdCoreConfig.FullscreenUnit();
-            appOpenGroup = new HDCFullscreenGroup(context, "app_open", FullscreenSources(AppOpenPlans()), config.useBackup, 0);
+            appOpenGroup = new HDCFullscreenGroup(context, "app_open", FullscreenSources(AppOpenPlans(), context.Log), config.useBackup, 0);
             return appOpenGroup;
         }
 
-        internal static List<HDCFullscreenSource> FullscreenSources(IEnumerable<HDCAdPlan> plans) =>
-            plans.Select(plan => new HDCFullscreenSource(plan.Network.CreateFullscreen(plan), plan.Network)).ToList();
+        internal static List<HDCFullscreenSource> FullscreenSources(IEnumerable<HDCAdPlan> plans, IAdsLog log) =>
+            plans.Select(plan => new HDCFullscreenSource(plan.Network.CreateFullscreen(plan), plan.Network, log)).ToList();
 
         internal static List<HDCRectSource> ViewSources(IEnumerable<HDCAdPlan> plans) =>
             plans.Select(plan => new HDCRectSource(plan.Network.CreateView(plan), plan.Network)).ToList();

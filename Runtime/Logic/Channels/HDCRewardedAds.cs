@@ -32,8 +32,8 @@ namespace HDC.Ads.Logic
 
             if (IgnoreAds)
             {
-                HDCCallbacks.Run(onRewarded);
-                HDCCallbacks.Run(onClosed);
+                HDCCallbacks.Run(onRewarded, context.Log);
+                HDCCallbacks.Run(onClosed, context.Log);
                 return true;
             }
 
@@ -45,8 +45,8 @@ namespace HDC.Ads.Logic
                 rewarded =>
                 {
                     if (rewarded)
-                        HDCCallbacks.Run(onRewarded);
-                    HDCCallbacks.Run(onClosed);
+                        HDCCallbacks.Run(onRewarded, context.Log);
+                    HDCCallbacks.Run(onClosed, context.Log);
                 });
         }
 

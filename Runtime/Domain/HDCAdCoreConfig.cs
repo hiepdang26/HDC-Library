@@ -16,8 +16,11 @@ namespace HDC.Ads.Domain
         public FullscreenUnit mrecUnit = new FullscreenUnit();
         public PopupGroup[] popupGroups = new PopupGroup[0];
 
-        public static HDCAdCoreConfig Parse(string json)
+        public static HDCAdCoreConfig Parse(string json) => Parse(json, out _);
+
+        public static HDCAdCoreConfig Parse(string json, out string error)
         {
+            error = null;
             if (string.IsNullOrWhiteSpace(json))
                 return new HDCAdCoreConfig();
             try
@@ -26,7 +29,7 @@ namespace HDC.Ads.Domain
             }
             catch (Exception exception)
             {
-                Debug.LogWarning("[HDCAds] invalid ad core config: " + exception.Message);
+                error = exception.Message;
                 return new HDCAdCoreConfig();
             }
         }

@@ -4,7 +4,6 @@ using System.Linq;
 using HDC.Ads.Diagnostics;
 using HDC.Ads.Domain;
 using HDC.Ads.Ports;
-using UnityEngine;
 
 namespace HDC.Ads.Logic
 {
@@ -72,7 +71,7 @@ namespace HDC.Ads.Logic
         {
             if (initializeCalled)
             {
-                Debug.LogWarning("[HDCAds] HDCAds.Initialize was already called");
+                Log.Warning("HDCAds.Initialize was already called");
                 if (onInitialized != null)
                 {
                     if (IsInitialized)
@@ -86,8 +85,12 @@ namespace HDC.Ads.Logic
 
             initializeCalled = true;
             HDCConfigReport.Applied(adsConfigJson, coreConfigJson);
-            Config = HDCAdsConfig.Parse(adsConfigJson);
-            CoreConfig = HDCAdCoreConfig.Parse(coreConfigJson);
+            Config = HDCAdsConfig.Parse(adsConfigJson, out string adsError);
+            if (adsError != null)
+                Log.Warning("invalid ads config: " + adsError);
+            CoreConfig = HDCAdCoreConfig.Parse(coreConfigJson, out string coreError);
+            if (coreError != null)
+                Log.Warning("invalid ad core config: " + coreError);
             if (onInitialized != null)
                 Initialized += onInitialized;
             Sdk.AdEvent += OnAdEvent;
@@ -131,7 +134,7 @@ namespace HDC.Ads.Logic
             if (callbacks == null)
                 return;
             foreach (Action callback in callbacks.GetInvocationList())
-                HDCCallbacks.Run(callback);
+                HDCCallbacks.Run(callback, Log);
         }
 
         private void OnAdEvent(HDCAdEvent adEvent)
@@ -161,7 +164,7 @@ namespace HDC.Ads.Logic
             var revenue = new HDCAdRevenue(channel, position, adEvent.format, network ?? HDCAdRevenue.AdMob, adEvent.adSource,
                 adEvent.adUnitId, adEvent.Revenue, adEvent.currency, adEvent.precision);
             foreach (Action<HDCAdRevenue> handler in handlers.GetInvocationList())
-                HDCCallbacks.Run(() => handler(revenue));
+                HDCCallbacks.Run(() => handler(revenue), Log);
         }
     }
 }

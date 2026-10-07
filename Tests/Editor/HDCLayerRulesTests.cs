@@ -19,13 +19,15 @@ namespace HDC.Ads.Tests
             new Rule("DllImport", @"\bDllImport\b"),
         };
 
+        private static readonly Rule UnityLog = new Rule("Unity log (use IAdsLog)", @"\bDebug\.Log");
+
         private static readonly (string Folder, Rule[] Forbidden)[] Layers =
         {
-            ("Runtime/Api", Sdks.Append(Uses("Infrastructure")).ToArray()),
-            ("Runtime/Logic", Sdks.Concat(new[] { Uses("Infrastructure"), Uses("Composition") }).ToArray()),
-            ("Runtime/Domain", Sdks.Concat(new[] { Uses("Logic"), Uses("Diagnostics"), Uses("Ports"), Uses("Infrastructure"), Uses("Composition") }).ToArray()),
-            ("Runtime/Diagnostics", Sdks.Concat(new[] { Uses("Logic"), Uses("Composition") }).ToArray()),
-            ("Runtime/Ports", Sdks.Concat(new[] { Uses("Logic"), Uses("Diagnostics"), Uses("Infrastructure"), Uses("Composition") }).ToArray()),
+            ("Runtime/Api", Sdks.Concat(new[] { UnityLog, Uses("Infrastructure") }).ToArray()),
+            ("Runtime/Logic", Sdks.Concat(new[] { UnityLog, Uses("Infrastructure"), Uses("Composition") }).ToArray()),
+            ("Runtime/Domain", Sdks.Concat(new[] { UnityLog, Uses("Logic"), Uses("Diagnostics"), Uses("Ports"), Uses("Infrastructure"), Uses("Composition") }).ToArray()),
+            ("Runtime/Diagnostics", Sdks.Concat(new[] { UnityLog, Uses("Logic"), Uses("Composition") }).ToArray()),
+            ("Runtime/Ports", Sdks.Concat(new[] { UnityLog, Uses("Logic"), Uses("Diagnostics"), Uses("Infrastructure"), Uses("Composition") }).ToArray()),
             ("Runtime/Infrastructure", new[] { Uses("Logic"), Uses("Composition") }),
             ("Runtime/Composition", Sdks),
         };

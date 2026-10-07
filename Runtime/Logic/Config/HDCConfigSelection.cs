@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using HDC.Ads.Diagnostics;
 using HDC.Ads.Domain;
+using HDC.Ads.Ports;
 
 namespace HDC.Ads.Logic
 {
@@ -9,10 +10,12 @@ namespace HDC.Ads.Logic
         internal const string AdsConfigKey = "ads_config";
 
         private readonly HDCCountryMode country;
+        private readonly IAdsLog log;
 
-        internal HDCConfigSelection(HDCCountryMode country)
+        internal HDCConfigSelection(HDCCountryMode country, IAdsLog log)
         {
             this.country = country;
+            this.log = log;
         }
 
         internal HDCConfigChoice Select(HDCConfigInputs inputs)
@@ -22,7 +25,7 @@ namespace HDC.Ads.Logic
             if (keyed)
             {
                 choice.Ads = Choose(AdsConfigKey, inputs.DefaultAds, inputs);
-                choice.CoreKey = HDCAdsConfig.Parse(choice.Ads).selectedAdCoreName ?? "";
+                choice.CoreKey = SelectedCore(choice.Ads) ?? "";
                 choice.Core = choice.CoreKey.Length == 0 ? "" : Choose(choice.CoreKey, DefaultCore(inputs, choice.CoreKey), inputs);
                 if (inputs.Mode == HDCConfigMode.RemoteConfig)
                 {
@@ -42,7 +45,7 @@ namespace HDC.Ads.Logic
             if (choice.Country.IsOn)
             {
                 choice.Ads = UseCountry(AdsConfigKey, inputs.CountryAds, choice.Ads, keyed);
-                string countryCoreKey = keyed ? HDCAdsConfig.Parse(choice.Ads).selectedAdCoreName : null;
+                string countryCoreKey = keyed ? SelectedCore(choice.Ads) : null;
                 if (!string.IsNullOrEmpty(countryCoreKey))
                     choice.CoreKey = countryCoreKey;
                 if (!keyed || choice.CoreKey.Length > 0)
@@ -61,6 +64,14 @@ namespace HDC.Ads.Logic
             }
 
             return choice;
+        }
+
+        private string SelectedCore(string ads)
+        {
+            HDCAdsConfig config = HDCAdsConfig.Parse(ads, out string error);
+            if (error != null)
+                log.Warning("invalid ads config: " + error);
+            return config.selectedAdCoreName;
         }
 
         private static string Choose(string key, string fallback, HDCConfigInputs inputs)

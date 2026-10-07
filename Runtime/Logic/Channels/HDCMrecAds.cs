@@ -84,7 +84,7 @@ namespace HDC.Ads.Logic
             List<HDCRectSource> sources = HDCAdGroups.ViewSources(context.Groups.MrecPlans());
             foreach (HDCRectSource source in sources)
                 context.Placements.Record(source.Id, HDCAdChannel.Mrec, "", source.Network.RevenueNetwork);
-            group = new HDCRectGroup(sources, false);
+            group = new HDCRectGroup(sources, false, context.Log);
             return group;
         }
     }
