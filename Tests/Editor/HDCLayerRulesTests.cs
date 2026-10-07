@@ -21,6 +21,11 @@ namespace HDC.Ads.Tests
 
         private static readonly Rule UnityLog = new Rule("Unity log (use IAdsLog)", @"\bDebug\.Log");
 
+        private static readonly Rule ChoosesConfig =
+            new Rule("chooses config values (HDCConfigSelection does)", @"\bHDCConfigReport\.Entry\b|\bHDCCountryMode\b|\bUseCountry\b");
+
+        private static readonly Rule DecidesCountry = new Rule("decides country mode (HDCCountryMode does)", @"\bHDCCountryRules\b");
+
         private static readonly (string Folder, Rule[] Forbidden)[] Layers =
         {
             ("Runtime/Api", Sdks.Concat(new[] { UnityLog, Uses("Infrastructure") }).ToArray()),
@@ -28,8 +33,10 @@ namespace HDC.Ads.Tests
             ("Runtime/Domain", Sdks.Concat(new[] { UnityLog, Uses("Logic"), Uses("Diagnostics"), Uses("Ports"), Uses("Infrastructure"), Uses("Composition") }).ToArray()),
             ("Runtime/Diagnostics", Sdks.Concat(new[] { UnityLog, Uses("Logic"), Uses("Composition") }).ToArray()),
             ("Runtime/Ports", Sdks.Concat(new[] { UnityLog, Uses("Logic"), Uses("Diagnostics"), Uses("Infrastructure"), Uses("Composition") }).ToArray()),
-            ("Runtime/Infrastructure", new[] { Uses("Logic"), Uses("Composition") }),
+            ("Runtime/Infrastructure", new[] { Uses("Logic"), Uses("Composition"), DecidesCountry }),
             ("Runtime/Composition", Sdks),
+            ("Runtime/Firebase", new[] { Uses("Domain"), ChoosesConfig, DecidesCountry }),
+            ("Setup", new[] { Uses("Domain"), ChoosesConfig, DecidesCountry }),
         };
 
         private static readonly string[] KnownDebt =

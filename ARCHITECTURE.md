@@ -103,8 +103,9 @@ flowchart TD
 | `Domain` | SDK, log Unity, `Logic`, `Diagnostics`, `Ports`, `Infrastructure`, `Composition` |
 | `Diagnostics` | SDK, log Unity, `Logic`, `Composition` |
 | `Ports` | SDK, log Unity, `Logic`, `Diagnostics`, `Infrastructure`, `Composition` |
-| `Infrastructure` | `Logic`, `Composition` |
+| `Infrastructure` | `Logic`, `Composition`, quyết định chế độ quốc gia (`HDCCountryRules`) |
 | `Composition` | SDK |
+| `Runtime/Firebase`, `Setup` | `Domain`, tự chọn giá trị config (`HDCConfigReport.Entry`, `HDCCountryMode`), quyết định chế độ quốc gia |
 
 Ở bảng trên:
 
@@ -112,6 +113,9 @@ flowchart TD
 - "Log Unity" là lời gọi `Debug.Log…`.
   - Logic log qua port `IAdsLog`: `Info` chỉ in khi bật `DebugLog`, còn `Warning` và `Exception` luôn in.
   - Domain không log. Ví dụ, `HDCAdsConfig.Parse(json, out error)` trả lỗi về, và Logic là bên quyết định có log hay không.
+- Hai dòng cuối giữ các adapter ở đúng vai trò:
+  - `HDCRemoteConfig` và `HDCAdsSetup` chỉ đưa dữ liệu vào `HDCConfigSelection`.
+  - Infrastructure chỉ đọc máy, còn quyết định là việc của Logic.
 
 Code mới đặt ở đâu:
 
