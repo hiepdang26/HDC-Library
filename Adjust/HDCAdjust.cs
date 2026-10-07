@@ -1,11 +1,5 @@
 using System;
-using System.Collections;
-using System.Globalization;
-using System.Text.RegularExpressions;
 using UnityEngine;
-#if HDC_ADJUST
-using AdjustSdk;
-#endif
 
 namespace HDC.Ads
 {
@@ -20,18 +14,14 @@ namespace HDC.Ads
         public const string CreativeKey = "user_creative";
         public const string CostKey = "user_cost";
 
-        private const string Tag = "[HDCAdjust] ";
-        private const float EnabledPollSeconds = 0.5f;
-        private const float SlowEnabledPollSeconds = 5f;
-        private const float SlowPollAfterSeconds = 30f;
-        private const int NetworkMaxLength = 30;
+        internal const string Tag = "[HDCAdjust] ";
 
 #if UNITY_ANDROID
-        private const string PlatformName = "Android";
+        internal const string PlatformName = "Android";
 #elif UNITY_IOS
-        private const string PlatformName = "iOS";
+        internal const string PlatformName = "iOS";
 #else
-        private const string PlatformName = "";
+        internal const string PlatformName = "";
 #endif
 
 #pragma warning disable CS0169, CS0414
@@ -104,125 +94,43 @@ namespace HDC.Ads
 
         private static HDCAdjust instance;
 
-        public static HDCAdjustAttribution Attribution { get; private set; }
+        public static HDCAdjustAttribution Attribution => HDCAdjustAttributions.Current;
 
         public static bool IsAttributionReady => Attribution != null;
 
-        public static string Network { get; private set; } = "";
+        public static string Network => HDCAdjustAttributions.Network;
 
-        public static event Action<HDCAdjustAttribution> AttributionChanged;
+        public static event Action<HDCAdjustAttribution> AttributionChanged
+        {
+            add => HDCAdjustAttributions.Changed += value;
+            remove => HDCAdjustAttributions.Changed -= value;
+        }
 
         internal static bool InScene => instance != null;
 
         internal static HDCAdjustStart StartedBy { get; private set; }
 
-        internal static bool UsedSandbox { get; private set; }
-
-        internal static bool AdjustEnabled { get; private set; }
-
-        internal static bool TimedOut { get; private set; }
-
-        internal static int RevenueCount { get; private set; }
-
-        internal static HDCAdjustAdRevenue? LastRevenue { get; private set; }
-
         internal static bool SendsAdRevenue => instance != null && instance.sendAdRevenue;
 
         internal static bool HasPurchaseEventToken => instance != null && instance.PurchaseEventToken.Length > 0;
 
-        private static bool IsPhone =>
+        internal static bool IsPhone =>
             Application.platform == RuntimePlatform.Android || Application.platform == RuntimePlatform.IPhonePlayer;
 
         private string AppToken => ForPlatform(androidAppToken, iosAppToken);
 
         private string PurchaseEventToken => ForPlatform(androidPurchaseEventToken, iosPurchaseEventToken);
 
-        public static bool TrackPurchaseRevenue(double amount, string currency, string transactionId = null)
-        {
-#if HDC_ADJUST
-            string token = instance != null ? instance.PurchaseEventToken : "";
-            if (token.Length == 0)
-            {
-                Debug.LogWarning(Tag + (instance == null ? "HDCAdjust is not in the scene" : "HDCAdjust has no " + PlatformName + " purchase event token")
-                    + ", so the purchase is not sent to Adjust.");
-                return false;
-            }
-
-            if (!IsPhone)
-            {
-                Debug.Log(Tag + "Purchase not sent outside Android and iOS: " + amount.ToString(CultureInfo.InvariantCulture) + " " + currency);
-                return false;
-            }
-
-            var purchase = new AdjustEvent(token);
-            purchase.SetRevenue(amount, currency);
-            if (!string.IsNullOrEmpty(transactionId))
-                purchase.TransactionId = transactionId;
-            Adjust.TrackEvent(purchase);
-            return true;
-#else
-            Debug.LogWarning(Tag + "The Adjust SDK is not in the project, so the purchase is not sent.");
-            return false;
-#endif
-        }
-
-        internal static bool UsesSandbox(HDCAdjustEnvironment environment, bool developmentBuild) =>
-            environment == HDCAdjustEnvironment.Sandbox || (environment == HDCAdjustEnvironment.Auto && developmentBuild);
-
-        internal static string NormalizeNetwork(string network)
-        {
-            if (string.IsNullOrEmpty(network))
-                return "";
-            if (char.IsDigit(network[0]))
-                network = network.Substring(1);
-            string normalized = Regex.Replace(network.Replace(" ", "_"), "[^a-zA-Z0-9_]", "").ToLowerInvariant();
-            return normalized.Length > NetworkMaxLength ? normalized.Substring(0, NetworkMaxLength) : normalized;
-        }
-
-        internal static void Receive(HDCAdjustAttribution attribution)
-        {
-            if (attribution == null || attribution.IsEmpty || attribution.SameAs(Attribution))
-                return;
-
-            Attribution = attribution;
-            Network = NormalizeNetwork(attribution.Network);
-            Store(attribution);
-            Action<HDCAdjustAttribution> handlers = AttributionChanged;
-            if (handlers == null)
-                return;
-            foreach (Action<HDCAdjustAttribution> handler in handlers.GetInvocationList())
-            {
-                try
-                {
-                    handler(attribution);
-                }
-                catch (Exception exception)
-                {
-                    Debug.LogException(exception);
-                }
-            }
-        }
-
-        internal static void MarkTimedOut()
-        {
-            if (Attribution != null)
-                return;
-            TimedOut = true;
-            Network = TimedOutNetwork;
-        }
+        public static bool TrackPurchaseRevenue(double amount, string currency, string transactionId = null) =>
+            HDCAdjustPurchases.Track(instance != null, instance != null ? instance.PurchaseEventToken : "", amount, currency, transactionId);
 
         internal static void ResetState()
         {
             instance = null;
-            Attribution = null;
-            Network = "";
-            AttributionChanged = null;
             StartedBy = HDCAdjustStart.NotInScene;
-            UsedSandbox = false;
-            AdjustEnabled = false;
-            TimedOut = false;
-            RevenueCount = 0;
-            LastRevenue = null;
+            HDCAdjustAttributions.Reset();
+            HDCAdjustSdk.Reset();
+            HDCAdjustRevenue.Reset();
         }
 
 #if UNITY_EDITOR
@@ -259,16 +167,15 @@ namespace HDC.Ads
 #if HDC_ADS && HDC_ADJUST
             HDCAds.Revenue -= OnAdRevenue;
 #endif
-#if HDC_ADJUST && UNITY_ANDROID
-            Application.deepLinkActivated -= OnDeeplink;
+#if HDC_ADJUST
+            HDCAdjustSdk.StopListeningForDeeplinks();
 #endif
         }
 
         private HDCAdjustStart Begin()
         {
 #if HDC_ADJUST
-            Adjust sdkPrefab = FindSdkPrefab();
-            bool sdkPrefabStarts = sdkPrefab != null && !sdkPrefab.startManually;
+            bool sdkPrefabInScene = HDCAdjustSdk.SdkPrefabInScene(out bool sdkPrefabStarts);
             if (sdkPrefabStarts)
                 Debug.LogWarning(Tag + "The Adjust SDK prefab in the scene starts Adjust with its own settings, so HDCAdjust does not. " +
                                  "Remove that prefab to start Adjust with the HDCAdjust settings.");
@@ -283,8 +190,8 @@ namespace HDC.Ads
             if (!IsPhone)
                 return HDCAdjustStart.Unsupported;
 
-            if (sdkPrefab == null)
-                ListenForDeeplinks();
+            if (!sdkPrefabInScene)
+                HDCAdjustSdk.ListenForDeeplinks();
 
             HDCAdjustStart start;
             if (sdkPrefabStarts)
@@ -301,11 +208,11 @@ namespace HDC.Ads
             }
             else
             {
-                StartAdjust();
+                HDCAdjustSdk.Start(SdkSettings());
                 start = HDCAdjustStart.ByHdc;
             }
 
-            StartCoroutine(ReadAttribution());
+            StartCoroutine(HDCAdjustSdk.ReadAttribution(attributionTimeoutSeconds));
             return start;
 #else
             Debug.LogWarning(Tag + "The Adjust SDK is not in the project, so HDCAdjust does nothing. Import the Adjust Unity SDK 5.");
@@ -325,6 +232,25 @@ namespace HDC.Ads
             return true;
         }
 
+        private HDCAdjustSdkSettings SdkSettings() =>
+            new HDCAdjustSdkSettings
+            {
+                AppToken = AppToken,
+                Environment = environment,
+                LogLevel = logLevel,
+                CoppaCompliance = coppaCompliance,
+                SendInBackground = sendInBackground,
+                LaunchDeferredDeeplink = launchDeferredDeeplink,
+                CostDataInAttribution = costDataInAttribution,
+                LinkMe = linkMe,
+                DefaultTracker = defaultTracker,
+                PreinstallTracking = preinstallTracking,
+                PreinstallFilePath = preinstallFilePath,
+                AdServices = adServices,
+                IdfaReading = idfaReading,
+                SkanAttribution = skanAttribution,
+            };
+
         private static string ForPlatform(string android, string ios)
         {
 #if UNITY_ANDROID
@@ -336,120 +262,12 @@ namespace HDC.Ads
 #endif
         }
 
-        private static void Store(HDCAdjustAttribution attribution)
-        {
-            PlayerPrefs.SetString(NetworkKey, attribution.Network);
-            PlayerPrefs.SetString(CampaignKey, attribution.Campaign);
-            PlayerPrefs.SetString(CreativeKey, attribution.Creative);
-            if (attribution.CostAmount.HasValue)
-                PlayerPrefs.SetString(CostKey, attribution.CostAmount.Value.ToString(CultureInfo.InvariantCulture));
-            PlayerPrefs.Save();
-        }
-
-#if HDC_ADJUST
-        private void StartAdjust()
-        {
-            bool sandbox = UsesSandbox(environment, Debug.isDebugBuild);
-            if (sandbox && !Debug.isDebugBuild)
-                Debug.LogWarning(Tag + "Adjust runs in Sandbox in a release build, so its installs and revenue stay out of the live data. " +
-                                 "Set Environment to Auto or Production for release.");
-
-            var config = new AdjustConfig(AppToken, sandbox ? AdjustEnvironment.Sandbox : AdjustEnvironment.Production,
-                logLevel == HDCAdjustLogLevel.Suppress)
-            {
-                LogLevel = (AdjustLogLevel)logLevel,
-                IsSendingInBackgroundEnabled = sendInBackground,
-                IsDeferredDeeplinkOpeningEnabled = launchDeferredDeeplink,
-                DefaultTracker = NullIfEmpty(defaultTracker),
-                IsCoppaComplianceEnabled = coppaCompliance,
-                IsCostDataInAttributionEnabled = costDataInAttribution,
-                IsPreinstallTrackingEnabled = preinstallTracking,
-                PreinstallFilePath = NullIfEmpty(preinstallFilePath),
-                IsAdServicesEnabled = adServices,
-                IsIdfaReadingEnabled = idfaReading,
-                IsLinkMeEnabled = linkMe,
-                IsSkanAttributionEnabled = skanAttribution,
-                AttributionChangedDelegate = OnAdjustAttribution,
-            };
-            Adjust.InitSdk(config);
-            UsedSandbox = sandbox;
-        }
-
-        private IEnumerator ReadAttribution()
-        {
-            float startedAt = Time.realtimeSinceStartup;
-            while (!AdjustEnabled)
-            {
-                Adjust.IsEnabled(on => AdjustEnabled |= on);
-                bool slow = Time.realtimeSinceStartup - startedAt > SlowPollAfterSeconds;
-                yield return new WaitForSecondsRealtime(slow ? SlowEnabledPollSeconds : EnabledPollSeconds);
-            }
-
-            Adjust.GetAttribution(OnAdjustAttribution);
-            float deadline = Time.realtimeSinceStartup + Mathf.Max(0f, attributionTimeoutSeconds);
-            while (Attribution == null && Time.realtimeSinceStartup < deadline)
-                yield return null;
-            MarkTimedOut();
-        }
-
-        private static void OnAdjustAttribution(AdjustAttribution attribution)
-        {
-            if (attribution == null)
-                return;
-            Receive(new HDCAdjustAttribution(attribution.TrackerToken, attribution.TrackerName, attribution.Network, attribution.Campaign,
-                attribution.Adgroup, attribution.Creative, attribution.ClickLabel, attribution.CostType, attribution.CostAmount,
-                attribution.CostCurrency));
-        }
-
-        private static Adjust FindSdkPrefab()
-        {
-#if UNITY_2023_1_OR_NEWER
-            return FindAnyObjectByType<Adjust>();
-#else
-            return FindObjectOfType<Adjust>();
-#endif
-        }
-
-        private static string NullIfEmpty(string text) => string.IsNullOrWhiteSpace(text) ? null : text.Trim();
-
-        private void ListenForDeeplinks()
-        {
-#if UNITY_ANDROID
-            Application.deepLinkActivated += OnDeeplink;
-            if (!string.IsNullOrEmpty(Application.absoluteURL))
-                OnDeeplink(Application.absoluteURL);
-#endif
-        }
-
-#if UNITY_ANDROID
-        private static void OnDeeplink(string url) => Adjust.ProcessDeeplink(new AdjustDeeplink(url));
-#endif
-#endif
-
 #if HDC_ADS && HDC_ADJUST
         private void OnAdRevenue(HDCAdRevenue revenue)
         {
             if (!sendAdRevenue || StartedBy == HDCAdjustStart.NoAppToken)
                 return;
-
-            HDCAdjustAdRevenue adRevenue = HDCAdjustAdRevenue.From(revenue);
-            RevenueCount++;
-            LastRevenue = adRevenue;
-            if (!IsPhone)
-            {
-                if (HDCAds.Testing.DebugLog)
-                    Debug.Log(Tag + "Ad revenue not sent outside Android and iOS: " + adRevenue);
-                return;
-            }
-
-            var tracked = new AdjustAdRevenue(adRevenue.Source);
-            tracked.SetRevenue(adRevenue.Revenue, adRevenue.Currency);
-            tracked.AdRevenueNetwork = adRevenue.Network;
-            tracked.AdRevenueUnit = adRevenue.Unit;
-            tracked.AdRevenuePlacement = adRevenue.Placement;
-            Adjust.TrackAdRevenue(tracked);
-            if (HDCAds.Testing.DebugLog)
-                Debug.Log(Tag + "Ad revenue sent: " + adRevenue);
+            HDCAdjustRevenue.Send(revenue);
         }
 #endif
     }

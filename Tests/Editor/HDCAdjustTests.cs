@@ -61,14 +61,14 @@ namespace HDC.Ads.Tests
         [TestCase("", "")]
         [TestCase(null, "")]
         public void NetworkIsNormalizedLikeTheOldSystem(string network, string expected) =>
-            Assert.AreEqual(expected, HDCAdjust.NormalizeNetwork(network));
+            Assert.AreEqual(expected, HDCAdjustAttributions.NormalizeNetwork(network));
 
         [TestCase(HDCAdjustEnvironment.Auto, true, true)]
         [TestCase(HDCAdjustEnvironment.Auto, false, false)]
         [TestCase(HDCAdjustEnvironment.Sandbox, false, true)]
         [TestCase(HDCAdjustEnvironment.Production, true, false)]
         public void AutoUsesSandboxOnlyInDevelopmentBuilds(HDCAdjustEnvironment environment, bool developmentBuild, bool sandbox) =>
-            Assert.AreEqual(sandbox, HDCAdjust.UsesSandbox(environment, developmentBuild));
+            Assert.AreEqual(sandbox, HDCAdjustSdk.UsesSandbox(environment, developmentBuild));
 
         [Test]
         public void AdRevenueGoesToAdjustAsAdMobRevenue()
@@ -101,8 +101,8 @@ namespace HDC.Ads.Tests
             var seen = new List<HDCAdjustAttribution>();
             HDCAdjust.AttributionChanged += seen.Add;
 
-            HDCAdjust.Receive(Attribution("Facebook Installs", "spring", 0.42));
-            HDCAdjust.Receive(Attribution("Facebook Installs", "spring", 0.42));
+            HDCAdjustAttributions.Receive(Attribution("Facebook Installs", "spring", 0.42));
+            HDCAdjustAttributions.Receive(Attribution("Facebook Installs", "spring", 0.42));
 
             Assert.AreEqual(1, seen.Count);
             Assert.IsTrue(HDCAdjust.IsAttributionReady);
@@ -112,7 +112,7 @@ namespace HDC.Ads.Tests
             Assert.AreEqual("banner_a", PlayerPrefs.GetString(HDCAdjust.CreativeKey));
             Assert.AreEqual("0.42", PlayerPrefs.GetString(HDCAdjust.CostKey));
 
-            HDCAdjust.Receive(Attribution("Organic", "", null));
+            HDCAdjustAttributions.Receive(Attribution("Organic", "", null));
 
             Assert.AreEqual(2, seen.Count);
             Assert.AreEqual("organic", HDCAdjust.Network);
@@ -125,7 +125,7 @@ namespace HDC.Ads.Tests
             int calls = 0;
             HDCAdjust.AttributionChanged += _ => calls++;
 
-            HDCAdjust.Receive(new HDCAdjustAttribution(null, null, null, null, null, null, null, null, null, null));
+            HDCAdjustAttributions.Receive(new HDCAdjustAttribution(null, null, null, null, null, null, null, null, null, null));
 
             Assert.AreEqual(0, calls);
             Assert.IsFalse(HDCAdjust.IsAttributionReady);
@@ -140,7 +140,7 @@ namespace HDC.Ads.Tests
             HDCAdjust.AttributionChanged += _ => calls++;
             LogAssert.Expect(LogType.Exception, new Regex("a game handler failed"));
 
-            HDCAdjust.Receive(Attribution("Organic", "", null));
+            HDCAdjustAttributions.Receive(Attribution("Organic", "", null));
 
             Assert.AreEqual(1, calls);
         }
@@ -148,12 +148,12 @@ namespace HDC.Ads.Tests
         [Test]
         public void NetworkReadsTimeOutUntilALateAttribution()
         {
-            HDCAdjust.MarkTimedOut();
+            HDCAdjustAttributions.MarkTimedOut();
             Assert.AreEqual(HDCAdjust.TimedOutNetwork, HDCAdjust.Network);
             Assert.IsFalse(HDCAdjust.IsAttributionReady);
 
-            HDCAdjust.Receive(Attribution("Unattributed", "", null));
-            HDCAdjust.MarkTimedOut();
+            HDCAdjustAttributions.Receive(Attribution("Unattributed", "", null));
+            HDCAdjustAttributions.MarkTimedOut();
 
             Assert.AreEqual("unattributed", HDCAdjust.Network, "a timeout does not undo an attribution");
         }
@@ -221,9 +221,9 @@ namespace HDC.Ads.Tests
             yield return WaitFor(() => HDCAds.ForceAd.CanShow("ui"), 5f);
 
             Assert.IsTrue(HDCAds.ForceAd.Show("ui"));
-            yield return WaitFor(() => HDCAdjust.RevenueCount > 0, 3f);
+            yield return WaitFor(() => HDCAdjustRevenue.Count > 0, 3f);
 
-            HDCAdjustAdRevenue revenue = HDCAdjust.LastRevenue.Value;
+            HDCAdjustAdRevenue revenue = HDCAdjustRevenue.Last.Value;
             Assert.AreEqual(HDCAdjust.AdMobRevenueSource, revenue.Source);
             Assert.AreEqual("native-ok", revenue.Unit);
             Assert.AreEqual("ui", revenue.Placement);
