@@ -8,6 +8,7 @@
 #   inputsystem    the debug panel with the Input System package as the only input
 #   off            HDC ads off: the assemblies that build anyway, HDCAdjust with and without Adjust
 #   editorios, editorandroid   the Editor assembly with each build target
+#   editor, android (HDC.Ads.TestScenes)   the test scenes in the Editor and in a player build
 #
 # Usage: Tools~/compile-matrix.sh [output folder]   (default: $TMPDIR/hdc-compile-matrix)
 # Environment:
@@ -133,5 +134,11 @@ src "$SRC/Adjust" | run offadjust/HDC.Ads.Adjust "UNITY_IOS;ENABLE_IL2CPP;HDC_AD
 src "$SRC/Debug/Editor" | run editor/HDC.Ads.Debug.Editor "UNITY_EDITOR;UNITY_EDITOR_OSX;UNITY_IOS;HDC_ADS" bcl engine editor ui editor/HDC.Ads.Debug editor/HDC.Ads
 src "$SRC/Editor" | run editorios/HDC.Ads.Editor "UNITY_EDITOR;UNITY_EDITOR_OSX;UNITY_IOS" bcl engine editor xcode common/HDC.Ads.Settings editor/HDC.Ads.Adjust
 src "$SRC/Editor" | run editorandroid/HDC.Ads.Editor "UNITY_EDITOR;UNITY_EDITOR_OSX;UNITY_ANDROID" bcl engine editor common/HDC.Ads.Settings editor/HDC.Ads.Adjust
-src "$SRC/Demo" | run editor/HDC.Ads.Demo "UNITY_EDITOR;UNITY_EDITOR_OSX;HDC_ADS" bcl engine editor gma editor/HDC.Ads
+for setup in editor android; do
+  case $setup in
+    editor) D="UNITY_EDITOR;UNITY_EDITOR_OSX;UNITY_IOS;HDC_ADS;HDC_FIREBASE;HDC_ADJUST"; E=editor;;
+    android) D="UNITY_ANDROID;HDC_ADS;HDC_FIREBASE;HDC_ADJUST"; E=;;
+  esac
+  src "$SRC/Tests/Scenes" | run $setup/HDC.Ads.TestScenes "$D" bcl engine $E ui $setup/HDC.Ads common/HDC.Ads.Settings $setup/HDC.Ads.Setup $setup/HDC.Ads.Adjust $setup/HDC.Ads.Debug
+done
 [ ! -f "$FAILED_MARK" ]

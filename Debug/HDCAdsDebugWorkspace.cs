@@ -194,7 +194,7 @@ namespace HDC.Ads.DebugUI
         {
             channelTitleText.text = $"{channel.Title} · {channel.Key}";
             selectionHintText.text = HDCAds.IsInitialized
-                ? Diagnostics.Hint + " Các nút gọi thẳng API của HDCAds."
+                ? Diagnostics.Hint + " Các nút gọi thẳng kênh của HDCAds, cùng object mà API public trả về."
                 : "HDCAds chưa khởi tạo: group và position lấy từ config HDCAds đang chạy. Bấm Init SDK ở trên.";
 
             bool hasGroups = GroupOptions().Count > 0;

@@ -1,8 +1,12 @@
 {
-    "name": "HDC.Ads.Demo",
-    "rootNamespace": "HDC.Ads.Demo",
+    "name": "HDC.Ads.TestScenes",
+    "rootNamespace": "HDC.Ads.TestScenes",
     "references": [
-        "HDC.Ads"
+        "HDC.Ads",
+        "HDC.Ads.Settings",
+        "HDC.Ads.Setup",
+        "HDC.Ads.Adjust",
+        "HDC.Ads.Debug"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

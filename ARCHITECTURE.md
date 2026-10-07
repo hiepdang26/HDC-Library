@@ -69,9 +69,9 @@ Các assembly khác:
 | `HDC.Ads.Setup` | `Setup` | Prefab `HDCAdsSetup` khởi tạo ads ở scene đầu. Build được cả khi tắt HDC ads. |
 | `HDC.Ads.Adjust` | `Adjust` | Prefab `HDCAdjust`: khởi động Adjust, đọc attribution, gửi doanh thu quảng cáo và mua hàng lên Adjust. Build ở mọi cấu hình. Phần gọi Adjust SDK cần define `HDC_ADJUST`, phần nghe `HDCAds.Revenue` cần thêm `HDC_ADS`. Component `HDCAdjust` chỉ giữ cài đặt, API và việc chọn cách khởi động. Các phần còn lại nằm ở `HDCAdjustSdk` (cấu hình, đọc attribution, deep link), `HDCAdjustAttributions` (trạng thái attribution, PlayerPrefs, sự kiện), `HDCAdjustRevenue` và `HDCAdjustPurchases`. |
 | `HDC.Ads.Debug` | `Debug` | Bảng debug (uGUI). `Debug/Editor` dựng prefab của bảng. |
-| `HDC.Ads.Editor` | `Editor` | Menu HDC, bật và tắt `HDC_ADS`, tự đặt `HDC_ADJUST` theo Adjust SDK, inspector của `HDCAdjust`, post-process cho iOS. |
-| `HDC.Ads.Demo` | `Demo` | Scene demo. Không có `InternalsVisibleTo`, nên chỉ dùng được API public. |
-| `HDC.Ads.Tests` | `Tests/Editor` | Test Edit Mode và Play Mode. |
+| `HDC.Ads.Editor` | `Editor` | Menu HDC, bật và tắt `HDC_ADS`, tự đặt `HDC_ADJUST` theo Adjust SDK, inspector của `HDCAdjust`, post-process cho iOS, menu scene test (`HDCTestScenes`). |
+| `HDC.Ads.Tests` | `Tests/Editor` | Test tự động Edit Mode và Play Mode. |
+| `HDC.Ads.TestScenes` | `Tests/Scenes` | Scene test `HDCAdsTestBoot` và `HDCAdsTestGame`, cùng component `HDCAdsTestScene`. Không có `InternalsVisibleTo`, nên chỉ gọi được API public. `HDCTestScenes.BuildFilter` (một `IFilterBuildAssemblies`) bỏ assembly này khỏi bản build không có scene test trong Build Settings. |
 
 ## Luật phụ thuộc
 

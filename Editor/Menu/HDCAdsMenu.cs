@@ -84,6 +84,18 @@ namespace HDC.Ads.Editor
         [MenuItem(Root + "iOS/Clear local signing", true)]
         private static bool CanClearLocalSigning() => HDCIosLocalBuild.HasSigning;
 
+        [MenuItem(Root + "Test Scenes/Open", false, 80)]
+        private static void OpenTestScenes() => HDCTestScenes.Open();
+
+        [MenuItem(Root + "Test Scenes/Add to Build Settings", false, 81)]
+        private static void AddTestScenes() => HDCTestScenes.AddToBuild();
+
+        [MenuItem(Root + "Test Scenes/Remove from Build Settings", false, 82)]
+        private static void RemoveTestScenes() => HDCTestScenes.RemoveFromBuild();
+
+        [MenuItem(Root + "Test Scenes/Remove from Build Settings", true)]
+        private static bool CanRemoveTestScenes() => HDCTestScenes.IsInBuild;
+
         private static void AddPrefab(string guid, string name, string undo)
         {
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(AssetDatabase.GUIDToAssetPath(guid));

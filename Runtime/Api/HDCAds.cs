@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using HDC.Ads.Composition;
+using HDC.Ads.Diagnostics;
 using HDC.Ads.Domain;
 using HDC.Ads.Logic;
 using HDC.Ads.Ports;
@@ -64,7 +66,27 @@ namespace HDC.Ads
 
             public static string MetaTestDeviceHash => Switches.MetaTestDeviceHash;
 
+            public static IReadOnlyList<string> Groups(HDCAdChannel channel) => ConfigNames(channel)?.Groups() ?? NoNames;
+
+            public static IReadOnlyList<string> Positions(HDCAdChannel channel, string group = null) =>
+                ConfigNames(channel)?.Positions(group ?? string.Empty) ?? NoNames;
+
+            private static readonly string[] NoNames = new string[0];
+
             private static IAdsTesting Switches => Runtime.Testing;
+
+            private static IChannelDiagnostics ConfigNames(HDCAdChannel channel)
+            {
+                switch (channel)
+                {
+                    case HDCAdChannel.ForceAd:
+                        return ((IAdChannel)Channels.ForceAd).Diagnostics;
+                    case HDCAdChannel.Popup:
+                        return ((IAdChannel)Channels.Popup).Diagnostics;
+                    default:
+                        return null;
+                }
+            }
         }
 
         internal static HDCChannels Channels => Runtime.Channels;

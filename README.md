@@ -46,8 +46,9 @@ Setup/                         HDCAdsSetup.prefab: khởi động ads ở scene 
 Adjust/                        HDCAdjust.prefab: khởi động Adjust, đọc attribution, gửi doanh thu quảng cáo lên Adjust
                                (assembly HDC.Ads.Adjust, luôn được biên dịch)
 Debug/                         Bảng debug HDCAdsDebugPanel.prefab (assembly HDC.Ads.Debug, cần define HDC_ADS)
-Demo/                          HDCAdsDemo: mỗi kênh một hàng nút, gọi đúng API như code game
-Tests/Editor/                  Test Edit Mode (assembly HDC.Ads.Tests, chỉ có trong Editor) và PublicApi.txt
+Tests/Editor/                  Test tự động Edit Mode (assembly HDC.Ads.Tests, chỉ có trong Editor) và PublicApi.txt
+Tests/Scenes/                  Scene test dựng như game thật: HDCAdsTestBoot (HDCAdsSetup, HDCAdjust, bảng debug)
+                               mở HDCAdsTestGame (mỗi nút gọi một hàm của API public; assembly HDC.Ads.TestScenes)
 Tools~/                        Script chạy test và biên dịch nhiều cấu hình (Unity bỏ qua thư mục có đuôi "~")
 package.json                   Để cài HDCLib như một package (UPM)
 ARCHITECTURE.md                Các tầng, luật phụ thuộc, cách thêm mạng, partner, kênh, nút debug
@@ -273,7 +274,7 @@ HDCAds.Testing.EnableTestDevice();                  // chỉ cho bản test
   - `Format` (một giá trị của `HDCAdFormat`), `Network` (hiện luôn là `"AdMob"`), `AdSource` (nguồn mediation, ví dụ `"Meta Audience Network"`), `AdUnitId`.
   - `Value` theo đơn vị `Currency`, và `Precision` (0 không rõ, 1 ước tính, 2 publisher cung cấp, 3 chính xác).
   - Handler của game ném lỗi thì lỗi được log, các handler khác vẫn nhận.
-- `HDCAds.Testing`: `DebugLog`, `EnableTestDevice()` / `IsTestDevice`, `UseTestAdUnits`, Meta test mode. Chỉ dùng cho bản test.
+- `HDCAds.Testing`: `DebugLog`, `EnableTestDevice()` / `IsTestDevice`, `UseTestAdUnits`, Meta test mode, và `Groups` / `Positions` (tên group và position của force ad và popup trong config đang dùng, cho công cụ test). Chỉ dùng cho bản test.
 - Gọi API từ main thread của Unity. Callback và sự kiện cũng luôn tới trên main thread.
 - Danh sách đầy đủ của API nằm trong `Tests/Editor/PublicApi.txt`. Test hợp đồng API giữ file này luôn đúng với code.
 
@@ -384,7 +385,7 @@ Prefab `Debug/HDCAdsDebugPanel.prefab` là bảng debug nằm đè lên game. Ch
 ### Trang Ads
 
 - Tab kênh, mỗi kênh của HDCAds một tab: AL (app launch), AR (app resume), RW (rewarded), FA (force ad), BN (banner), MREC, PU (popup). Chấm màu trên tab là trạng thái chung của kênh: xanh lá có ad sẵn sàng, xanh dương đang hiện, cam đang load, đỏ đang lỗi, xám chưa chạy. Tab, nút, thông tin và phần kiểm tra config đều lấy từ module debug của từng kênh, nên kênh mới có tab ngay mà không phải sửa bảng.
-- Thẻ Actions: chọn `Group` và `Position` từ config HDCAds đang chạy (trên máy thật là giá trị Remote Config); banner chọn placement, MREC chọn vị trí trên màn hình. Các nút gọi thẳng API của HDCAds:
+- Thẻ Actions: chọn `Group` và `Position` từ config HDCAds đang chạy (trên máy thật là giá trị Remote Config); banner chọn placement, MREC chọn vị trí trên màn hình. Các nút gọi thẳng kênh của HDCAds, đúng object mà `HDCAds.ForceAd`, `HDCAds.Popup`… trả về. Vì vậy chúng chạy cùng code với lời gọi của game, nhưng không đi qua class `HDCAds`. Muốn thử đúng đường gọi của game thì dùng [scene test](#scene-test).
   - `Init` và `Show`. Với banner và MREC, nút `Show` thành `Activate`.
   - `Hide` cho banner, MREC và popup.
   - `UpdatePos` và `GetSize` cho MREC, `UpdatePos` cho popup. Popup hiện trong vùng `Popup area` ở cuối màn hình.
@@ -468,6 +469,8 @@ Khi chỉ thư viện Android đổi, chỉ cần publish phần Android:
 
 ## Kiểm thử
 
+Thư mục `Tests` có hai phần: test tự động trong `Tests/Editor`, và scene test trong `Tests/Scenes` để thử thư viện trên máy như một game thật (xem [Scene test](#scene-test)).
+
 Test Edit Mode nằm trong `Tests/Editor` (assembly `HDC.Ads.Tests`). Assembly này chỉ compile khi project có package Test Framework và đang bật HDC (define `HDC_ADS`), và không bao giờ vào bản build của game.
 
 - Chạy trong Editor: Window > General > Test Runner > EditMode > Run All.
@@ -498,6 +501,26 @@ Các nhóm test:
 - Các cấu hình: Editor, iOS và Android (có Adjust), không Firebase (không Adjust), Input System, tắt HDC (HDCAdjust có và không có Adjust), assembly Editor theo từng build target, và assembly test.
 - Chạy sau mỗi thay đổi có `#if`. Mất khoảng 15 giây.
 - Mặc định tìm Unity theo đường dẫn Unity Hub trên macOS. Máy khác thì đặt `UNITY_EDITOR_DIR`.
+
+### Scene test
+
+`Tests/Scenes` có hai scene dựng như một game thật dùng HDCLib, để thử thư viện trong chính project của game, với config và Remote Config của project đó:
+
+- `HDCAdsTestBoot` là scene đầu. Nó có prefab `HDCAdsSetup` (lấy config, khởi tạo ads, chạy app launch rồi mở scene sau), prefab `HDCAdjust` và bảng debug (giữ qua các scene).
+  - `HDCAdsSetup` ở đây bật `Debug Log` và `Google Test Ads`: máy thành test device của Google, ad unit thật nhận quảng cáo test.
+- `HDCAdsTestGame` có component `HDCAdsTestScene`: mỗi kênh một tab, mỗi nút gọi đúng một hàm của API public, ví dụ `HDCAds.ForceAd.Show(position)`.
+  - Tên group và position lấy từ config đang dùng (`HDCAds.Testing.Groups` / `Positions`).
+  - Màn hình có log kết quả của từng lời gọi, doanh thu (`HDCAds.Revenue`), custom key, attribution của Adjust, và nút mở bảng debug.
+- Assembly `HDC.Ads.TestScenes` không được thấy phần internal của thư viện, nên scene chỉ gọi được API public, giống code game.
+
+Cách dùng:
+
+1. `HDC > Test Scenes > Add to Build Settings` đưa hai scene lên đầu Build Settings. Scene boot mở scene game theo tên, nên cần bước này cả khi chạy trong Editor.
+2. `HDC > Test Scenes > Open` rồi bấm Play, hoặc build ra máy.
+3. Thử xong thì `HDC > Test Scenes > Remove from Build Settings`, trước khi build bản phát hành.
+
+- Bản build không có scene test trong Build Settings thì không mang theo assembly `HDC.Ads.TestScenes`.
+- Prefab `HDCAdjust` trong scene boot chưa có app token, nên Adjust không khởi động. Muốn thử Adjust thì điền token vào scene lúc thử, và không commit thay đổi đó vào HDCLib.
 
 ## Yêu cầu
 

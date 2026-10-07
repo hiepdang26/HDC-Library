@@ -59,6 +59,8 @@ static class HDC.Ads.HDCAds
   static void Initialize(string adsConfigJson, string coreConfigJson, System.Action onInitialized = null)
   static void SetAdsRemoved(bool removed)
 static class HDC.Ads.HDCAds.Testing
+  static System.Collections.Generic.IReadOnlyList<string> Groups(HDC.Ads.HDCAdChannel channel)
+  static System.Collections.Generic.IReadOnlyList<string> Positions(HDC.Ads.HDCAdChannel channel, string group = null)
   static bool EnableMetaTestMode(string[] extraDeviceHashes = null, int testAdType = 0)
   static property bool DebugLog { get; set; }
   static property bool IsMetaTestMode { get; }

@@ -85,6 +85,11 @@ Những thứ sau đã đổi so với 0.5.0:
   - test hợp đồng API và test luật tầng;
   - script `Tools~/compile-matrix.sh` và `Tools~/run-tests.sh`.
 - `ARCHITECTURE.md`, mô tả các tầng và luật phụ thuộc, kèm hướng dẫn thêm mạng, partner, kênh và nút debug.
+- Scene test trong `Tests/Scenes`, để thử thư viện trong project của game như một game thật:
+  - `HDCAdsTestBoot` dùng prefab `HDCAdsSetup`, `HDCAdjust` và bảng debug như scene đầu của game, rồi mở `HDCAdsTestGame`.
+  - Ở `HDCAdsTestGame`, mỗi kênh một tab, mỗi nút gọi một hàm của API public, với tên group và position lấy từ config đang dùng.
+  - Menu `HDC > Test Scenes` mở scene, đưa chúng lên đầu Build Settings hoặc gỡ ra.
+- `HDCAds.Testing.Groups(channel)` và `HDCAds.Testing.Positions(channel, group)`: tên group và position của force ad và popup trong config đang dùng, cho công cụ test.
 
 ### Thay đổi
 
@@ -102,6 +107,8 @@ Những thứ sau đã đổi so với 0.5.0:
   - `HDCAdjust` được chia nhỏ: component chỉ giữ cài đặt, API public và việc chọn cách khởi động; cấu hình SDK, attribution, doanh thu quảng cáo và mua hàng nằm ở các lớp riêng. API public giữ nguyên.
   - Chính sách của native sau interstitial chuyển lên Logic (`HDCCompanionShow`): load ở lần đầu, hiện khi load xong, chờ native đóng rồi mới huỷ. Infrastructure chỉ giữ đường show trên luồng Android, qua port `IShowWithLeader`.
 - Mã nguồn C# của HDCLib không còn comment. Tài liệu nằm trong `README.md`, `ARCHITECTURE.md` và `CHANGELOG.md`.
+- Thư mục `Demo` (assembly `HDC.Ads.Demo`) được thay bằng scene test trong `Tests/Scenes`. Demo cũ tự nạp config giả, nên không thử được `HDCAdsSetup` hay config của project.
+  - Assembly của scene test chỉ vào bản build khi Build Settings có scene test. Trước đây `HDC.Ads.Demo` vào mọi bản build của game có bật HDC.
 - Post-process iOS nhúng mọi framework động của pod mà app chưa có, ví dụ `AppLovinSDK` và `AdjustSigSdk`. Trước đây nó chỉ nhúng `FBAudienceNetwork`. Export kiểu Append thay build phase cũ của HDC thay vì thêm phase thứ hai.
 
 ### Sửa
