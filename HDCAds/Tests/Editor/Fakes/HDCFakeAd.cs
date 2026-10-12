@@ -1,0 +1,115 @@
+using System;
+using System.Collections.Generic;
+using HDC.Ads.Domain;
+using HDC.Ads.Ports;
+using UnityEngine;
+
+namespace HDC.Ads.Tests
+{
+    internal sealed class HDCFakeAd : IFullscreenAd, IViewAd, IFullscreenCompanion, IShowWithLeader
+    {
+        private readonly HDCFakeSdk sdk;
+
+        internal HDCFakeAd(HDCAdPlan plan, HDCFakeSdk sdk)
+        {
+            Use = plan.Use;
+            Id = plan.InstanceId;
+            Format = plan.Format;
+            AdUnitId = plan.AdUnitId;
+            this.sdk = sdk;
+            sdk.AdEvent += OnAdEvent;
+        }
+
+        public event Action<HDCAdEvent> Event;
+
+        internal HDCFakeAd CompanionAd { get; set; }
+
+        IFullscreenAd IFullscreenCompanion.Companion => CompanionAd;
+
+        internal List<string> ArmedLeaders { get; } = new List<string>();
+
+        internal int LeaderCancels { get; private set; }
+
+        internal bool ShownByLeader { get; set; }
+
+        internal HDCAdUse Use { get; }
+
+        public string Id { get; }
+
+        public string Format { get; }
+
+        public string AdUnitId { get; }
+
+        public bool IsReady { get; private set; }
+
+        public Vector2 SizeInPixels => Vector2.zero;
+
+        public int RefreshSeconds { get; set; } = -1;
+
+        internal int Loads { get; private set; }
+
+        internal int Shows { get; private set; }
+
+        internal int Hides { get; private set; }
+
+        internal bool Destroyed { get; private set; }
+
+        internal List<string> Moves { get; } = new List<string>();
+
+        public void Load() => Loads++;
+
+        public bool Show()
+        {
+            Shows++;
+            return IsReady;
+        }
+
+        void IViewAd.Show() => Shows++;
+
+        public void Hide() => Hides++;
+
+        public bool Expand(bool enableClick) => false;
+
+        public void Move(HDCAdPosition position) => Moves.Add(position.ToString());
+
+        public void Move(Vector2 screenPoint) => Moves.Add($"{screenPoint.x:0},{screenPoint.y:0}");
+
+        public void Destroy()
+        {
+            Destroyed = true;
+            sdk.AdEvent -= OnAdEvent;
+        }
+
+        internal void Loaded() => Send(HDCAdEventType.Loaded);
+
+        internal void FailedToLoad() => Send(HDCAdEventType.LoadFailed);
+
+        internal void FailedToShow() => Send(HDCAdEventType.ShowFailed);
+
+        public void ShowWithLeader(string leaderId) => ArmedLeaders.Add(leaderId);
+
+        public void CancelShowWithLeader(string leaderId) => LeaderCancels++;
+
+        public bool ShownWithLeader(string leaderId) => ShownByLeader;
+
+        internal void Displayed() => Send(HDCAdEventType.Shown);
+
+        internal void Closed() => Send(HDCAdEventType.Closed);
+
+        internal void Paid(long valueMicros) =>
+            sdk.Emit(new HDCAdEvent { id = Id, format = Format, type = HDCAdEventType.Paid, valueMicros = valueMicros, currency = "USD" });
+
+        private void Send(string type) => sdk.Emit(new HDCAdEvent { id = Id, format = Format, type = type });
+
+        private void OnAdEvent(HDCAdEvent adEvent)
+        {
+            if (adEvent.id != Id || adEvent.format != Format)
+                return;
+            if (adEvent.type == HDCAdEventType.Loaded)
+                IsReady = true;
+            else if (adEvent.type == HDCAdEventType.Shown || adEvent.type == HDCAdEventType.LoadFailed)
+                IsReady = false;
+            Event?.Invoke(adEvent);
+        }
+    }
+}

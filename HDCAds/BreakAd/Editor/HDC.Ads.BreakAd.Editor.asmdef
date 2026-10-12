@@ -1,0 +1,20 @@
+{
+    "name": "HDC.Ads.BreakAd.Editor",
+    "rootNamespace": "HDC.Ads.Editor",
+    "references": [
+        "HDC.Ads.BreakAd",
+        "HDC.Ads.Settings",
+        "UnityEngine.UI"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

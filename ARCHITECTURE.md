@@ -2,6 +2,8 @@
 
 Tài liệu cho người sửa HDCLib: các tầng, mỗi thư mục chứa gì, tầng nào được dùng tầng nào, và các bước thêm mạng quảng cáo, partner mediation, kênh và nút debug. Cách dùng thư viện trong game xem [README](README.md).
 
+Thư viện quảng cáo nằm trong thư mục `HDCAds/`. Mọi đường dẫn trong tài liệu này tính từ thư mục đó, trừ `Tools~/` ở gốc HDCLib.
+
 ## Một lời gọi đi qua những đâu
 
 Ví dụ game gọi `HDCAds.ForceAd.Show("gameplay")`:
@@ -18,7 +20,7 @@ Ví dụ game gọi `HDCAds.ForceAd.Show("gameplay")`:
    - context, để tính doanh thu (`HDCAds.Revenue`) và mốc capping;
    - group, để chuyển sang ad backup khi ad trước lỗi.
 
-Khi SDK sẵn sàng, `HDCChannels` gọi `OnSdkInitialized` của từng kênh theo thứ tự `HDCChannels.All`: AL, AR, RW, FA, BN, MREC, PU. Bảng debug cũng hiện các tab theo thứ tự này.
+Khi SDK sẵn sàng, `HDCChannels` gọi `OnSdkInitialized` của từng kênh theo thứ tự `HDCChannels.All`: AL, AR, RW, FA, BN, MREC, PU, BRK. Bảng debug cũng hiện các tab theo thứ tự này.
 
 ## Các tầng
 
@@ -26,7 +28,7 @@ Assembly `HDC.Ads` nằm trong `Runtime/`. Mỗi thư mục con là một tầng
 
 | Tầng | Namespace | Chứa gì |
 |---|---|---|
-| `Api` | `HDC.Ads` | Thứ game gọi: facade `HDCAds`, interface của 7 kênh, `HDCAdRevenue`, `HDCAdChannel`, `HDCAdFormat`, `HDCAdPosition`, `HDCBannerSlot`. Chỉ tầng này public; danh sách được duyệt nằm trong `Tests/Editor/PublicApi.txt`. |
+| `Api` | `HDC.Ads` | Thứ game gọi: facade `HDCAds`, interface của 8 kênh, `HDCAdRevenue`, `HDCAdChannel`, `HDCAdFormat`, `HDCAdPosition`, `HDCBreakAdState`. Chỉ tầng này public; danh sách được duyệt nằm trong `Tests/Editor/PublicApi.txt`. |
 | `Logic` | `HDC.Ads.Logic` | Các quy tắc quảng cáo, xem chi tiết dưới bảng. |
 | `Domain` | `HDC.Ads.Domain` | Dữ liệu: `HDCAdsConfig` và `HDCAdCoreConfig` (đúng schema JSON trên Remote Config), `HDCAdEvent`, các tùy chọn, `HDCAdNames` (instance id và khóa lưu trữ), `HDCAdUnitKeys`, `HDCAdUnitSpec`, `HDCAdLayouts` (tên layout native hợp lệ, kèm tên cũ; phải khớp danh sách layout của thư viện native). |
 | `Diagnostics` | `HDC.Ads.Diagnostics` | Thứ bảng debug đọc: tracker sự kiện, báo cáo config và mediation, `HDCDebugInfo`, `IChannelDiagnostics`, `IConfigRule`, `HDCDebugAction`. |
@@ -36,7 +38,8 @@ Assembly `HDC.Ads` nằm trong `Runtime/`. Mỗi thư mục con là một tầng
 
 Tầng `Logic` gồm:
 
-- 7 kênh trong `Channels/`. Module debug của mỗi kênh nằm ngay cạnh kênh, trong file `*.Debug.cs`.
+- 8 kênh trong `Channels/`. Module debug của mỗi kênh nằm ngay cạnh kênh, trong file `*.Debug.cs`.
+  - Kênh break ad (`HDCBreakAds`, key BRK) không có position. Nó đọc `break_ads_config` của ad core, đếm giờ trên `IMainThread.Ticked` bằng `IClock.UnscaledTime` và ngừng khi `ApplicationPaused`. Ad của nó là native full-screen `fa_brk`, plan từ `HDCAdGroups.BreakAdPlan()`. Nó nghe luồng sự kiện của SDK để biết quảng cáo full-screen khác đang trên màn hình. Giao diện nằm ở assembly `HDC.Ads.BreakAd` và chỉ dùng API public.
 - Group và nguồn ad trong `Groups/`. `HDCCompanionShow` giữ chính sách của ad đi kèm, như native sau interstitial.
 - Chọn config trong `Config/`:
   - `HDCConfigSelection` chọn `ads_config`, ad core config và custom key từ Remote Config, giá trị đã lưu hoặc mặc định, rồi áp chế độ quốc gia.
@@ -68,8 +71,9 @@ Các assembly khác:
 | `HDC.Ads.Firebase` | `Runtime/Firebase` | `HDCRemoteConfig` lấy config và custom key từ Remote Config. Cần define `HDC_FIREBASE`. |
 | `HDC.Ads.Setup` | `Setup` | Prefab `HDCAdsSetup` khởi tạo ads ở scene đầu, và chứa sẵn prefab `HDCAdjust` và bảng debug làm object con. Build được cả khi tắt HDC ads. |
 | `HDC.Ads.Adjust` | `Adjust` | Prefab `HDCAdjust`: khởi động Adjust, đọc attribution, gửi doanh thu quảng cáo và mua hàng lên Adjust. Build ở mọi cấu hình. Phần gọi Adjust SDK cần define `HDC_ADJUST`, phần nghe `HDCAds.Revenue` cần thêm `HDC_ADS`. Component `HDCAdjust` chỉ giữ cài đặt, API và việc chọn cách khởi động. Các phần còn lại nằm ở `HDCAdjustSdk` (cấu hình, đọc attribution, deep link), `HDCAdjustAttributions` (trạng thái attribution, PlayerPrefs, sự kiện), `HDCAdjustRevenue` và `HDCAdjustPurchases`. |
+| `HDC.Ads.BreakAd` | `BreakAd` | Prefab `HDCBreakAd`: thanh đếm ngược của break ad (`HDCBreakAdView`), chỉ gọi API public `HDCAds.BreakAd`. Build ở mọi cấu hình; phần gọi HDCAds cần `HDC_ADS`. `BreakAd/Editor` (assembly `HDC.Ads.BreakAd.Editor`) dựng prefab và sprite (`HDCBreakAdBuilder.Build`) và có menu `HDC > Break Ad`. |
 | `HDC.Ads.Debug` | `Debug` | Bảng debug (uGUI). `Debug/Editor` dựng prefab của bảng. |
-| `HDC.Ads.Editor` | `Editor` | Menu HDC, bật và tắt `HDC_ADS`, tự đặt `HDC_ADJUST` theo Adjust SDK, inspector của `HDCAdjust`, post-process cho iOS, menu scene test (`HDCTestScenes`). |
+| `HDC.Ads.Editor` | `Editor` | Menu HDC, bật và tắt `HDC_ADS`, tự đặt `HDC_ADJUST` theo Adjust SDK, inspector của `HDCAdjust`, `HDCAdsSetup` và `HDCAdsSettings`, cửa sổ HDC Ads Settings (`HDCAdsConfigWindow`, mở cả khi bấm đúp vào asset), post-process cho iOS, menu scene test (`HDCTestScenes`). Tham chiếu `HDC.Ads.Setup` cho inspector của prefab. |
 | `HDC.Ads.Tests` | `Tests/Editor` | Test tự động Edit Mode và Play Mode. |
 | `HDC.Ads.TestScenes` | `Tests/Scenes` | Scene test `HDCAdsTestBoot` và `HDCAdsTestGame`, cùng component `HDCAdsTestScene`. Không có `InternalsVisibleTo`, nên chỉ gọi được API public. `HDCTestScenes.BuildFilter` (một `IFilterBuildAssemblies`) bỏ assembly này khỏi bản build không có scene test trong Build Settings. |
 
@@ -142,6 +146,77 @@ Các tầng trong `Runtime/` cố ý nằm chung assembly `HDC.Ads`, không tác
 - `Tools~/run-tests.sh` chạy test ở batch mode. Xem phần "Kiểm thử" trong README.
 - Test logic chạy trên port giả trong `Tests/Editor/Fakes`, không cần Play Mode. `HDCFakeAds` dựng runtime với đồng hồ, lưu trữ, SDK và mạng đều là đồ giả.
 - `HDCPublicApiTests` so API public với `PublicApi.txt`. Khi cố ý đổi API, chạy test với `HDC_ACCEPT_API=1` rồi commit file đó cùng thay đổi.
+
+## Module HDCOnboarding
+
+`HDCOnboarding/` nằm cạnh `HDCAds/`. Đó là splash và intro của hệ thống cũ, viết thành một module riêng đứng trên thư viện quảng cáo.
+
+- Assembly `HDC.Onboarding` tham chiếu `HDC.Ads`, và `HDC.Ads` cho nó thấy phần internal (`InternalsVisibleTo`). Không assembly nào của `HDCAds/` tham chiếu ngược lên nó.
+- Popup và force ad đi qua kênh, như code game: `HDCAds.Popup`, `HDCAds.ForceAd`.
+- Splash của hệ thống cũ tạo interstitial và native sau interstitial thẳng từ ad unit trong config của splash, không qua group. Vì vậy module dùng thẳng các lớp ad của Infrastructure:
+  - Quảng cáo mở app (`HDCSplashLaunchAd`, theo `launchChannel`): `HDCNativeInterstitialAd` (`splash_it`), `HDCNativeFullscreenAd` (`splash_launch_native`) hoặc App Open của plugin (`HDCGmaAppOpenAd`, `splash_launch_open`). Native sau interstitial là `HDCNativeFullscreenAd` (`splash_naf`). Placement `AppLaunch`/`splash` được ghi vào `HDCAdPlacements`, nên doanh thu của chúng có kênh.
+  - `HDCNativeFullscreenAd.ShowWithLeaderOnceLoaded`, dựa trên `HDCShowFollowers.ArmUntilLoaded`: native gắn vào interstitial hiện ngay trên luồng Android, kể cả khi nó load xong lúc interstitial đã hiện và Unity đang bị pause. Follower chỉ gọi lệnh show khi native đã sẵn sàng (`fullscreen.isReady`), nên không sinh ShowFailed giả.
+  - `HDCConfigReport`, để biết Firebase và Remote Config đã xong chưa.
+- Lệnh của hệ thống cũ và lời gọi tương ứng:
+
+| Hệ thống cũ | HDCOnboarding |
+|---|---|
+| `PU_InitManually(group)` | `HDCAds.Popup.Initialize(group)` |
+| `PU_ForceInit(group)` | `HDCAds.Popup.Reinitialize(group)` |
+| `PU_UpdatePos(pos, layout)`, `PU_Show(pos)` | `HDCAds.Popup.Move(pos, RectTransform)`, `HDCAds.Popup.Show(pos)` |
+| `PU_Hide(pos)` | `HDCAds.Popup.Hide(pos)` |
+| `PU_AbleToShow(pos)` | `HDCPopupAds.IsReadyAt(pos)`: internal, vì `CanShow` public còn đòi đã gọi `Move` |
+| `FA_InitManually(group)` | `HDCAds.ForceAd.Initialize(group)` |
+| `FA_AbleToShow(pos)`, `FA_Show(pos, done)` | `HDCAds.ForceAd.CanShow(pos)`, `HDCAds.ForceAd.Show(pos, done)` |
+
+- Hệ thống cũ đặt group và position cùng tên, nên module truyền tên group vào chỗ cần position, như cũ.
+- Config đọc từ một custom key `onboarding_config` (`HDCOnboardingConfig`), gồm hai phần `splash_config` và `intro_config` mang nguyên JSON của hai key cũ. `HDCSplash` và `HDCIntro` mỗi lần cần thì đọc lại giá trị hiện tại, như hệ thống cũ đọc lại từng key.
+- Thư viện native trên Android bỏ qua lệnh show popup khi activity mất focus, và chỉ báo `Closed`. `HDCOnboardingAds.ShowPopupUntilShown` (popup của intro) và `HDCSplashPopupAd.Show` (native splash) đếm sự kiện của popup (`HDCPopupEvents`): `Closed` mà chưa có `Shown` thì show lại sau mỗi giây, cho tới khi popup hiện, trang kết thúc, hoặc chính onboarding ẩn popup đó.
+- Luồng splash và intro viết bằng coroutine, chờ theo thời gian có scale như cũ: khi mất mạng, `HDCNoInternet` đặt `Time.timeScale = 0` và các bước chờ dừng theo.
+- `HDCNativeBannerLoader` (prefab `HDCNativeBanner`) dùng lại `HDCSplashPopupAd` để load, và `HDCOnboardingAds.ShowPopupUntilShown` (không chờ quảng cáo fullscreen đóng) để show tới khi banner hiện. Nó đếm `Shown` của popup (`HDCPopupEvents`) để biết quảng cáo đã load đã hiện hay chưa.
+- `HDCAdTracking` nghe `HDCAds.Revenue`, nên không móc vào từng loại quảng cáo. Để biết group của một lượt có doanh thu, `HDCAdPlacements` ghi thêm group lúc force ad và popup show, và `HDCAdRevenue` mang nó ra (`Group`).
+- Trong Editor, sự kiện Firebase Analytics không được gửi: lần gọi đầu nạp thư viện native desktop của Firebase, và có thể treo Editor. `HDCOnboardingTracking.Tracked` vẫn chạy.
+- Scene `Splash`, `Intro` và prefab `HDCNoInternet` do `HDCOnboardingSceneBuilder` (assembly `HDC.Onboarding.Editor`) dựng. Đổi giao diện mặc định thì sửa builder rồi dựng lại.
+- Test ở `HDCOnboarding/Tests/Editor` (assembly `HDC.Onboarding.Tests`) chạy luồng splash và intro thật trong Play Mode, với quảng cáo giả lập của Editor, và kiểm hai scene đã nối đủ.
+
+## Module HDCTool
+
+`HDCTool/` chứa cửa sổ `HDC > Build Tool`. Đó là code Editor (assembly `HDC.Tool.Editor`), nên không vào bản build của game.
+
+- Nó tham chiếu `HDC.Ads`, `HDC.Ads.Setup`, `HDC.Ads.Adjust`, `HDC.Ads.Debug`, `HDC.Ads.Editor`, `HDC.Onboarding` và `HDC.Onboarding.Editor`. `HDC.Ads.Editor` và `HDC.Onboarding.Editor` cho nó thấy phần internal (`InternalsVisibleTo`), để dùng `HDCIosLocalBuild` và bước kiểm tra onboarding. Không assembly nào khác tham chiếu ngược lên nó.
+- Các thư mục, theo chiều phụ thuộc:
+  - `Model/`: preset, rule, tên bản build, file settings (`HDCBuildSettings`), trạng thái riêng từng máy (`HDCBuildState`), thư mục build (`HDCBuildFolders`), đích chạy iOS (`HDCAppleTarget`), version SDK (`HDCSdkVersions`), icon. Không gọi thư mục nào khác.
+    - `HDCSdkVersions` đọc version khai báo trong các file `*Dependencies.xml`, và version iOS đã resolve trong `Podfile.lock` (mục `PODS`) và `Package.resolved` của lần export gần nhất. Adapter mediation nhận ra theo tiền tố `com.google.ads.mediation:` và `GoogleMobileAdsMediation`.
+  - `Devices/`: chạy tiến trình ngoài (`HDCProcess`), adb, xctrace, simctl, scrcpy, Xcode. Đọc danh sách thiết bị chạy trên luồng nền, nên phần đó không gọi API của Unity; đường dẫn adb lấy trên main thread rồi truyền vào.
+    - `HDCProcess` đọc stdout và stderr theo UTF-8. Unity mở từ Hub hay Finder không có biến `LANG`, nên mặc định Mono đọc theo ASCII và tên máy có dấu thành `?`.
+    - `HDCAppleDevices.All` gộp iPhone (xctrace), My Mac (chỉ Mac chip Apple, UDID từ `system_profiler`) và simulator (`simctl list devices available -j`).
+    - `HDCSimulatorSupport` tự đọc file `.a` (fat header, archive `!<arch>`, header Mach-O 64 và lệnh `LC_BUILD_VERSION`), không gọi lipo hay otool. `Inspect` cho biết phần arm64 dành cho simulator, cho máy thật (platform 2), hay không rõ. `MarkForSimulator` đổi platform 2 thành 7 ngay trong mảng byte, nên kích thước file và bảng symbol của archive giữ nguyên.
+    - Danh sách thư viện của project đọc từ `PluginImporter`, nên chỉ gọi trên main thread; kết quả nhớ theo thời gian sửa file.
+    - `HDCXcode` chạy một AppleScript bằng `osascript`, không chờ: mở workspace, chọn scheme và iPhone, rồi `run`. Script chờ tới khi lần chạy xong và in kết quả. Cửa sổ đọc kết quả trong `Update` (`HDCXcode.Poll`).
+    - Swift package:
+      - Khi project export có `XCRemoteSwiftPackageReference` mà DerivedData của workspace đó chưa có `SourcePackages/checkouts`, script chạy `xcodebuild -resolvePackageDependencies` trước khi mở Xcode. DerivedData được tìm theo `WorkspacePath` trong `info.plist`.
+      - `xcodebuild` dùng chung thư mục DerivedData với Xcode cho cùng đường dẫn workspace.
+      - Khi build báo thiếu package, script lại gọi lệnh đó (lệnh chờ tới khi tải xong) rồi mới chạy lại. Không bấm Run nữa giữa chừng, vì việc đó huỷ lần tải.
+    - Xcode trả về tham chiếu workspace theo tên, mà mọi export của Unity đều tên `Unity-iPhone.xcworkspace`. Vì vậy script tìm workspace theo đường dẫn, gọi nó bằng `item i of workspace documents` ngay trong từng lệnh (tìm lại `i` trước mỗi lệnh), và không chạy khi có workspace cùng tên ở thư mục khác.
+  - `Checks/`: các mục kiểm tra (`HDCBuildChecks`). Mỗi mục là dữ liệu (tên, mức, lời nhắn, nút sửa), không vẽ gì.
+  - `Build/`: `HDCBuildRunner` (kiểm tra, build, việc sau build), `HDCBuildSceneProcessor`, `HDCBuildReport`, `HDCAppName` (ghi App name vào Info.plist của iOS và `strings.xml` của module launcher Android, cho mọi bản build).
+    - Các bước sau export iOS, theo thứ tự `PostProcessBuild`:
+      - 46 `HDCPodsMinimum`: thêm (hoặc gộp vào `post_install` sẵn có) bước nâng minimum iOS của pod. Nó chạy sau khi External Dependency Manager tạo Podfile (40) và HDCAds nâng dòng `platform :ios` (45), trước `pod install` (50).
+      - 900 `HDCAppName`.
+      - 1001 `HDCIl2CppPhase`: khai báo output `libGameAssembly.a` cho phase IL2CPP, sau bước bỏ phase trùng của HDCAds (1000).
+      - 1010 `HDCSimulatorBuild`: khi export bằng Simulator SDK, đánh dấu các file `.a` trong `Libraries/` của bản export bằng `HDCSimulatorSupport.MarkExportForSimulator`.
+    - Với iOS, `HDCBuildRunner` đặt Target SDK theo `Run on` (Simulator SDK cho simulator, Device SDK cho iPhone và My Mac) và bật Run on My Mac cho đích Mac, chỉ trong lúc build; `finally` trả Player Settings về như cũ.
+  - `Window/`: cửa sổ và từng phần của nó, mỗi phần một file. Chỉ phần này dùng IMGUI. `HDCBuildGui` cho mọi phần cùng một kiểu:
+    - thẻ (`Card`): thanh màu, tiêu đề thu gọn được, trạng thái lưu trong EditorPrefs;
+    - pill, hai cột (`Pair`) và cỡ ô chung (`ShortField`, `MediumField`, `LongField`).
+- Danh sách team của Xcode (`HDCAppleTeams`) và dropdown Team (`HDCAppleTeamField`) nằm trong `HDCAds/Editor`, vì cửa sổ `HDC > iOS > Local build settings` của HDCAds cũng dùng. `HDCAppleTeams` đọc từ `defaults export com.apple.dt.Xcode` (`IDEProvisioningTeamByIdentifier`). HDCTool thấy hai lớp này qua `InternalsVisibleTo`.
+- Rule của preset được áp bằng `IProcessSceneWithReport` lên bản copy của scene mà Unity dựng cho bản build. `HDCBuildRunner` đặt `HDCBuildSceneProcessor.ActiveRules` ngay trước `BuildPipeline.BuildPlayer` và xoá trong `finally`. Vì vậy build không qua tool thì không bị đổi gì, và không cần chụp lại rồi khôi phục scene.
+- Rule là của từng game, nên `HDCBuildSettings.asset` nằm trong `Assets/HDCTool/` của game, giống `HDCAdsSettings`, không nằm trong HDCLib.
+- Thư mục build là đường dẫn tuyệt đối trên từng máy, nên lưu trong EditorUserSettings (`HDCBuildState.BuildFolder`). `HDCBuildFolders.Base` không bao giờ trả về một thư mục nằm trong project.
+- Việc chạy sau một lần vẽ (quét, build, nút sửa nhanh, lệnh adb) đi qua hàng đợi `Later` của cửa sổ và chạy trong `Update` của nó, không dùng `EditorApplication.delayCall`. Trong một phiên Unity mở nền, không cửa sổ nào được focus, `delayCall` không chạy lần nào, còn `Update` của cửa sổ vẫn chạy.
+- Field tạm của cửa sổ (cờ đang build, đang chờ quét, task đọc thiết bị) có `[NonSerialized]`: khi reload script, Unity giữ cả field private của EditorWindow, nên một cờ còn bật mà việc của nó đã mất sẽ kẹt cửa sổ.
+- Thêm một mục kiểm tra: viết hàm trả `HDCBuildCheck` trong `HDCBuildChecks`, thêm vào `Run`, rồi viết test trong `HDCTool/Tests/Editor`. Mục cần thông tin của scene 0 thì đọc từ `HDCScene0`. Scene 0 chỉ được mở (additive) khi bấm `Scan` hoặc khi nó đang mở sẵn, không mở mỗi lần cửa sổ vẽ lại.
+- Test ở `HDCTool/Tests/Editor` (assembly `HDC.Tool.Tests`): tên bản build, rule, đường dẫn, đọc danh sách adb, xctrace và simctl, output UTF-8, đích chạy iOS, thư viện chỉ cho máy thật, rule áp vào scene, các mục kiểm tra, báo cáo, version SDK.
 
 ## Thêm mạng quảng cáo
 
@@ -259,7 +334,7 @@ Nút của một kênh nằm trong module debug của kênh đó, không nằm t
    - Hàm gọi API.
 2. Hàm gọi API dùng các giá trị sau:
    - `selection.Group` và `selection.Position`: group và position đang chọn.
-   - `selection.Area`: vùng của bảng dành cho quảng cáo đặt lên màn hình. Kênh nào cần vùng này thì đặt `UsesArea` là `true`, khi đó vùng hiện ra lúc chọn kênh.
+   - `selection.Area`: khung của bảng dành cho quảng cáo đặt lên màn hình. Kênh nào cần khung này thì override `Area(group, position)` và trả một `HDCDebugArea`: tên, cỡ theo point (cỡ tối thiểu, hoặc cỡ duy nhất khi không đổi cỡ được), có đổi cỡ được không, chỗ quảng cáo đang nằm (`Placed`, `Center` hoặc `Preset`), và hàm đặt quảng cáo vào một khung trên màn hình. Khung hiện ra lúc chọn kênh; người dùng kéo hay đổi cỡ khung thì bảng gọi hàm đó.
    - Giá trị trả về là lời gọi, hiện ở dòng `Last call`. Trả `null` khi không gọi gì.
    - Với callback đến sau, như lúc nhận thưởng, gọi `selection.Record(...)`.
 3. Nếu nút gọi một API mới của game, thêm một dòng vào `Api` để thẻ System hiện lời gọi đó.

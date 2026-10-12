@@ -8,7 +8,7 @@
 #            need the network: name one to run it)
 # Environment:
 #   UNITY_EDITOR_DIR   the Unity install, as for compile-matrix.sh
-#   HDC_ACCEPT_API=1   writes the current public API into Tests/Editor/PublicApi.txt instead of comparing
+#   HDC_ACCEPT_API=1   writes the current public API into HDCAds/Tests/Editor/PublicApi.txt instead of comparing
 #   HDC_TEST_CAPTURE   a folder to render the debug panel into while its tests run
 # The results go to Logs/hdc-tests.xml in the project, Unity's log to Logs/hdc-tests.log.
 
@@ -29,13 +29,14 @@ if [ -f "$PROJ/Temp/UnityLockfile" ] && lsof "$PROJ/Temp/UnityLockfile" > /dev/n
 fi
 
 # Unity runs explicit tests whenever a filter selects them: leave the network ones out unless named.
-if [ -n "${2:-}" ]; then FILTER=(-assemblyNames HDC.Ads.Tests -testFilter "$2")
-else FILTER=(-assemblyNames HDC.Ads.Tests -testCategory "!Network"); fi
+ASSEMBLIES="HDC.Ads.Tests;HDC.Onboarding.Tests;HDC.Tool.Tests"
+if [ -n "${2:-}" ]; then FILTER=(-assemblyNames "$ASSEMBLIES" -testFilter "$2")
+else FILTER=(-assemblyNames "$ASSEMBLIES" -testCategory "!Network"); fi
 RESULTS=$PROJ/Logs/hdc-tests.xml
 LOG=$PROJ/Logs/hdc-tests.log
 mkdir -p "$PROJ/Logs"
 rm -f "$RESULTS"
-echo "Running ${2:-HDC.Ads.Tests} in $PROJ with Unity $VERSION…"
+echo "Running ${2:-$ASSEMBLIES} in $PROJ with Unity $VERSION…"
 "$BIN" -batchmode -projectPath "$PROJ" -runTests -testPlatform EditMode "${FILTER[@]}" \
   -testResults "$RESULTS" -logFile "$LOG"
 code=$?

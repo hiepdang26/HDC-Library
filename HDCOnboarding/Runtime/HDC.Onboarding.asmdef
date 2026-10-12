@@ -1,0 +1,28 @@
+{
+    "name": "HDC.Onboarding",
+    "rootNamespace": "HDC.Onboarding",
+    "references": [
+        "HDC.Ads",
+        "HDC.Ads.Settings",
+        "Unity.TextMeshPro",
+        "UnityEngine.UI",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "HDC_ADS"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.inputsystem",
+            "expression": "1.0.0",
+            "define": "HDC_INPUT_SYSTEM"
+        }
+    ],
+    "noEngineReferences": false
+}

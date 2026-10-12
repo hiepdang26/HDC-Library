@@ -1,0 +1,25 @@
+namespace HDC.Ads.Tests
+{
+    internal static class HDCTestConfigs
+    {
+        internal const string Ads = @"{ ""selectedAdCoreName"": ""core"",
+  ""forceAdChannel"": { ""isEnabled"": true, ""positionConfigs"": [
+     { ""positionName"": ""gameplay"", ""canShow"": true, ""cappingTime"": 0 },
+     { ""positionName"": ""ui"", ""canShow"": true, ""cappingTime"": 0 },
+     { ""positionName"": ""orphan"", ""canShow"": true } ] },
+  ""rewardedChannel"": { ""isEnabled"": true },
+  ""bannerChannel"": { ""isEnabled"": true, ""fullBottom"": { ""isEnabled"": true } },
+  ""mrecChannel"": { ""isEnabled"": true },
+  ""popupChannel"": { ""isEnabled"": true, ""positionConfigs"": [ { ""isEnabled"": true, ""positionName"": ""popup"" } ] } }";
+
+        internal const string Core = @"{
+  ""forceAdLayoutConfig"": { ""layoutGroups"": [ { ""groupName"": ""cls"", ""layouts"": [ { ""layout"": ""fs_single_cls_01"", ""layoutTime"": 5 } ] } ] },
+  ""forceAdGroups"": [
+    { ""mediationPriority"": 1, ""useBackup"": true, ""groupName"": ""native_gameplay"", ""positionNames"": [ ""gameplay"" ],
+      ""admobUnit"": { ""id"": ""ca-app-pub-3940256099942544/1033173712"" },
+      ""nativeAdUnit"": { ""id"": ""native-fail-unit"", ""layoutGroupName"": ""cls"" } },
+    { ""mediationPriority"": 1, ""groupName"": ""native_ui"", ""positionNames"": [ ""ui"" ], ""nativeAdUnit"": { ""id"": ""native-ok"", ""layoutGroupName"": ""cls"" } } ],
+  ""bannerUnit"": { ""fullBottom"": { ""mediationPriority"": 1, ""nativeAdUnit"": { ""id"": ""banner-ok"", ""layouts"": [ ""bn_single_transparent_01"" ] } } },
+  ""popupGroups"": [ { ""groupName"": ""popup"", ""positionNames"": [ ""popup"" ], ""nativeAdUnit"": { ""id"": ""popup-fail-unit"", ""layout"": ""popup_single_manual_01"", ""timeShow"": 3 } } ] }";
+    }
+}

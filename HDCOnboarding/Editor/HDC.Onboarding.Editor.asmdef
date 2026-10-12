@@ -1,0 +1,25 @@
+{
+    "name": "HDC.Onboarding.Editor",
+    "rootNamespace": "HDC.Onboarding.Editor",
+    "references": [
+        "HDC.Onboarding",
+        "HDC.Ads",
+        "HDC.Ads.Settings",
+        "HDC.Ads.Setup",
+        "Unity.TextMeshPro",
+        "UnityEngine.UI"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "HDC_ADS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

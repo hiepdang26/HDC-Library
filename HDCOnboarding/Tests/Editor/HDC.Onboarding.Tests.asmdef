@@ -1,0 +1,32 @@
+{
+    "name": "HDC.Onboarding.Tests",
+    "rootNamespace": "HDC.Onboarding.Tests",
+    "references": [
+        "HDC.Onboarding",
+        "HDC.Onboarding.Editor",
+        "HDC.Ads",
+        "HDC.Ads.Settings",
+        "HDC.Ads.Setup",
+        "HDC.Ads.Tests",
+        "Unity.TextMeshPro",
+        "UnityEngine.UI",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS",
+        "HDC_ADS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

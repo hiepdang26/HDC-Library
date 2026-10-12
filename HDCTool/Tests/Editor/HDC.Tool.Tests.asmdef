@@ -1,0 +1,29 @@
+{
+    "name": "HDC.Tool.Tests",
+    "rootNamespace": "HDC.Tool.Tests",
+    "references": [
+        "HDC.Tool.Editor",
+        "HDC.Ads",
+        "HDC.Ads.Setup",
+        "HDC.Ads.Adjust",
+        "HDC.Ads.Debug",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS",
+        "HDC_ADS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

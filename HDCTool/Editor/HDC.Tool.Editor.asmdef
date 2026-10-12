@@ -1,0 +1,27 @@
+{
+    "name": "HDC.Tool.Editor",
+    "rootNamespace": "HDC.Tool.Editor",
+    "references": [
+        "HDC.Ads",
+        "HDC.Ads.Settings",
+        "HDC.Ads.Setup",
+        "HDC.Ads.Adjust",
+        "HDC.Ads.Debug",
+        "HDC.Ads.Editor",
+        "HDC.Onboarding",
+        "HDC.Onboarding.Editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "HDC_ADS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,0 +1,418 @@
+# The public API of HDCLib's runtime assemblies: what game code can compile against.
+# HDCPublicApiTests compares the assemblies with this file. A public type or member missing here fails the
+# test, and so does one listed here that is gone. Update this file in the same commit as the API change, by
+# hand or by running the tests once with HDC_ACCEPT_API=1.
+# One section per assembly; members sit under their type, indented.
+
+[HDC.Ads]
+enum HDC.Ads.HDCAdChannel
+  AppLaunch = 3
+  AppResume = 4
+  Banner = 5
+  ForceAd = 1
+  Mrec = 6
+  Popup = 7
+  Rewarded = 2
+  Unknown = 0
+static class HDC.Ads.HDCAdFormat
+  const field string AppOpen = "appOpen"
+  const field string Banner = "banner"
+  const field string BannerView = "bannerView"
+  const field string Fullscreen = "fullscreen"
+  const field string Interstitial = "interstitial"
+  const field string Mrec = "mrec"
+  const field string Popup = "popup"
+  const field string Rewarded = "rewarded"
+  const field string Sdk = "sdk"
+enum HDC.Ads.HDCAdPosition
+  Bottom = 1
+  BottomLeft = 4
+  BottomRight = 5
+  Center = 6
+  Top = 0
+  TopLeft = 2
+  TopRight = 3
+sealed class HDC.Ads.HDCAdRevenue
+  const field string AdMob = "AdMob"
+  override string ToString()
+  property HDC.Ads.HDCAdChannel Channel { get; }
+  property double Value { get; }
+  property int Precision { get; }
+  property string AdSource { get; }
+  property string AdUnitId { get; }
+  property string Currency { get; }
+  property string Format { get; }
+  property string Group { get; }
+  property string Network { get; }
+  property string Position { get; }
+static class HDC.Ads.HDCAds
+  static event System.Action Initialized
+  static event System.Action<HDC.Ads.HDCAdRevenue> Revenue
+  static property HDC.Ads.IAppLaunchAds AppLaunch { get; }
+  static property HDC.Ads.IAppResumeAds AppResume { get; }
+  static property HDC.Ads.IBannerAds Banner { get; }
+  static property HDC.Ads.IBreakAds BreakAd { get; }
+  static property HDC.Ads.IForceAds ForceAd { get; }
+  static property HDC.Ads.IMrecAds Mrec { get; }
+  static property HDC.Ads.IPopupAds Popup { get; }
+  static property HDC.Ads.IRewardedAds Rewarded { get; }
+  static property bool IsAdsRemoved { get; }
+  static property bool IsInitialized { get; }
+  static void Initialize(string adsConfigJson, string coreConfigJson, System.Action onInitialized = null)
+  static void SetAdsRemoved(bool removed)
+static class HDC.Ads.HDCAds.Testing
+  static System.Collections.Generic.IReadOnlyList<string> Groups(HDC.Ads.HDCAdChannel channel)
+  static System.Collections.Generic.IReadOnlyList<string> Positions(HDC.Ads.HDCAdChannel channel, string group = null)
+  static bool EnableMetaTestMode(string[] extraDeviceHashes = null, int testAdType = 0)
+  static property bool DebugLog { get; set; }
+  static property bool IsMetaTestMode { get; }
+  static property bool IsTestDevice { get; }
+  static property bool UseTestAdUnits { get; set; }
+  static property string MetaTestDeviceHash { get; }
+  static void DisableMetaTestMode()
+  static void EnableTestDevice()
+enum HDC.Ads.HDCBreakAdState
+  Countdown = 2
+  Loading = 3
+  Off = 0
+  Showing = 4
+  Waiting = 1
+interface HDC.Ads.IAppLaunchAds
+  event System.Action BeforeShow
+  event System.Action Completed
+  property bool CanShow { get; }
+  property bool IgnoreAds { get; set; }
+  property bool IsBeforeShowRaised { get; }
+  property bool IsCompleted { get; }
+  void Initialize()
+interface HDC.Ads.IAppResumeAds
+  property bool IgnoreAds { get; set; }
+  property bool IsInitialized { get; }
+  void Block()
+  void Initialize()
+interface HDC.Ads.IBannerAds
+  bool CanShow()
+  bool Expand(bool enableClick = true)
+  bool Show()
+  void Hide()
+  void Initialize()
+interface HDC.Ads.IBreakAds
+  event System.Action<HDC.Ads.HDCBreakAdState> StateChanged
+  property HDC.Ads.HDCBreakAdState State { get; }
+  property bool IsRunning { get; }
+  property float CountdownLeft { get; }
+  property float CountdownSeconds { get; }
+  property float LoadingTimeout { get; set; }
+  void Restart()
+  void Start()
+  void Stop()
+interface HDC.Ads.IForceAds
+  bool CanShow(string position)
+  bool IsGroupReady(string groupName)
+  bool Reinitialize(string groupName)
+  bool Show(string position, System.Action onDone = null)
+  int ImpressionCount(string position)
+  property bool IgnoreAds { get; set; }
+  property int TotalImpressionCount { get; }
+  void Initialize(string groupName)
+interface HDC.Ads.IMrecAds
+  bool Show()
+  property UnityEngine.Vector2 SizeInPixels { get; }
+  property bool CanShow { get; }
+  void Hide()
+  void Initialize()
+  void Move(HDC.Ads.HDCAdPosition position)
+  void Move(UnityEngine.GameObject target, UnityEngine.Camera camera = null)
+  void Move(UnityEngine.Vector2 screenPoint)
+interface HDC.Ads.IPopupAds
+  bool CanShow(string position)
+  bool IsGroupReady(string groupName)
+  bool Reinitialize(string groupName)
+  bool Show(string position)
+  void Hide(string position)
+  void Initialize(string groupName)
+  void Move(string position, UnityEngine.Rect screenRect)
+  void Move(string position, UnityEngine.RectTransform area, UnityEngine.Camera camera = null)
+interface HDC.Ads.IRewardedAds
+  bool Show(string position, System.Action onRewarded, System.Action onClosed = null)
+  property bool CanShow { get; }
+  property bool IgnoreAds { get; set; }
+  property int ImpressionCount { get; }
+  void Initialize()
+
+[HDC.Ads.Settings]
+sealed class HDC.Ads.HDCAdsSettings : UnityEngine.ScriptableObject
+  System.Collections.Generic.Dictionary<string, string> CoreConfigsByKey()
+  const field string ResourceName = "HDCAdsSettings"
+  ctor()
+  property string AdsConfig { get; }
+  property string CoreConfig { get; }
+  static HDC.Ads.HDCAdsSettings Load()
+  static readonly field string[] CoreConfigKeys
+static class HDC.Ads.HDCCustomConfig
+  static bool TryGet(string key, out string value)
+  static event System.Action Updated
+  static property System.Collections.Generic.IReadOnlyCollection<string> Keys { get; }
+  static property bool IsReady { get; }
+  static string Get(string key)
+
+[HDC.Ads.Firebase]
+static class HDC.Ads.HDCRemoteConfig
+  const field string AdsConfigKey = "ads_config"
+  static property bool FetchInEditor { get; set; }
+  static void Fetch(string defaultAdsConfig, System.Collections.Generic.IDictionary<string, string> defaultCoreConfigs, System.Action<string, string> onLoaded, float timeoutSeconds = 10)
+  static void FetchAndInitialize(string defaultAdsConfig, System.Collections.Generic.IDictionary<string, string> defaultCoreConfigs, System.Action onInitialized = null, float timeoutSeconds = 10)
+
+[HDC.Ads.Setup]
+sealed class HDC.Ads.HDCAdsSetup : UnityEngine.MonoBehaviour
+  ctor()
+  static void InitializeAds(System.Action onReady = null)
+
+[HDC.Ads.Adjust]
+sealed class HDC.Ads.HDCAdjust : UnityEngine.MonoBehaviour
+  const field string AdMobRevenueSource = "admob_sdk"
+  const field string CampaignKey = "user_campaign"
+  const field string CostKey = "user_cost"
+  const field string CreativeKey = "user_creative"
+  const field string NetworkKey = "user_network"
+  const field string TimedOutNetwork = "time_out"
+  ctor()
+  static bool TrackPurchaseRevenue(double amount, string currency, string transactionId = null)
+  static event System.Action<HDC.Ads.HDCAdjustAttribution> AttributionChanged
+  static property HDC.Ads.HDCAdjustAttribution Attribution { get; }
+  static property bool IsAttributionReady { get; }
+  static property string Network { get; }
+sealed class HDC.Ads.HDCAdjustAttribution
+  override string ToString()
+  property double? CostAmount { get; }
+  property string Adgroup { get; }
+  property string Campaign { get; }
+  property string ClickLabel { get; }
+  property string CostCurrency { get; }
+  property string CostType { get; }
+  property string Creative { get; }
+  property string Network { get; }
+  property string TrackerName { get; }
+  property string TrackerToken { get; }
+enum HDC.Ads.HDCAdjustEnvironment
+  Auto = 0
+  Production = 2
+  Sandbox = 1
+enum HDC.Ads.HDCAdjustLogLevel
+  Assert = 6
+  Debug = 2
+  Error = 5
+  Info = 3
+  Suppress = 7
+  Verbose = 1
+  Warn = 4
+
+[HDC.Ads.Debug]
+sealed class HDC.Ads.DebugUI.HDCAdsDebugPanel : UnityEngine.MonoBehaviour
+  ctor()
+  property bool IsOpen { get; }
+  property int CurrentPage { get; }
+  void Close()
+  void Open()
+  void ShowPage(int index)
+  void Toggle()
+sealed class HDC.Ads.DebugUI.HDCAdsDebugViewer : UnityEngine.MonoBehaviour
+  ctor()
+  property bool IsOpen { get; }
+  void Close()
+  void Open(string title, System.Func<string> bodyBuilder, bool large = false)
+sealed class HDC.Ads.DebugUI.HDCAdsDebugWorkspace : HDC.Ads.DebugUI.HDCDebugPage
+  ctor()
+sealed class HDC.Ads.DebugUI.HDCDebugAreaEditor : UnityEngine.MonoBehaviour, UnityEngine.EventSystems.IBeginDragHandler, UnityEngine.EventSystems.IDragHandler, UnityEngine.EventSystems.IEndDragHandler, UnityEngine.EventSystems.IEventSystemHandler, UnityEngine.EventSystems.IInitializePotentialDragHandler, UnityEngine.EventSystems.IPointerClickHandler, UnityEngine.EventSystems.IPointerDownHandler, UnityEngine.EventSystems.IPointerUpHandler, UnityEngine.EventSystems.IScrollHandler
+  ctor()
+sealed class HDC.Ads.DebugUI.HDCDebugAreaHandle : UnityEngine.MonoBehaviour, UnityEngine.EventSystems.IBeginDragHandler, UnityEngine.EventSystems.IDragHandler, UnityEngine.EventSystems.IEndDragHandler, UnityEngine.EventSystems.IEventSystemHandler, UnityEngine.EventSystems.IInitializePotentialDragHandler, UnityEngine.EventSystems.IPointerDownHandler, UnityEngine.EventSystems.IPointerUpHandler
+  ctor()
+abstract class HDC.Ads.DebugUI.HDCDebugPage : UnityEngine.MonoBehaviour
+  protected abstract void Redraw()
+  protected ctor()
+  protected virtual void OnEnable()
+  protected virtual void Update()
+  protected void MarkDirty()
+  void Refresh()
+sealed class HDC.Ads.DebugUI.HDCDevicePage : HDC.Ads.DebugUI.HDCDebugPage
+  ctor()
+sealed class HDC.Ads.DebugUI.HDCEventsPage : HDC.Ads.DebugUI.HDCDebugPage
+  ctor()
+sealed class HDC.Ads.DebugUI.HDCKeyValueList : UnityEngine.MonoBehaviour
+  ctor()
+  void Begin()
+  void End()
+  void Header(string title)
+  void Note(string text)
+  void Row(string label, string value)
+  void Row(string label, string value, UnityEngine.Color valueColor)
+sealed class HDC.Ads.DebugUI.HDCOptionPicker : UnityEngine.MonoBehaviour
+  ctor()
+  void Close()
+  void Open(string title, string subtitle, System.Collections.Generic.IEnumerable<string> values, string selected, System.Action<string> onPicked)
+sealed class HDC.Ads.DebugUI.HDCRemoteConfigPage : HDC.Ads.DebugUI.HDCDebugPage
+  ctor()
+
+[HDC.Ads.BreakAd]
+sealed class HDC.Ads.HDCBreakAdView : UnityEngine.MonoBehaviour
+  ctor()
+
+[HDC.Onboarding]
+sealed class HDC.Onboarding.HDCAdPaid
+  property HDC.Ads.HDCAdRevenue Revenue { get; }
+  property double TotalValue { get; }
+  property int NamePaidCount { get; }
+  property int SessionCount { get; }
+  property int TotalPaidCount { get; }
+  property string Name { get; }
+sealed class HDC.Onboarding.HDCAdTracking : UnityEngine.MonoBehaviour
+  const field string EventName = "hdc_ad_paid"
+  ctor()
+  static event System.Action<HDC.Onboarding.HDCAdPaid> Tracked
+  static property int SessionCount { get; }
+sealed class HDC.Onboarding.HDCAppIdLabel : UnityEngine.MonoBehaviour
+  ctor()
+  void Show(string label, UnityEngine.RectTransform area = null)
+static class HDC.Onboarding.HDCFirstSession
+  static property bool IsFirstOpen { get; }
+sealed class HDC.Onboarding.HDCIntro : UnityEngine.MonoBehaviour
+  ctor()
+  property HDC.Onboarding.HDCIntroConfig Config { get; }
+  static bool IsCompleteIntro(string introName)
+  static property bool IsFinished { get; }
+  static void CompleteIntro(string introName)
+sealed class HDC.Onboarding.HDCIntroAd
+  ctor()
+  field HDC.Onboarding.HDCIntroPreload PreloadType
+  field string GroupName
+sealed class HDC.Onboarding.HDCIntroBackgroundView : HDC.Onboarding.HDCIntroView
+  ctor()
+  override bool CanRender(HDC.Onboarding.HDCIntroPage page)
+  override property bool IsComplete { get; }
+  override void Render(HDC.Onboarding.HDCIntroPage page)
+sealed class HDC.Onboarding.HDCIntroConfig
+  ctor()
+  field HDC.Onboarding.HDCIntroPage[] Configs
+  field string nextSceneName
+sealed class HDC.Onboarding.HDCIntroCoverView : HDC.Onboarding.HDCIntroView
+  ctor()
+  override bool CanRender(HDC.Onboarding.HDCIntroPage page)
+  override property bool IsComplete { get; }
+  override void Render(HDC.Onboarding.HDCIntroPage page)
+sealed class HDC.Onboarding.HDCIntroPage
+  ctor()
+  field HDC.Onboarding.HDCIntroAd AdConfig
+  field HDC.Onboarding.HDCIntroType IntroType
+  field bool EnableCompleteIntro
+  field float DelayShowContinue
+  field float IntroInterval
+  field float TimeDelayPreload
+  field string IntroBackgroundImage
+  field string IntroCoverImage
+  field string IntroDescription
+enum HDC.Onboarding.HDCIntroPreload
+  ForceAd = 1
+  Popup = 0
+enum HDC.Onboarding.HDCIntroType
+  AL = 1
+  AR = 0
+  FORCE_AD = 5
+  PT = 2
+abstract class HDC.Onboarding.HDCIntroView : UnityEngine.MonoBehaviour
+  abstract bool CanRender(HDC.Onboarding.HDCIntroPage page)
+  abstract property bool IsComplete { get; }
+  abstract void Render(HDC.Onboarding.HDCIntroPage page)
+  property UnityEngine.RectTransform AdArea { get; }
+  protected ctor()
+sealed class HDC.Onboarding.HDCNativeBannerConfig
+  ctor()
+  field HDC.Onboarding.HDCNativeBannerLoop[] bannerLoops
+  field string activeSceneName
+  static HDC.Onboarding.HDCNativeBannerConfig Parse(string json)
+sealed class HDC.Onboarding.HDCNativeBannerLoader : UnityEngine.MonoBehaviour
+  ctor()
+  property HDC.Onboarding.HDCNativeBannerConfig Config { get; }
+  static property bool IsRunning { get; }
+  void Initialize()
+sealed class HDC.Onboarding.HDCNativeBannerLoop
+  ctor()
+  field bool isEnabled
+  field float defaultTimeConfig
+  field float metaTimeConfig
+  field float timeOut
+  field int adShowCount
+  field string groupName
+sealed class HDC.Onboarding.HDCNoInternet : UnityEngine.MonoBehaviour
+  ctor()
+  property bool IsInternetAvailable { get; }
+  property bool IsPopupShown { get; }
+  void ToggleReconnect()
+  void ToggleTryReconnect()
+sealed class HDC.Onboarding.HDCOnboardingConfig
+  ctor()
+  field HDC.Onboarding.HDCIntroConfig intro_config
+  field HDC.Onboarding.HDCSplashConfig splash_config
+  static HDC.Onboarding.HDCOnboardingConfig Parse(string json)
+static class HDC.Onboarding.HDCOnboardingKeys
+  const field string FirstNativeBannerConfig = "first_native_banner_config"
+  const field string FirstOpen = "user_first_open"
+  const field string IntroPrefix = "intro_"
+  const field string OnboardingConfig = "onboarding_config"
+static class HDC.Onboarding.HDCOnboardingTracking
+  static event System.Action<string> Tracked
+sealed class HDC.Onboarding.HDCSplash : UnityEngine.MonoBehaviour
+  ctor()
+  property HDC.Onboarding.HDCSplashConfig Config { get; }
+  property UnityEngine.Events.UnityEvent FirebaseInitialized { get; }
+  property UnityEngine.Events.UnityEvent SplashFinished { get; }
+  property UnityEngine.Events.UnityEvent<float> ProgressChanged { get; }
+  static property bool IsFinished { get; }
+sealed class HDC.Onboarding.HDCSplashAdArea : UnityEngine.MonoBehaviour
+  ctor()
+  property HDC.Onboarding.HDCSplashAdAreaKind Kind { get; }
+  property UnityEngine.RectTransform Area { get; }
+  property bool FollowsOrientation { get; }
+  property bool IsPortrait { get; }
+enum HDC.Onboarding.HDCSplashAdAreaKind
+  NativeSplash = 0
+  NativeSplashAdMob = 1
+sealed class HDC.Onboarding.HDCSplashConfig
+  ctor()
+  field HDC.Onboarding.HDCSplashLaunchChannel launchChannel
+  field bool enableAdmobLayout
+  field bool waitNativeSplashLoad
+  field float delayShowInterstitials
+  field float interLoadAdTimeout
+  field float loadingTime
+  field float nativeSplashLoadTimeOut
+  field float nativeSplashShowTime
+  field int interSplashPreload
+  field int interSplashPreloadWaitCount
+  field string firstOpenNextScene
+  field string interSplashBackupAdUnitId
+  field string nativeAfterInterId
+  field string nativeAfterLayoutGroup
+  field string nativeSplashGroup
+  field string nextScene
+sealed class HDC.Onboarding.HDCSplashLaunchChannel
+  ctor()
+  field HDC.Onboarding.HDCSplashLaunchChannel.AppOpenUnit appOpenUnit
+  field HDC.Onboarding.HDCSplashLaunchChannel.ForceAdUnit forceAdUnit
+  field int launchAdType
+sealed class HDC.Onboarding.HDCSplashLaunchChannel.AdmobUnit
+  ctor()
+  field string id
+sealed class HDC.Onboarding.HDCSplashLaunchChannel.AppOpenUnit
+  ctor()
+  field HDC.Onboarding.HDCSplashLaunchChannel.AdmobUnit admobUnit
+sealed class HDC.Onboarding.HDCSplashLaunchChannel.ForceAdUnit
+  ctor()
+  field HDC.Onboarding.HDCSplashLaunchChannel.AdmobUnit admobUnit
+  field HDC.Onboarding.HDCSplashLaunchChannel.NativeAdUnit nativeAdUnit
+sealed class HDC.Onboarding.HDCSplashLaunchChannel.NativeAdUnit
+  ctor()
+  field string id
+  field string layoutGroupName
+sealed class HDC.Onboarding.HDCSplashLoadingView : UnityEngine.MonoBehaviour
+  ctor()
+  void UpdateProgress(float progress)

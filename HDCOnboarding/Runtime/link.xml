@@ -1,0 +1,7 @@
+<linker>
+    <assembly fullname="HDC.Onboarding" preserve="all"/>
+    <assembly fullname="Firebase.Analytics" ignoreIfMissing="1">
+        <type fullname="Firebase.Analytics.FirebaseAnalytics" preserve="all"/>
+        <type fullname="Firebase.Analytics.Parameter" preserve="all"/>
+    </assembly>
+</linker>

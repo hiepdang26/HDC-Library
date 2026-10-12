@@ -5,20 +5,25 @@
 #   editor         HDC ads on, in the Editor with iOS as the build target, with the Edit Mode tests
 #   ios, android   HDC ads on with Firebase and Adjust, in a player build
 #   nofirebase     HDC ads on without Firebase or Adjust, with the Edit Mode tests
-#   inputsystem    the debug panel with the Input System package as the only input
-#   off            HDC ads off: the assemblies that build anyway, HDCAdjust with and without Adjust
+#   inputsystem    the debug panel and the onboarding with the Input System package as the only input
+#   off            HDC ads off: the assemblies that build anyway, HDCAdjust with and without Adjust, the break ad view
 #   editorios, editorandroid   the Editor assembly with each build target
 #   editor, android (HDC.Ads.TestScenes)   the test scenes in the Editor and in a player build
+#   HDC.Onboarding  the splash and intro, in each setup with HDC ads on; its Editor assembly and tests in the Editor
+#   HDC.Tool        the build tool with each build target, and its tests
 #
 # Usage: Tools~/compile-matrix.sh [output folder]   (default: $TMPDIR/hdc-compile-matrix)
 # Environment:
 #   HDC_PROJECT       the Unity project to take references from (default: the one holding HDCLib)
 #   UNITY_EDITOR_DIR  the Unity install, such as /Applications/Unity/Hub/Editor/2022.3.62f3
 #                     (default: the project's version under Unity Hub's macOS folder)
-# The project must have been opened once: UnityEngine.UI, the Input System, Adjust and the test runner come from
+# The project must have been opened once: UnityEngine.UI, TextMeshPro, the Input System, Adjust and the test runner come from
 # its Library/ScriptAssemblies. A setup whose references the project lacks is skipped, not failed.
 
 SRC=$(cd "$(dirname "$0")/.." && pwd)
+ADS=$SRC/HDCAds
+ONB=$SRC/HDCOnboarding
+TOOL=$SRC/HDCTool
 PROJ=${HDC_PROJECT:-$SRC}
 while [ "$PROJ" != / ] && [ ! -f "$PROJ/ProjectSettings/ProjectVersion.txt" ]; do PROJ=$(dirname "$PROJ"); done
 [ -f "$PROJ/ProjectSettings/ProjectVersion.txt" ] || { echo "No Unity project holds $SRC; set HDC_PROJECT." >&2; exit 2; }
@@ -61,6 +66,7 @@ find "$PROJ/Assets/GoogleMobileAds" "$PROJ"/Library/PackageCache/com.google.ads.
 find "$PROJ/Assets/Firebase" "$PROJ"/Library/PackageCache/com.google.firebase.* -maxdepth 4 -name 'Firebase.*.dll' -not -path '*/Editor/*' 2>/dev/null | sort | group firebase
 LIB=$PROJ/Library/ScriptAssemblies
 ls "$LIB/UnityEngine.UI.dll" 2>/dev/null | group ui
+ls "$LIB/Unity.TextMeshPro.dll" 2>/dev/null | group tmp
 ls "$LIB/Unity.InputSystem.dll" "$LIB/Unity.InputSystem.ForUI.dll" 2>/dev/null | group inputsystem
 ls "$LIB/AdjustSdk.Scripts.dll" 2>/dev/null | group adjust
 { ls "$LIB/UnityEngine.TestRunner.dll" "$LIB/UnityEditor.TestRunner.dll" 2>/dev/null
@@ -100,10 +106,11 @@ run() {
   [ -n "$log" ] && echo "$log" | sed "s|$SRC/||; s/^/        /" | head -20
 }
 src() { find "$@" -name '*.cs' | sort; }
-runtime() { src "$SRC/Runtime" | grep -v -e '/Runtime/Firebase/' -e '/Runtime/Settings/'; }
-debug() { src "$SRC/Debug" | grep -v '/Debug/Editor/'; }
+runtime() { src "$ADS/Runtime" | grep -v -e '/Runtime/Firebase/' -e '/Runtime/Settings/'; }
+debug() { src "$ADS/Debug" | grep -v '/Debug/Editor/'; }
+breakad() { src "$ADS/BreakAd" | grep -v '/BreakAd/Editor/'; }
 
-src "$SRC/Runtime/Settings" | run common/HDC.Ads.Settings "UNITY_ANDROID" bcl engine
+src "$ADS/Runtime/Settings" | run common/HDC.Ads.Settings "UNITY_ANDROID" bcl engine
 for setup in editor ios android nofirebase; do
   # E: the Editor's references, FB: Firebase and the assembly built over it, both empty where they do not apply.
   # A: the Adjust SDK, empty where the setup has none.
@@ -117,28 +124,44 @@ for setup in editor ios android nofirebase; do
   FB=
   runtime | run $setup/HDC.Ads "$D" bcl engine $E gma common/HDC.Ads.Settings
   if [ $setup != nofirebase ]; then
-    src "$SRC/Runtime/Firebase" | run $setup/HDC.Ads.Firebase "$D" bcl engine $E gma firebase $setup/HDC.Ads common/HDC.Ads.Settings
+    src "$ADS/Runtime/Firebase" | run $setup/HDC.Ads.Firebase "$D" bcl engine $E gma firebase $setup/HDC.Ads common/HDC.Ads.Settings
     FB="firebase $setup/HDC.Ads.Firebase"
   fi
-  src "$SRC/Setup" | run $setup/HDC.Ads.Setup "$D" bcl engine $E $setup/HDC.Ads common/HDC.Ads.Settings $FB
-  src "$SRC/Adjust" | run $setup/HDC.Ads.Adjust "$D" bcl engine $E $A $setup/HDC.Ads
+  src "$ADS/Setup" | run $setup/HDC.Ads.Setup "$D" bcl engine $E $setup/HDC.Ads common/HDC.Ads.Settings $FB
+  src "$ADS/Adjust" | run $setup/HDC.Ads.Adjust "$D" bcl engine $E $A $setup/HDC.Ads
   debug | run $setup/HDC.Ads.Debug "$D;HDC_WEB_REQUEST" bcl engine $E ui $setup/HDC.Ads common/HDC.Ads.Settings $setup/HDC.Ads.Setup $setup/HDC.Ads.Adjust
+  breakad | run $setup/HDC.Ads.BreakAd "$D" bcl engine $E ui $setup/HDC.Ads
+  src "$ONB/Runtime" | run $setup/HDC.Onboarding "$D" bcl engine $E ui tmp $setup/HDC.Ads common/HDC.Ads.Settings
   if [ -n "$E" ]; then
-    src "$SRC/Tests/Editor" | run $setup/HDC.Ads.Tests "$D;UNITY_INCLUDE_TESTS" bcl engine editor ui testrunner $setup/HDC.Ads common/HDC.Ads.Settings $setup/HDC.Ads.Debug $setup/HDC.Ads.Adjust $FB
+    src "$ADS/BreakAd/Editor" | run $setup/HDC.Ads.BreakAd.Editor "$D" bcl engine editor ui $setup/HDC.Ads.BreakAd common/HDC.Ads.Settings
+    src "$ADS/Tests/Editor" | run $setup/HDC.Ads.Tests "$D;UNITY_INCLUDE_TESTS" bcl engine editor ui testrunner $setup/HDC.Ads common/HDC.Ads.Settings $setup/HDC.Ads.Debug $setup/HDC.Ads.Adjust $setup/HDC.Ads.BreakAd $setup/HDC.Ads.BreakAd.Editor $FB
   fi
 done
 debug | run inputsystem/HDC.Ads.Debug "UNITY_ANDROID;HDC_ADS;HDC_FIREBASE;HDC_INPUT_SYSTEM;ENABLE_INPUT_SYSTEM" bcl engine ui inputsystem android/HDC.Ads common/HDC.Ads.Settings android/HDC.Ads.Setup android/HDC.Ads.Adjust
-src "$SRC/Setup" | run off/HDC.Ads.Setup "UNITY_ANDROID;ENABLE_LEGACY_INPUT_MANAGER" bcl engine common/HDC.Ads.Settings
-src "$SRC/Adjust" | run off/HDC.Ads.Adjust "UNITY_ANDROID;ENABLE_LEGACY_INPUT_MANAGER" bcl engine
-src "$SRC/Adjust" | run offadjust/HDC.Ads.Adjust "UNITY_IOS;ENABLE_IL2CPP;HDC_ADJUST;ENABLE_LEGACY_INPUT_MANAGER" bcl engine adjust
-src "$SRC/Debug/Editor" | run editor/HDC.Ads.Debug.Editor "UNITY_EDITOR;UNITY_EDITOR_OSX;UNITY_IOS;HDC_ADS" bcl engine editor ui editor/HDC.Ads.Debug editor/HDC.Ads
-src "$SRC/Editor" | run editorios/HDC.Ads.Editor "UNITY_EDITOR;UNITY_EDITOR_OSX;UNITY_IOS" bcl engine editor xcode common/HDC.Ads.Settings editor/HDC.Ads.Adjust
-src "$SRC/Editor" | run editorandroid/HDC.Ads.Editor "UNITY_EDITOR;UNITY_EDITOR_OSX;UNITY_ANDROID" bcl engine editor common/HDC.Ads.Settings editor/HDC.Ads.Adjust
+src "$ONB/Runtime" | run inputsystem/HDC.Onboarding "UNITY_ANDROID;HDC_ADS;HDC_FIREBASE;HDC_INPUT_SYSTEM;ENABLE_INPUT_SYSTEM" bcl engine ui tmp inputsystem android/HDC.Ads common/HDC.Ads.Settings
+src "$ADS/Setup" | run off/HDC.Ads.Setup "UNITY_ANDROID;ENABLE_LEGACY_INPUT_MANAGER" bcl engine common/HDC.Ads.Settings
+src "$ADS/Adjust" | run off/HDC.Ads.Adjust "UNITY_ANDROID;ENABLE_LEGACY_INPUT_MANAGER" bcl engine
+breakad | run off/HDC.Ads.BreakAd "UNITY_ANDROID;ENABLE_LEGACY_INPUT_MANAGER" bcl engine ui
+src "$ADS/BreakAd/Editor" | run off/HDC.Ads.BreakAd.Editor "UNITY_EDITOR;UNITY_EDITOR_OSX;UNITY_ANDROID" bcl engine editor ui off/HDC.Ads.BreakAd common/HDC.Ads.Settings
+src "$ADS/Adjust" | run offadjust/HDC.Ads.Adjust "UNITY_IOS;ENABLE_IL2CPP;HDC_ADJUST;ENABLE_LEGACY_INPUT_MANAGER" bcl engine adjust
+src "$ONB/Editor" | run editor/HDC.Onboarding.Editor "UNITY_EDITOR;UNITY_EDITOR_OSX;UNITY_IOS;HDC_ADS" bcl engine editor ui tmp editor/HDC.Onboarding editor/HDC.Ads common/HDC.Ads.Settings editor/HDC.Ads.Setup
+src "$ONB/Tests/Editor" | run editor/HDC.Onboarding.Tests "UNITY_EDITOR;UNITY_EDITOR_OSX;UNITY_IOS;HDC_ADS;HDC_FIREBASE;UNITY_INCLUDE_TESTS" bcl engine editor ui tmp testrunner editor/HDC.Onboarding editor/HDC.Onboarding.Editor editor/HDC.Ads common/HDC.Ads.Settings editor/HDC.Ads.Setup editor/HDC.Ads.Tests
+src "$ADS/Debug/Editor" | run editor/HDC.Ads.Debug.Editor "UNITY_EDITOR;UNITY_EDITOR_OSX;UNITY_IOS;HDC_ADS" bcl engine editor ui editor/HDC.Ads.Debug editor/HDC.Ads
+src "$ADS/Editor" | run editorios/HDC.Ads.Editor "UNITY_EDITOR;UNITY_EDITOR_OSX;UNITY_IOS" bcl engine editor xcode common/HDC.Ads.Settings off/HDC.Ads.Setup editor/HDC.Ads.Adjust
+src "$ADS/Editor" | run editorandroid/HDC.Ads.Editor "UNITY_EDITOR;UNITY_EDITOR_OSX;UNITY_ANDROID" bcl engine editor common/HDC.Ads.Settings off/HDC.Ads.Setup editor/HDC.Ads.Adjust
+for target in ios android; do
+  case $target in
+    ios) D="UNITY_EDITOR;UNITY_EDITOR_OSX;UNITY_IOS;HDC_ADS";;
+    android) D="UNITY_EDITOR;UNITY_EDITOR_OSX;UNITY_ANDROID;HDC_ADS";;
+  esac
+  src "$TOOL/Editor" | run editor$target/HDC.Tool.Editor "$D" bcl engine editor editor/HDC.Ads common/HDC.Ads.Settings editor/HDC.Ads.Setup editor/HDC.Ads.Adjust editor/HDC.Ads.Debug editor$target/HDC.Ads.Editor editor/HDC.Onboarding editor/HDC.Onboarding.Editor
+done
+src "$TOOL/Tests/Editor" | run editor/HDC.Tool.Tests "UNITY_EDITOR;UNITY_EDITOR_OSX;UNITY_IOS;HDC_ADS;UNITY_INCLUDE_TESTS" bcl engine editor testrunner editorios/HDC.Tool.Editor editor/HDC.Ads editor/HDC.Ads.Setup editor/HDC.Ads.Adjust editor/HDC.Ads.Debug
 for setup in editor android; do
   case $setup in
     editor) D="UNITY_EDITOR;UNITY_EDITOR_OSX;UNITY_IOS;HDC_ADS;HDC_FIREBASE;HDC_ADJUST"; E=editor;;
     android) D="UNITY_ANDROID;HDC_ADS;HDC_FIREBASE;HDC_ADJUST"; E=;;
   esac
-  src "$SRC/Tests/Scenes" | run $setup/HDC.Ads.TestScenes "$D" bcl engine $E ui $setup/HDC.Ads common/HDC.Ads.Settings $setup/HDC.Ads.Setup $setup/HDC.Ads.Adjust $setup/HDC.Ads.Debug
+  src "$ADS/Tests/Scenes" | run $setup/HDC.Ads.TestScenes "$D" bcl engine $E ui $setup/HDC.Ads common/HDC.Ads.Settings $setup/HDC.Ads.Setup $setup/HDC.Ads.Adjust $setup/HDC.Ads.Debug
 done
 [ ! -f "$FAILED_MARK" ]
