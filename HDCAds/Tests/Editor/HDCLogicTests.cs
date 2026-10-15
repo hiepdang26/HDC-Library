@@ -128,10 +128,11 @@ namespace HDC.Ads.Tests
             Assert.IsTrue(ads.Channels.Banner.Show());
             Assert.AreEqual(1, banner.Shows);
 
+            int savesBefore = ads.Store.Saves;
             ads.Context.SetAdsRemoved(true);
             Assert.AreEqual(1, banner.Hides);
             Assert.IsFalse(ads.Channels.Banner.Show(), "removed ads stay off");
-            Assert.AreEqual(1, ads.Store.Saves, "the purchase is saved at once");
+            Assert.AreEqual(savesBefore + 1, ads.Store.Saves, "the purchase is saved at once");
 
             var nextSession = new HDCFakeAds(ads.Store);
             Assert.IsTrue(nextSession.Context.IsAdsRemoved);

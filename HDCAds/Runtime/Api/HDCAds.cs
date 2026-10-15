@@ -35,6 +35,8 @@ namespace HDC.Ads
 
         public static bool IsAdsRemoved => Context.IsAdsRemoved;
 
+        public static IAdsConsent Consent => Context.Consent;
+
         public static void Initialize(string adsConfigJson, string coreConfigJson, Action onInitialized = null) =>
             Context.Initialize(adsConfigJson, coreConfigJson, onInitialized);
 
@@ -89,6 +91,8 @@ namespace HDC.Ads
                 }
             }
         }
+
+        internal static void StartConsent() => Context.Consent.Start();
 
         internal static HDCChannels Channels => Runtime.Channels;
         internal static HDCAdsConfig Config => Context.Config;

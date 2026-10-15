@@ -48,6 +48,7 @@ sealed class HDC.Ads.HDCAdRevenue
 static class HDC.Ads.HDCAds
   static event System.Action Initialized
   static event System.Action<HDC.Ads.HDCAdRevenue> Revenue
+  static property HDC.Ads.IAdsConsent Consent { get; }
   static property HDC.Ads.IAppLaunchAds AppLaunch { get; }
   static property HDC.Ads.IAppResumeAds AppResume { get; }
   static property HDC.Ads.IBannerAds Banner { get; }
@@ -77,6 +78,25 @@ enum HDC.Ads.HDCBreakAdState
   Off = 0
   Showing = 4
   Waiting = 1
+enum HDC.Ads.HDCConsentStatus
+  NotRequired = 1
+  Obtained = 3
+  Required = 2
+  Unknown = 0
+enum HDC.Ads.HDCTrackingStatus
+  Authorized = 3
+  Denied = 2
+  NotDetermined = 0
+  Restricted = 1
+  Unsupported = -1
+interface HDC.Ads.IAdsConsent
+  event System.Action Done
+  property HDC.Ads.HDCConsentStatus Status { get; }
+  property HDC.Ads.HDCTrackingStatus TrackingStatus { get; }
+  property bool CanRequestAds { get; }
+  property bool IsDone { get; }
+  property bool PrivacyOptionsRequired { get; }
+  void ShowPrivacyOptions(System.Action<string> onClosed = null)
 interface HDC.Ads.IAppLaunchAds
   event System.Action BeforeShow
   event System.Action Completed
@@ -141,10 +161,14 @@ interface HDC.Ads.IRewardedAds
   void Initialize()
 
 [HDC.Ads.Settings]
+enum HDC.Ads.HDCAdsConfigSource
+  Default = 1
+  RemoteConfig = 0
 sealed class HDC.Ads.HDCAdsSettings : UnityEngine.ScriptableObject
   System.Collections.Generic.Dictionary<string, string> CoreConfigsByKey()
   const field string ResourceName = "HDCAdsSettings"
   ctor()
+  property HDC.Ads.HDCAdsConfigSource ConfigSource { get; }
   property string AdsConfig { get; }
   property string CoreConfig { get; }
   static HDC.Ads.HDCAdsSettings Load()
@@ -158,10 +182,11 @@ static class HDC.Ads.HDCCustomConfig
 
 [HDC.Ads.Firebase]
 static class HDC.Ads.HDCRemoteConfig
+  const field float TimeoutSeconds = 30
   const field string AdsConfigKey = "ads_config"
   static property bool FetchInEditor { get; set; }
-  static void Fetch(string defaultAdsConfig, System.Collections.Generic.IDictionary<string, string> defaultCoreConfigs, System.Action<string, string> onLoaded, float timeoutSeconds = 10)
-  static void FetchAndInitialize(string defaultAdsConfig, System.Collections.Generic.IDictionary<string, string> defaultCoreConfigs, System.Action onInitialized = null, float timeoutSeconds = 10)
+  static void Fetch(string defaultAdsConfig, System.Collections.Generic.IDictionary<string, string> defaultCoreConfigs, System.Action<string, string> onLoaded, float timeoutSeconds = 30)
+  static void FetchAndInitialize(string defaultAdsConfig, System.Collections.Generic.IDictionary<string, string> defaultCoreConfigs, System.Action onInitialized = null, float timeoutSeconds = 30)
 
 [HDC.Ads.Setup]
 sealed class HDC.Ads.HDCAdsSetup : UnityEngine.MonoBehaviour
@@ -227,14 +252,28 @@ sealed class HDC.Ads.DebugUI.HDCDebugAreaEditor : UnityEngine.MonoBehaviour, Uni
   ctor()
 sealed class HDC.Ads.DebugUI.HDCDebugAreaHandle : UnityEngine.MonoBehaviour, UnityEngine.EventSystems.IBeginDragHandler, UnityEngine.EventSystems.IDragHandler, UnityEngine.EventSystems.IEndDragHandler, UnityEngine.EventSystems.IEventSystemHandler, UnityEngine.EventSystems.IInitializePotentialDragHandler, UnityEngine.EventSystems.IPointerDownHandler, UnityEngine.EventSystems.IPointerUpHandler
   ctor()
+sealed class HDC.Ads.DebugUI.HDCDebugFoldout : UnityEngine.MonoBehaviour
+  ctor()
+  property bool Expanded { get; }
+  void SetExpanded(bool expanded)
 abstract class HDC.Ads.DebugUI.HDCDebugPage : UnityEngine.MonoBehaviour
+  property bool HasFoldouts { get; }
   protected abstract void Redraw()
   protected ctor()
   protected virtual void OnEnable()
   protected virtual void Update()
   protected void MarkDirty()
   void Refresh()
+  void SetAllExpanded(bool expanded)
+sealed class HDC.Ads.DebugUI.HDCDebugText : UnityEngine.UI.Text, UnityEngine.UI.ICanvasElement, UnityEngine.UI.IClippable, UnityEngine.UI.ILayoutElement, UnityEngine.UI.IMaskable, UnityEngine.UI.IMaterialModifier
+  ctor()
+  override property float preferredHeight { get; }
+  override property float preferredWidth { get; }
+  override property string text { get; set; }
+  override void SetLayoutDirty()
 sealed class HDC.Ads.DebugUI.HDCDevicePage : HDC.Ads.DebugUI.HDCDebugPage
+  ctor()
+sealed class HDC.Ads.DebugUI.HDCEventRows : UnityEngine.MonoBehaviour, UnityEngine.UI.ILayoutController, UnityEngine.UI.ILayoutElement, UnityEngine.UI.ILayoutGroup
   ctor()
 sealed class HDC.Ads.DebugUI.HDCEventsPage : HDC.Ads.DebugUI.HDCDebugPage
   ctor()
@@ -376,6 +415,7 @@ sealed class HDC.Onboarding.HDCSplashAdArea : UnityEngine.MonoBehaviour
 enum HDC.Onboarding.HDCSplashAdAreaKind
   NativeSplash = 0
   NativeSplashAdMob = 1
+  NativeBanner = 2
 sealed class HDC.Onboarding.HDCSplashConfig
   ctor()
   field HDC.Onboarding.HDCSplashLaunchChannel launchChannel

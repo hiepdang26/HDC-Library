@@ -19,6 +19,8 @@ namespace HDC.Ads.Infrastructure
 
         public static bool IsTestDevice { get; private set; }
 
+        public static void OpenAdInspector(Action<string> onClosed) => HDCGma.OpenAdInspector(onClosed);
+
         public static bool UseTestAdUnits { get; set; }
 
         internal static float PixelsPerPoint

@@ -151,7 +151,10 @@ namespace HDC.Onboarding.Editor
             var root = new GameObject("HDCNativeBanner");
             var loader = root.AddComponent<HDCNativeBannerLoader>();
             Canvas canvas = AddCanvas("Banner Canvas", root.transform, 0);
-            RectTransform area = Node("Banner Area", canvas.transform, Vector2.zero, new Vector2(1f, 0.15f), Vector2.zero, Vector2.zero);
+            RectTransform area = Node("Banner Area", canvas.transform, Vector2.zero, new Vector2(1f, 0.075f), Vector2.zero, Vector2.zero);
+            var follow = area.gameObject.AddComponent<HDCSplashAdArea>();
+            Set(follow, "kind", HDCSplashAdAreaKind.NativeBanner);
+            Set(follow, "followOrientation", true);
             Set(loader, "bannerArea", area);
             GameObject prefab = PrefabUtility.SaveAsPrefabAsset(root, HDCOnboardingPaths.NativeBannerPrefab);
             Object.DestroyImmediate(root);

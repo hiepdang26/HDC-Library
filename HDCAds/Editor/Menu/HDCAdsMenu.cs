@@ -24,7 +24,7 @@ namespace HDC.Ads.Editor
         private static bool CanDisable() => HDCAdsActivation.IsPartlyEnabled;
 
         [MenuItem(Root + "Ads Settings #;", false, 6)]
-        private static void ToggleAdsSettings() => HDCAdsConfigWindow.Toggle();
+        private static void ShowAdsSettings() => HDCAdsConfigWindow.ShowOrFocus();
 
         [MenuItem(Root + "Edit configs/Ads configs", false, 20)]
         private static void EditAdsConfigs() => HDCAdsConfigWindow.OpenCard(HDCAdsConfigWindow.AdsCard);

@@ -62,7 +62,7 @@ namespace HDC.Ads.Infrastructure
             }
             catch (Exception exception)
             {
-                OnLoadFailed(null, exception.Message);
+                OnLoadFailed(new HDCGmaFailure(-1, exception.Message));
             }
         }
 
@@ -70,7 +70,7 @@ namespace HDC.Ads.Infrastructure
         {
             if (!IsReady)
             {
-                Emit(HDCGma.Event(Id, format, HDCAdEventType.ShowFailed, AdUnitId, null).WithError(null, "Not ready. Load first"));
+                Emit(HDCGma.Event(Id, format, HDCAdEventType.ShowFailed, AdUnitId, null).WithError(new HDCGmaFailure(-1, "Not ready. Load first")));
                 if (!Preload && !LoadOnce && !retry.IsWaiting)
                     Load();
                 return false;
@@ -83,11 +83,11 @@ namespace HDC.Ads.Infrastructure
             {
                 if (Preload ? ShowPreloadedAd() : ShowLoadedAd())
                     return true;
-                OnShowFailed(null, null, "The preloaded ad was already taken");
+                OnShowFailed(new HDCGmaFailure(-1, "The preloaded ad was already taken"), null);
             }
             catch (Exception exception)
             {
-                OnShowFailed(null, null, exception.Message);
+                OnShowFailed(new HDCGmaFailure(-1, exception.Message), null);
             }
 
             return false;
@@ -113,35 +113,35 @@ namespace HDC.Ads.Infrastructure
         protected abstract void StartPreload(PreloadConfiguration configuration);
         protected abstract void DestroyPreloadedAds();
 
-        protected void OnLoaded(ResponseInfo response)
+        protected void OnLoaded(HDCGmaResponse response)
         {
             loading = false;
             retry.Reset();
             Emit(HDCGma.Event(Id, format, HDCAdEventType.Loaded, AdUnitId, response));
         }
 
-        protected void OnLoadFailed(AdError error, string fallbackMessage)
+        protected void OnLoadFailed(HDCGmaFailure failure)
         {
             loading = false;
-            Emit(HDCGma.Event(Id, format, HDCAdEventType.LoadFailed, AdUnitId, null).WithError(error, fallbackMessage));
+            Emit(HDCGma.Event(Id, format, HDCAdEventType.LoadFailed, AdUnitId, null).WithError(failure));
             if (Preload || LoadOnce || IsDestroyed)
                 return;
             retry.Schedule(Load);
             HDCAdsTracker.RetryScheduled(format, Id, retry.Delay, retry.Attempt);
         }
 
-        protected void OnPreloaded(ResponseInfo response) =>
+        protected void OnPreloaded(HDCGmaResponse response) =>
             Emit(HDCGma.Event(Id, format, HDCAdEventType.Loaded, AdUnitId, response));
 
-        protected void OnPreloadFailed(AdError error) =>
-            Emit(HDCGma.Event(Id, format, HDCAdEventType.LoadFailed, AdUnitId, null).WithError(error, "Preload failed"));
+        protected void OnPreloadFailed(HDCGmaFailure failure) =>
+            Emit(HDCGma.Event(Id, format, HDCAdEventType.LoadFailed, AdUnitId, null).WithError(failure));
 
-        protected void OnEvent(string type, ResponseInfo response) => Emit(HDCGma.Event(Id, format, type, AdUnitId, response));
+        protected void OnEvent(string type, HDCGmaResponse response) => Emit(HDCGma.Event(Id, format, type, AdUnitId, response));
 
-        protected void OnPaid(AdValue value, ResponseInfo response) =>
+        protected void OnPaid(AdValue value, HDCGmaResponse response) =>
             Emit(HDCGma.Event(Id, format, HDCAdEventType.Paid, AdUnitId, response).WithValue(value));
 
-        protected void OnRewarded(Reward reward, ResponseInfo response)
+        protected void OnRewarded(Reward reward, HDCGmaResponse response)
         {
             rewardEarned = true;
             HDCAdEvent adEvent = HDCGma.Event(Id, format, HDCAdEventType.Rewarded, AdUnitId, response);
@@ -150,7 +150,7 @@ namespace HDC.Ads.Infrastructure
             Emit(adEvent);
         }
 
-        protected void OnClosed(ResponseInfo response)
+        protected void OnClosed(HDCGmaResponse response)
         {
             if (!showing)
                 return;
@@ -159,12 +159,12 @@ namespace HDC.Ads.Infrastructure
             AfterShow(rewardEarned);
         }
 
-        protected void OnShowFailed(AdError error, ResponseInfo response, string fallbackMessage)
+        protected void OnShowFailed(HDCGmaFailure failure, HDCGmaResponse response)
         {
             if (!showing)
                 return;
 
-            Emit(HDCGma.Event(Id, format, HDCAdEventType.ShowFailed, AdUnitId, response).WithError(error, fallbackMessage));
+            Emit(HDCGma.Event(Id, format, HDCAdEventType.ShowFailed, AdUnitId, response).WithError(failure));
             AfterShow(false);
         }
 
@@ -199,7 +199,7 @@ namespace HDC.Ads.Infrastructure
             }
             catch (Exception exception)
             {
-                OnPreloadFailed(null);
+                OnPreloadFailed(new HDCGmaFailure(-1, "Preload failed"));
                 Debug.LogException(exception);
             }
         }

@@ -1,4 +1,8 @@
 using System;
+using System.Collections.Generic;
+using HDC.Ads.Composition;
+using HDC.Ads.Diagnostics;
+using HDC.Ads.Logic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -28,6 +32,8 @@ namespace HDC.Ads.DebugUI
         }
 
         [SerializeField] private GameObject window;
+        [SerializeField] private Canvas windowCanvas;
+        [SerializeField] private GraphicRaycaster windowRaycaster;
         [SerializeField] private RectTransform safeArea;
         [SerializeField] private CanvasScaler scaler;
         [SerializeField] private Button closeButton;
@@ -38,6 +44,8 @@ namespace HDC.Ads.DebugUI
         [SerializeField] private Text statusText;
         [SerializeField] private Button initSdkButton;
         [SerializeField] private Button refreshButton;
+        [SerializeField] private Button expandAllButton;
+        [SerializeField] private Button collapseAllButton;
 
         [Header("Pages")]
         [SerializeField] private PageTab[] pages = new PageTab[0];
@@ -66,7 +74,7 @@ namespace HDC.Ads.DebugUI
         private int currentPage;
         private float nextStatus;
 
-        public bool IsOpen => window.activeSelf;
+        public bool IsOpen => windowCanvas.enabled;
 
         public int CurrentPage => currentPage;
 
@@ -91,18 +99,22 @@ namespace HDC.Ads.DebugUI
                 DontDestroyOnLoad(gameObject);
             }
 
-            FillMissingFonts();
+            LoadFonts();
             EnsureEventSystem();
             closeButton.onClick.AddListener(Close);
             initSdkButton.onClick.AddListener(InitializeSdk);
             refreshButton.onClick.AddListener(() => pages[currentPage].page.Refresh());
+            expandAllButton.onClick.AddListener(() => pages[currentPage].page.SetAllExpanded(true));
+            collapseAllButton.onClick.AddListener(() => pages[currentPage].page.SetAllExpanded(false));
             for (int i = 0; i < pages.Length; i++)
             {
                 int index = i;
                 pages[i].button.onClick.AddListener(() => ShowPage(index));
             }
 
-            window.SetActive(false);
+            if (!window.activeSelf)
+                window.SetActive(true);
+            SetOpen(false);
             ShowPage(0);
             FitScreen();
         }
@@ -139,7 +151,7 @@ namespace HDC.Ads.DebugUI
             EnsureEventSystem();
             taps = 0;
             lastToggleTime = Time.unscaledTime;
-            window.SetActive(true);
+            SetOpen(true);
             RefreshStatus();
         }
 
@@ -147,18 +159,47 @@ namespace HDC.Ads.DebugUI
         {
             currentPage = Mathf.Clamp(index, 0, pages.Length - 1);
             for (int i = 0; i < pages.Length; i++)
-            {
-                bool shown = i == currentPage;
-                HDCDebugStyle.Highlight(pages[i].button, shown);
-                if (pages[i].page.gameObject.activeSelf != shown)
-                    pages[i].page.gameObject.SetActive(shown);
-            }
+                HDCDebugStyle.Highlight(pages[i].button, i == currentPage);
+            PresentPages();
+
+            bool folds = pages[currentPage].page.HasFoldouts;
+            expandAllButton.interactable = folds;
+            collapseAllButton.interactable = folds;
         }
 
         private void RefreshStatus()
         {
             nextStatus = Time.unscaledTime + 1f;
-            initSdkButton.gameObject.SetActive(!HDCAds.IsInitialized);
+            bool adsBlocked = HDCAds.Consent.IsDone && !HDCAds.Consent.CanRequestAds;
+            bool configLoading = HDCConfigReport.Started && !HDCConfigReport.Finished && HDCConfigReport.Plan == HDCConfigPlan.RemoteConfig;
+            bool initializing = !HDCAds.IsInitialized && HDCAdsRuntime.Current.Context.InitializeCalled;
+            initSdkButton.gameObject.SetActive(!HDCAds.IsInitialized && !adsBlocked && !configLoading && !initializing);
+            if (adsBlocked)
+            {
+                statusText.text = HDCDebugStyle.Colored(HDCDebugStyle.BadHex, "Consent không cho phép quảng cáo")
+                    + " · không load quảng cáo trong phiên này, xem thẻ Consent & ATT ở trang Device.";
+                return;
+            }
+
+            if (configLoading)
+            {
+                statusText.text = HDCDebugStyle.Colored(HDCDebugStyle.WarnHex, "Đang tải Remote Config")
+                    + $" · {HDCConfigReport.ElapsedSeconds:0} s, tối đa {HDCConfigReport.TimeoutSeconds:0} s game chạy, quảng cáo bắt đầu khi tải xong.";
+                return;
+            }
+
+            if (!HDCAds.IsInitialized && HDCAdsRuntime.Current.Context.Consent.Current != HDCConsentGate.Step.NotStarted && !HDCAds.Consent.IsDone)
+            {
+                statusText.text = HDCDebugStyle.Colored(HDCDebugStyle.WarnHex, "Đang chờ consent và ATT") + " · quảng cáo bắt đầu khi người dùng trả lời xong.";
+                return;
+            }
+
+            if (initializing)
+            {
+                statusText.text = HDCDebugStyle.Colored(HDCDebugStyle.WarnHex, "Đang khởi tạo HDCAds") + " · quảng cáo bắt đầu khi SDK sẵn sàng.";
+                return;
+            }
+
             if (!HDCAds.IsInitialized)
             {
                 statusText.text = HDCDebugStyle.Colored(HDCDebugStyle.WarnHex, "HDCAds chưa khởi tạo")
@@ -200,7 +241,25 @@ namespace HDC.Ads.DebugUI
             lastToggleTime = Time.unscaledTime;
             picker.Close();
             viewer.Close();
-            window.SetActive(false);
+            SetOpen(false);
+        }
+
+        private void SetOpen(bool open)
+        {
+            windowCanvas.enabled = open;
+            windowRaycaster.enabled = open;
+            PresentPages();
+        }
+
+        private void PresentPages()
+        {
+            for (int i = 0; i < pages.Length; i++)
+            {
+                if (i != currentPage)
+                    pages[i].page.Present(false, IsOpen);
+            }
+
+            pages[currentPage].page.Present(true, IsOpen);
         }
 
         public void Toggle()
@@ -308,16 +367,21 @@ namespace HDC.Ads.DebugUI
         }
 #endif
 
-        private void FillMissingFonts()
+        private void LoadFonts()
         {
-            Font font = null;
+            Font builtin = null;
+            var loaded = new HashSet<Font>();
             foreach (Text text in GetComponentsInChildren<Text>(true))
             {
-                if (text.font != null)
-                    continue;
-                if (font == null)
-                    font = BuiltinFont();
-                text.font = font;
+                if (text.font == null)
+                {
+                    if (builtin == null)
+                        builtin = BuiltinFont();
+                    text.font = builtin;
+                }
+
+                if (text.font.dynamic && loaded.Add(text.font))
+                    text.font.RequestCharactersInTexture("A", text.fontSize, text.fontStyle);
             }
         }
 

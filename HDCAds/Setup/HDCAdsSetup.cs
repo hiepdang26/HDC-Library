@@ -8,6 +8,7 @@ using HDC.Ads.Logic;
 #endif
 #if HDC_ADS && !HDC_FIREBASE
 using HDC.Ads.Composition;
+using HDC.Ads.Diagnostics;
 #endif
 
 namespace HDC.Ads
@@ -20,7 +21,7 @@ namespace HDC.Ads
         [SerializeField] private string nextScene = "";
 
 #pragma warning disable CS0169, CS0414
-        [Tooltip("Opens the next scene after this many seconds even if the ads are not done.")]
+        [Tooltip("Opens the next scene after this many seconds even if the ads are not done. The time counts once the consent and tracking questions are answered.")]
         [SerializeField] private float maxWaitSeconds = 30f;
 
         [Tooltip("Also starts the channels whose autoInit is off in the ads config, so the next scene finds their ads loaded.")]
@@ -49,19 +50,27 @@ namespace HDC.Ads
 #if HDC_FIREBASE
             HDCRemoteConfig.FetchAndInitialize(defaults.AdsConfig, defaults.CoreConfigsByKey(), onReady);
 #else
+            HDCAdsContext context = HDCAdsRuntime.Current.Context;
+            if (context.InitializeCalled)
+            {
+                context.WhenInitialized(onReady);
+                return;
+            }
+
+            HDCConfigReport.LoadStarted(HDCConfigPlan.NoFirebase, 0f);
             HDCConfigChoice choice = HDCAdsRuntime.ConfigSelection().Select(new HDCConfigInputs
             {
                 Mode = HDCConfigMode.NoRemoteConfig,
                 DefaultAds = defaults.AdsConfig,
                 DefaultCore = defaults.CoreConfig,
                 CustomDefaults = HDCCustomConfig.Defaults,
-                SavedCustom = HDCCustomConfig.SavedValue,
                 CountryRules = defaults.CountryRulesJson(),
                 CountryAds = defaults.CountryAdsConfig,
                 CountryCore = defaults.CountryCoreConfig,
                 CustomCountry = defaults.CustomCountryValues(),
             });
-            HDCCustomConfig.Apply(choice.CustomValues(), choice.SaveCustom);
+            HDCCustomConfig.Apply(choice.CustomValues());
+            HDCConfigReport.LoadFinished("no Firebase in this build", choice.CoreKey, 0f);
             HDCAds.Initialize(choice.Ads, choice.Core, onReady);
 #endif
         }
@@ -85,11 +94,14 @@ namespace HDC.Ads
                 Debug.LogWarning("[HDCAds] Google test ad units replace the configured ones (HDC Build Tool preset > Test ad units): turn them off before release.");
             }
 
+            HDCAds.StartConsent();
             if (HDCAds.IsInitialized)
                 onAdsReady.Invoke();
             else
                 InitializeAds(OnAdsReady);
 
+            while (runAppLaunch && !HDCAds.Consent.IsDone)
+                yield return null;
             float deadline = Time.realtimeSinceStartup + maxWaitSeconds;
             while (runAppLaunch && !HDCAds.AppLaunch.IsCompleted && Time.realtimeSinceStartup < deadline)
                 yield return null;

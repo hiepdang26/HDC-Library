@@ -17,6 +17,9 @@ namespace HDC.Ads.Editor
         private const string EmbedDynamicPodsPhase = "HDC Embed Dynamic Pods";
 
         private const string FrameworkName = "HDCAds.xcframework";
+        private const string TrackingFramework = "AppTrackingTransparency.framework";
+        private const string TrackingUsageKey = "NSUserTrackingUsageDescription";
+        internal const string DefaultTrackingUsage = "This uses device info for more personalized ads and content";
         private const string BridgeName = "HDCAdsBridge.mm";
 
         private const string FrameworkPath = "Frameworks/HDCAds/" + FrameworkName;
@@ -93,6 +96,7 @@ namespace HDC.Ads.Editor
                 project.AddFileToBuild(frameworkTarget, bridgeGuid);
             }
 
+            project.AddFrameworkToProject(frameworkTarget, TrackingFramework, true);
             HDCAdsIosConflicts.LeaveOut(project, frameworkTarget, buildPath, FrameworkPath);
             ReplaceAllLoad(project, frameworkTarget, projectText);
             RaiseDeploymentTarget(project, mainTarget);
@@ -107,6 +111,7 @@ namespace HDC.Ads.Editor
                 File.WriteAllText(projectPath, fixedText);
 
             AllowHighFrameRates(buildPath);
+            DescribeTracking(buildPath);
         }
 
         [PostProcessBuild(101)]
@@ -262,6 +267,22 @@ namespace HDC.Ads.Editor
                 return;
             plist.root.SetBoolean("CADisableMinimumFrameDurationOnPhone", true);
             plist.WriteToFile(plistPath);
+        }
+
+        private static void DescribeTracking(string buildPath)
+        {
+            string plistPath = Path.Combine(buildPath, "Info.plist");
+            if (!File.Exists(plistPath))
+                return;
+
+            var plist = new PlistDocument();
+            plist.ReadFromFile(plistPath);
+            if (plist.root[TrackingUsageKey] is PlistElementString usage && !string.IsNullOrWhiteSpace(usage.value))
+                return;
+            plist.root.SetString(TrackingUsageKey, DefaultTrackingUsage);
+            plist.WriteToFile(plistPath);
+            Debug.Log($"[HDCAds] {TrackingUsageKey} was empty, so the iOS tracking question uses \"{DefaultTrackingUsage}\". " +
+                      "Set your own in Assets > Google Mobile Ads > Settings > User Tracking Usage Description.");
         }
 
         private static void ReplaceAllLoad(PBXProject project, string targetGuid, string projectText)

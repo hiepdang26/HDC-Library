@@ -85,6 +85,13 @@ namespace HDC.Ads.DebugUI
 
         internal static GameObject Take(List<GameObject> pool, GameObject template, ref int used)
         {
+            GameObject picked = Next(pool, template, ref used);
+            Place(picked.transform, template.transform.GetSiblingIndex() + used);
+            return picked;
+        }
+
+        internal static GameObject Next(List<GameObject> pool, GameObject template, ref int used)
+        {
             if (pool.Count <= used)
             {
                 GameObject made = Object.Instantiate(template, template.transform.parent, false);
@@ -95,8 +102,13 @@ namespace HDC.Ads.DebugUI
             GameObject picked = pool[used++];
             if (!picked.activeSelf)
                 picked.SetActive(true);
-            picked.transform.SetAsLastSibling();
             return picked;
+        }
+
+        internal static void Place(Transform item, int siblingIndex)
+        {
+            if (item.GetSiblingIndex() != siblingIndex)
+                item.SetSiblingIndex(siblingIndex);
         }
 
         internal static void HideRest(List<GameObject> pool, int used)

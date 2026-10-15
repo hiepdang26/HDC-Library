@@ -8,7 +8,7 @@ namespace HDC.Onboarding
     [AddComponentMenu("HDC/Onboarding/HDC Splash Ad Area")]
     public sealed class HDCSplashAdArea : MonoBehaviour
     {
-        [Tooltip("The splash ad that shows in this area. HDCSplash finds the area by this kind when its own field is empty.")]
+        [Tooltip("The splash ad that shows in this area. HDCSplash finds the area by this kind when its own field is empty. A native banner area always spans the full screen width, in portrait and landscape: only the heights of its anchors count.")]
         [SerializeField] private HDCSplashAdAreaKind kind;
 
         [Tooltip("Picks the anchors below from the screen: portrait when it is taller than wide, landscape otherwise. The offsets stay 0, so the area fills its anchors at full width.")]
@@ -30,6 +30,8 @@ namespace HDC.Onboarding
 
         public bool IsPortrait => applied == 1;
 
+        internal bool SpansFullWidth => kind == HDCSplashAdAreaKind.NativeBanner;
+
         private void OnEnable()
         {
             applied = -1;
@@ -42,7 +44,16 @@ namespace HDC.Onboarding
 
         private void OnRectTransformDimensionsChange() => Refresh();
 
-        private void OnValidate() => applied = -1;
+        private void OnValidate()
+        {
+            if (SpansFullWidth)
+            {
+                KeepFullWidth(ref portraitAnchorMin, ref portraitAnchorMax);
+                KeepFullWidth(ref landscapeAnchorMin, ref landscapeAnchorMax);
+            }
+
+            applied = -1;
+        }
 
         internal static bool IsPortraitSize(Vector2 size) => size.y > size.x;
 
@@ -69,6 +80,8 @@ namespace HDC.Onboarding
             tracker.Add(this, area, DrivenTransformProperties.Anchors | DrivenTransformProperties.AnchoredPosition | DrivenTransformProperties.SizeDelta);
             Vector2 min = portrait ? portraitAnchorMin : landscapeAnchorMin;
             Vector2 max = portrait ? portraitAnchorMax : landscapeAnchorMax;
+            if (SpansFullWidth)
+                KeepFullWidth(ref min, ref max);
             if (area.anchorMin != min)
                 area.anchorMin = min;
             if (area.anchorMax != max)
@@ -77,6 +90,12 @@ namespace HDC.Onboarding
                 area.offsetMin = Vector2.zero;
             if (area.offsetMax != Vector2.zero)
                 area.offsetMax = Vector2.zero;
+        }
+
+        private static void KeepFullWidth(ref Vector2 min, ref Vector2 max)
+        {
+            min.x = 0f;
+            max.x = 1f;
         }
 
         private Vector2 ScreenSize()

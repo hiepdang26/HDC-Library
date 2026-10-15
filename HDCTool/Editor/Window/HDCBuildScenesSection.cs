@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -17,15 +18,17 @@ namespace HDC.Tool.Editor
         private static ReorderableList list;
         private static List<EditorBuildSettingsScene> rows = new List<EditorBuildSettingsScene>();
         private static HDCBuildToolWindow owner;
+        private static Facts facts = Read(new EditorBuildSettingsScene[0], File.Exists);
+        private static bool listed;
+        private static bool changed = true;
 
         internal static void Draw(HDCBuildToolWindow window)
         {
-            EditorBuildSettingsScene[] scenes = EditorBuildSettings.scenes;
-            if (list == null || owner != window || !Same(rows, scenes))
-                Rebuild(window, scenes);
+            Listen();
+            if (list == null || owner != window || changed)
+                Sync(window);
             string other = window.Platform == HDCBuildPlatform.Ios ? "Android" : "iOS";
-            int enabled = scenes.Count(scene => scene.enabled);
-            using (HDCBuildGui.CardScope card = HDCBuildGui.Card("Scenes", "Build scenes", HDCBuildGui.Cyan, $"{enabled} of {scenes.Length} on, shared with {other}"))
+            using (HDCBuildGui.CardScope card = HDCBuildGui.Card("Scenes", "Build scenes", HDCBuildGui.Cyan, $"{facts.Enabled} of {rows.Count} on, shared with {other}"))
             {
                 if (!card.Open)
                     return;
@@ -39,15 +42,15 @@ namespace HDC.Tool.Editor
                     if (GUILayout.Button("Add open scenes", GUILayout.Width(120f)))
                     {
                         AddOpenScenes();
-                        window.MarkStale();
+                        Changed(window);
                     }
 
-                    using (new EditorGUI.DisabledScope(scenes.All(scene => File.Exists(scene.path))))
+                    using (new EditorGUI.DisabledScope(!facts.AnyMissing))
                     {
                         if (GUILayout.Button("Clean missing", GUILayout.Width(110f)))
                         {
-                            EditorBuildSettings.scenes = scenes.Where(scene => File.Exists(scene.path)).ToArray();
-                            window.MarkStale();
+                            EditorBuildSettings.scenes = EditorBuildSettings.scenes.Where(scene => File.Exists(scene.path)).ToArray();
+                            Changed(window);
                         }
                     }
 
@@ -78,17 +81,54 @@ namespace HDC.Tool.Editor
             return result.ToArray();
         }
 
-        internal static int[] BuildIndexes(IReadOnlyList<EditorBuildSettingsScene> scenes, System.Func<string, bool> exists)
+        internal static int[] BuildIndexes(IReadOnlyList<EditorBuildSettingsScene> scenes, Func<string, bool> exists) =>
+            BuildIndexes(scenes, scenes.Select(scene => exists(scene.path)).ToArray());
+
+        internal static int[] BuildIndexes(IReadOnlyList<EditorBuildSettingsScene> scenes, IReadOnlyList<bool> exists)
         {
             var indexes = new int[scenes.Count];
             int next = 0;
             for (int i = 0; i < scenes.Count; i++)
-                indexes[i] = scenes[i].enabled && exists(scenes[i].path) ? next++ : -1;
+                indexes[i] = scenes[i].enabled && exists[i] ? next++ : -1;
             return indexes;
         }
 
         internal static bool Same(IReadOnlyList<EditorBuildSettingsScene> current, IReadOnlyList<EditorBuildSettingsScene> scenes) =>
             current.Count == scenes.Count && current.Zip(scenes, (a, b) => a.path == b.path && a.enabled == b.enabled).All(same => same);
+
+        internal static Facts Read(IReadOnlyList<EditorBuildSettingsScene> scenes, Func<string, bool> fileExists)
+        {
+            var exists = new bool[scenes.Count];
+            var names = new string[scenes.Count];
+            var paths = new GUIContent[scenes.Count];
+            for (int i = 0; i < scenes.Count; i++)
+            {
+                string path = scenes[i].path ?? string.Empty;
+                exists[i] = fileExists(path);
+                names[i] = Path.GetFileNameWithoutExtension(path) + (exists[i] ? "" : " (missing)");
+                paths[i] = new GUIContent(path, path);
+            }
+
+            return new Facts(exists, BuildIndexes(scenes, exists), names, paths, scenes.Count(scene => scene.enabled));
+        }
+
+        private static void Listen()
+        {
+            if (listed)
+                return;
+            listed = true;
+            EditorBuildSettings.sceneListChanged += () => changed = true;
+            EditorApplication.projectChanged += () => changed = true;
+        }
+
+        private static void Sync(HDCBuildToolWindow window)
+        {
+            changed = false;
+            EditorBuildSettingsScene[] scenes = EditorBuildSettings.scenes;
+            if (list == null || owner != window || !Same(rows, scenes))
+                Rebuild(window, scenes);
+            facts = Read(rows, File.Exists);
+        }
 
         private static void Rebuild(HDCBuildToolWindow window, IEnumerable<EditorBuildSettingsScene> scenes)
         {
@@ -113,9 +153,10 @@ namespace HDC.Tool.Editor
         {
             if (index < 0 || index >= rows.Count)
                 return;
+            if (index >= facts.Count)
+                facts = Read(rows, File.Exists);
             EditorBuildSettingsScene scene = rows[index];
-            bool exists = File.Exists(scene.path);
-            int[] indexes = BuildIndexes(rows, File.Exists);
+            bool exists = facts.Exists[index];
             rect.y += 2f;
             rect.height = EditorGUIUtility.singleLineHeight;
             var toggle = new Rect(rect.x, rect.y, 18f, rect.height);
@@ -131,13 +172,14 @@ namespace HDC.Tool.Editor
                 Apply();
             }
 
-            GUI.Label(number, indexes[index] >= 0 ? indexes[index].ToString() : "-", EditorStyles.miniLabel);
+            int buildIndex = facts.Indexes[index];
+            GUI.Label(number, buildIndex >= 0 ? buildIndex.ToString() : "-", EditorStyles.miniLabel);
             Color old = GUI.color;
             if (!exists)
                 GUI.color = Missing;
-            GUI.Label(name, Path.GetFileNameWithoutExtension(scene.path) + (exists ? "" : " (missing)"), EditorStyles.boldLabel);
+            GUI.Label(name, facts.Names[index], EditorStyles.boldLabel);
             GUI.color = old;
-            GUI.Label(path, new GUIContent(scene.path, scene.path), EditorStyles.miniLabel);
+            GUI.Label(path, facts.Paths[index], EditorStyles.miniLabel);
             using (new EditorGUI.DisabledScope(!exists))
             {
                 if (GUI.Button(open, "Open", EditorStyles.miniButton))
@@ -162,7 +204,7 @@ namespace HDC.Tool.Editor
             {
                 DragAndDrop.AcceptDrag();
                 EditorBuildSettings.scenes = WithScenes(EditorBuildSettings.scenes, paths);
-                owner?.MarkStale();
+                Changed(owner);
             }
 
             current.Use();
@@ -171,7 +213,35 @@ namespace HDC.Tool.Editor
         private static void Apply()
         {
             EditorBuildSettings.scenes = rows.Select(scene => new EditorBuildSettingsScene(scene.path, scene.enabled)).ToArray();
+            facts = Read(rows, File.Exists);
             owner?.MarkStale();
+        }
+
+        private static void Changed(HDCBuildToolWindow window)
+        {
+            changed = true;
+            window?.MarkStale();
+        }
+
+        internal sealed class Facts
+        {
+            internal Facts(bool[] exists, int[] indexes, string[] names, GUIContent[] paths, int enabled)
+            {
+                Exists = exists;
+                Indexes = indexes;
+                Names = names;
+                Paths = paths;
+                Enabled = enabled;
+                AnyMissing = Array.IndexOf(exists, false) >= 0;
+            }
+
+            internal int Count => Exists.Length;
+            internal bool[] Exists { get; }
+            internal int[] Indexes { get; }
+            internal string[] Names { get; }
+            internal GUIContent[] Paths { get; }
+            internal int Enabled { get; }
+            internal bool AnyMissing { get; }
         }
     }
 }

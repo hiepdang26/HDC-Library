@@ -11,14 +11,21 @@ namespace HDC.Ads.Infrastructure
         internal const float RecoveryBaseSeconds = 20f;
         internal const float RecoveryStepSeconds = 5f;
         internal const float RecoveryMaxSeconds = 40f;
+        internal static readonly Vector2 MrecPoints = new Vector2(300f, 250f);
+        private static readonly Vector2 BannerPoints = new Vector2(320f, 50f);
 
         private readonly string format;
         private BannerView view;
-        private ResponseInfo response;
+        private HDCGmaResponse response;
         private bool destroyed;
         private bool presented;
         private int recoveryFails;
         private int recoveryWatch;
+        private HDCAdPosition? requestedPreset;
+        private Vector2? requestedCenter;
+        private HDCAdPosition? appliedPreset;
+        private Vector2Int appliedPresetScreen;
+        private Vector2Int? appliedPosition;
 
         internal HDCGmaBannerView(string id, string adUnitId, HDCBannerViewPlacement placement)
         {
@@ -34,7 +41,7 @@ namespace HDC.Ads.Infrastructure
         internal bool IsLoaded { get; private set; }
         internal bool IsShowing { get; private set; }
 
-        internal Vector2 SizeInPixels => view == null ? Vector2.zero : new Vector2(view.GetWidthInPixels(), view.GetHeightInPixels());
+        internal Vector2 SizeInPixels => view == null ? Vector2.zero : HDCNativeScreens.Current.ToPixels(SizePoints());
 
         internal static float RecoveryDelay(int fails) => Math.Min(RecoveryBaseSeconds + RecoveryStepSeconds * Math.Max(fails, 0), RecoveryMaxSeconds);
 
@@ -85,66 +92,90 @@ namespace HDC.Ads.Infrastructure
 
         internal void Move(HDCAdPosition position)
         {
-            switch (position)
-            {
-                case HDCAdPosition.Top:
-                    view?.SetPosition(AdPosition.Top);
-                    break;
-                case HDCAdPosition.TopLeft:
-                    view?.SetPosition(AdPosition.TopLeft);
-                    break;
-                case HDCAdPosition.TopRight:
-                    view?.SetPosition(AdPosition.TopRight);
-                    break;
-                case HDCAdPosition.BottomLeft:
-                    view?.SetPosition(AdPosition.BottomLeft);
-                    break;
-                case HDCAdPosition.BottomRight:
-                    view?.SetPosition(AdPosition.BottomRight);
-                    break;
-                case HDCAdPosition.Center:
-                    view?.SetPosition(AdPosition.Center);
-                    break;
-                default:
-                    view?.SetPosition(AdPosition.Bottom);
-                    break;
-            }
+            requestedPreset = position;
+            requestedCenter = null;
+            ApplyPreset(position);
         }
 
         internal void Move(Vector2 screenPoint)
         {
+            requestedCenter = screenPoint;
+            requestedPreset = null;
+            ApplyCenter(screenPoint);
+        }
+
+        private void ApplyPreset(HDCAdPosition position)
+        {
             if (view == null)
                 return;
 
-            float scale = HDCAdsSdk.PixelsPerPoint;
-            Vector2 size = new Vector2(view.GetWidthInPixels(), view.GetHeightInPixels()) / scale;
-            if (size.x <= 0f || size.y <= 0f)
-                size = Placement == HDCBannerViewPlacement.Mrec ? new Vector2(300f, 250f) : new Vector2(320f, 50f);
+            var screen = new Vector2Int(Screen.width, Screen.height);
+            if (appliedPreset == position && appliedPresetScreen == screen)
+                return;
+            appliedPreset = position;
+            appliedPresetScreen = screen;
+            appliedPosition = null;
+            view.SetPosition(GmaPosition(position));
+        }
 
-            Vector2Int position = CustomPosition(screenPoint, size, scale, Screen.height, CustomPositionOrigin());
+        private void ApplyCenter(Vector2 screenPoint)
+        {
+            if (view == null)
+                return;
+
+            Vector2Int position = HDCNativeScreens.Current.CustomPosition(screenPoint, SizePoints());
+            if (appliedPosition == position)
+                return;
+            appliedPosition = position;
+            appliedPreset = null;
             view.SetPosition(position.x, position.y);
         }
 
-        internal static Vector2Int CustomPosition(Vector2 screenPoint, Vector2 sizePoints, float scale, float screenHeight, Vector2 originPixels)
+        private void ApplyRequested()
         {
-            float x = (screenPoint.x - originPixels.x) / scale - sizePoints.x / 2f;
-            float y = (screenHeight - screenPoint.y - originPixels.y) / scale - sizePoints.y / 2f;
-            return new Vector2Int(Mathf.RoundToInt(x), Mathf.RoundToInt(y));
+            appliedPreset = null;
+            appliedPosition = null;
+            if (requestedCenter.HasValue)
+                ApplyCenter(requestedCenter.Value);
+            else if (requestedPreset.HasValue)
+                ApplyPreset(requestedPreset.Value);
         }
 
-        internal static Vector2 CustomPositionOrigin()
+        private Vector2 SizePoints()
         {
-#if UNITY_IOS && !UNITY_EDITOR
-            Rect safeArea = Screen.safeArea;
-            return new Vector2(safeArea.xMin, Screen.height - safeArea.yMax);
-#else
-            return Vector2.zero;
-#endif
+            if (Placement == HDCBannerViewPlacement.Mrec)
+                return MrecPoints;
+
+            float scale = HDCAdsSdk.PixelsPerPoint;
+            var size = new Vector2(view.GetWidthInPixels(), view.GetHeightInPixels()) / scale;
+            return size.x > 0f && size.y > 0f ? size : BannerPoints;
+        }
+
+        private static AdPosition GmaPosition(HDCAdPosition position)
+        {
+            switch (position)
+            {
+                case HDCAdPosition.Top:
+                    return AdPosition.Top;
+                case HDCAdPosition.TopLeft:
+                    return AdPosition.TopLeft;
+                case HDCAdPosition.TopRight:
+                    return AdPosition.TopRight;
+                case HDCAdPosition.BottomLeft:
+                    return AdPosition.BottomLeft;
+                case HDCAdPosition.BottomRight:
+                    return AdPosition.BottomRight;
+                case HDCAdPosition.Center:
+                    return AdPosition.Center;
+                default:
+                    return AdPosition.Bottom;
+            }
         }
 
         private void Create()
         {
             view = new BannerView(AdUnitId, Size(), Position());
+            ApplyRequested();
             view.Hide();
             Attach(view);
             Request();
@@ -209,8 +240,16 @@ namespace HDC.Ads.Infrastructure
 
         private void Attach(BannerView banner)
         {
-            banner.OnBannerAdLoaded += () => HDCMainThread.Post(() => OnLoaded(banner));
-            banner.OnBannerAdLoadFailed += error => HDCMainThread.Post(() => OnLoadFailed(banner, error));
+            banner.OnBannerAdLoaded += () =>
+            {
+                HDCGmaResponse read = HDCGmaResponse.Read(banner.GetResponseInfo());
+                HDCMainThread.Post(() => OnLoaded(banner, read));
+            };
+            banner.OnBannerAdLoadFailed += error =>
+            {
+                HDCGmaFailure failure = HDCGmaFailure.Read(error, "Load failed");
+                HDCMainThread.Post(() => OnLoadFailed(banner, failure));
+            };
             banner.OnAdImpressionRecorded += () => HDCMainThread.Post(() => OnEvent(banner, HDCAdEventType.Impression));
             banner.OnAdClicked += () => HDCMainThread.Post(() => OnEvent(banner, HDCAdEventType.Clicked));
             banner.OnAdPaid += value => HDCMainThread.Post(() =>
@@ -220,12 +259,12 @@ namespace HDC.Ads.Infrastructure
             });
         }
 
-        private void OnLoaded(BannerView banner)
+        private void OnLoaded(BannerView banner, HDCGmaResponse read)
         {
             if (banner != view)
                 return;
 
-            response = banner.GetResponseInfo();
+            response = read;
             recoveryFails = 0;
             recoveryWatch++;
             IsLoaded = true;
@@ -234,12 +273,12 @@ namespace HDC.Ads.Infrastructure
                 Present();
         }
 
-        private void OnLoadFailed(BannerView banner, LoadAdError error)
+        private void OnLoadFailed(BannerView banner, HDCGmaFailure failure)
         {
             if (banner != view)
                 return;
 
-            HDCAdsSdk.Emit(HDCGma.Event(Id, format, HDCAdEventType.LoadFailed, AdUnitId, null).WithError(error, "Load failed"));
+            HDCAdsSdk.Emit(HDCGma.Event(Id, format, HDCAdEventType.LoadFailed, AdUnitId, null).WithError(failure));
             if (IsLoaded)
                 return;
             recoveryFails++;
@@ -253,6 +292,6 @@ namespace HDC.Ads.Infrastructure
                 Emit(type, response);
         }
 
-        private void Emit(string type, ResponseInfo info) => HDCAdsSdk.Emit(HDCGma.Event(Id, format, type, AdUnitId, info));
+        private void Emit(string type, HDCGmaResponse info) => HDCAdsSdk.Emit(HDCGma.Event(Id, format, type, AdUnitId, info));
     }
 }

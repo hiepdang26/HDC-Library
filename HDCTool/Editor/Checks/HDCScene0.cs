@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -16,6 +17,8 @@ namespace HDC.Tool.Editor
 
         internal bool Inspected { get; private set; }
 
+        internal DateTime Written { get; private set; }
+
         internal int Setups { get; private set; }
 
         internal int DebugPanels { get; private set; }
@@ -26,6 +29,10 @@ namespace HDC.Tool.Editor
 
         internal static string FirstScenePath() =>
             EditorBuildSettings.scenes.FirstOrDefault(scene => scene.enabled && File.Exists(scene.path))?.path ?? "";
+
+        internal static bool IsCurrent(HDCScene0 scene0) =>
+            scene0 != null && scene0.Inspected && scene0.Path.Length > 0 && scene0.Path == FirstScenePath() && !IsLoaded(scene0.Path)
+            && File.GetLastWriteTimeUtc(scene0.Path) == scene0.Written;
 
         internal static bool IsLoaded(string path)
         {
@@ -38,6 +45,7 @@ namespace HDC.Tool.Editor
             var result = new HDCScene0 { Path = FirstScenePath() };
             if (result.Path.Length == 0 || EditorApplication.isPlayingOrWillChangePlaymode)
                 return result;
+            result.Written = File.GetLastWriteTimeUtc(result.Path);
 
             Scene scene = SceneManager.GetSceneByPath(result.Path);
             bool opened = false;

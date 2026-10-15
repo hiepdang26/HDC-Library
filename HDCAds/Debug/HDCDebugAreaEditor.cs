@@ -75,6 +75,8 @@ namespace HDC.Ads.DebugUI
 
         private float PixelsPerUnit => Mathf.Max(0.0001f, Parent.lossyScale.x);
 
+        private float PixelsPerPoint => area?.PixelsPerPoint ?? HDCAdsSdk.PixelsPerPoint;
+
         private string SavedKey => SavedKeyPrefix + key + (Screen.width > Screen.height ? ".Landscape" : ".Portrait");
 
         internal void Bind(HDCDebugArea shown, string channelKey, Action<string> onPlaced)
@@ -309,7 +311,7 @@ namespace HDC.Ads.DebugUI
         {
             if (area == null)
                 return;
-            Vector2 points = LocalRect().size * PixelsPerUnit / HDCAdsSdk.PixelsPerPoint;
+            Vector2 points = LocalRect().size * PixelsPerUnit / PixelsPerPoint;
             if (captionText != null)
                 captionText.text = $"{area.Label} · {points.x:0} × {points.y:0} pt";
             if (label != null)
@@ -331,7 +333,7 @@ namespace HDC.Ads.DebugUI
 
         private Rect Wanted()
         {
-            float scale = HDCAdsSdk.PixelsPerPoint;
+            float scale = PixelsPerPoint;
             Rect safeArea = Screen.safeArea;
             Rect rect = area.Locate(scale, safeArea) ?? Saved(scale) ?? Default(scale, safeArea);
             Vector2 min = area.SizePoints * scale;
@@ -366,7 +368,7 @@ namespace HDC.Ads.DebugUI
         {
             if (Screen.width <= 0 || Screen.height <= 0)
                 return;
-            float scale = HDCAdsSdk.PixelsPerPoint;
+            float scale = PixelsPerPoint;
             float[] numbers = { screenRect.center.x / Screen.width, screenRect.center.y / Screen.height, screenRect.width / scale, screenRect.height / scale };
             PlayerPrefs.SetString(SavedKey, string.Join(",", numbers.Select(number => number.ToString("0.#####", CultureInfo.InvariantCulture))));
             PlayerPrefs.Save();
@@ -393,7 +395,7 @@ namespace HDC.Ads.DebugUI
             SetLocalRect(LocalOf(screenRect));
         }
 
-        private Vector2 MinLocalSize() => area == null ? Vector2.zero : area.SizePoints * HDCAdsSdk.PixelsPerPoint / PixelsPerUnit;
+        private Vector2 MinLocalSize() => area == null ? Vector2.zero : area.SizePoints * PixelsPerPoint / PixelsPerUnit;
 
         private Rect LocalRect() => new Rect(Parent.rect.min + Box.anchoredPosition, Box.sizeDelta);
 

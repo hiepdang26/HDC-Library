@@ -6,6 +6,8 @@ namespace HDC.Ads.Ports
     {
         event Action Ticked;
 
+        event Action LateTicked;
+
         event Action<bool> ApplicationPaused;
     }
 }

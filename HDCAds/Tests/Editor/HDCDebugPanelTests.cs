@@ -6,6 +6,7 @@ using HDC.Ads.Composition;
 using HDC.Ads.DebugUI;
 using HDC.Ads.Diagnostics;
 using HDC.Ads.Domain;
+using HDC.Ads.Infrastructure;
 using HDC.Ads.Logic;
 using NUnit.Framework;
 using UnityEngine;
@@ -24,9 +25,14 @@ namespace HDC.Ads.Tests
             GameObject prefab = HDCTestPaths.DebugPanelPrefab();
             Assert.IsNotNull(prefab.GetComponent<HDCAdsDebugPanel>());
             Transform window = prefab.transform.Find("Safe Area/Window");
-            Assert.IsFalse(window.gameObject.activeSelf, "hidden until opened");
+            Assert.IsFalse(window.GetComponent<Canvas>().enabled, "hidden until opened");
+            Assert.IsFalse(window.GetComponent<UnityEngine.UI.GraphicRaycaster>().enabled, "takes no taps until opened");
             foreach (string page in new[] { "Ads Page", "Remote Config Page", "Events Page", "Device Page" })
+            {
                 Assert.IsNotNull(window.Find("Pages/" + page), page);
+                Assert.AreEqual(page == "Ads Page", window.Find("Pages/" + page).GetComponent<Canvas>().enabled, page + " draws only while it is the shown page");
+            }
+
             Assert.IsNotNull(window.Find("Pages/Ads Page/Body/Viewport/Content/Detail Card"));
         }
 
@@ -54,6 +60,8 @@ namespace HDC.Ads.Tests
             Transform content = page.Find("Body/Viewport/Content");
 
             CollectionAssert.AreEqual(new[] { "AL", "AR", "RW", "FA", "BN", "MREC", "PU", "BRK" }, Rows(page.Find("Channel Tabs"), "").Select(tab => tab.name).ToArray());
+            Assert.AreEqual(60f, ((RectTransform)page.Find("Channel Tabs")).sizeDelta.y, 0.01f, "eight small tabs fit in one row");
+            Assert.AreEqual(-68f, ((RectTransform)page.Find("Body")).offsetMax.y, 0.01f, "the page body starts under the tabs");
             Transform actions = content.Find("Actions Card");
             Assert.IsTrue(actions.Find("Selection Row/Group Button").gameObject.activeSelf);
             Assert.IsTrue(actions.Find("Selection Row/Position Button").gameObject.activeSelf);
@@ -82,8 +90,9 @@ namespace HDC.Ads.Tests
             Click(events.Find("Header Row/Expand Button"));
             Click(system.Find("Header Row/Expand Button"));
             yield return null;
-            List<Transform> eventRows = Rows(events.Find("Events Body/Events List"), "Event ");
-            Assert.IsTrue(eventRows.Exists(row => TextOf(row).Contains("LoadFailed")));
+            List<Transform> eventRows = Rows(events.Find("Events Body/Events List/Rows"), "Event ");
+            Assert.IsTrue(eventRows.Exists(row => AllText(row).Contains("LoadFailed")));
+            Assert.IsTrue(eventRows.All(row => row.Find("Time") != null && row.Find("Badge/Label") != null && row.Find("Main/Title") != null), "each event is a row with its columns");
             string systemText = AllText(system.Find("System Body"));
             StringAssert.Contains("CONFIGS", systemText);
             StringAssert.Contains("Enabled", systemText);
@@ -92,6 +101,7 @@ namespace HDC.Ads.Tests
             Assert.IsFalse(systemText.Contains("Banner"), "only the selected channel");
             yield return null;
             Capture(panelObject, "hdc-debug-ads-fa.png");
+            Capture(panelObject, "hdc-debug-ads-fa-events.png", events);
 
             Click(events.Find("Header Row/Full Screen Button"));
             yield return null;
@@ -134,7 +144,7 @@ namespace HDC.Ads.Tests
 
             Click(window.Find("Page Bar/Remote Config Tab"));
             yield return null;
-            Assert.IsFalse(page.gameObject.activeSelf);
+            Assert.IsFalse(page.GetComponent<Canvas>().enabled, "the ads page hides");
             Assert.IsFalse(panelObject.transform.Find("Safe Area/Ad Area").gameObject.activeSelf, "the popup area belongs to the ads page");
             Transform configContent = window.Find("Pages/Remote Config Page/Body/Viewport/Content");
             StringAssert.Contains("Given to HDCAds.Initialize directly", AllText(configContent.Find("Status Card")));
@@ -160,24 +170,51 @@ namespace HDC.Ads.Tests
             Click(window.Find("Page Bar/Events Tab"));
             yield return null;
             Transform eventsContent = window.Find("Pages/Events Page/Body/Viewport/Content");
-            StringAssert.Contains("LoadFailed", TextOf(eventsContent.Find("List Card/List")));
+            Assert.IsFalse(window.Find("Header/Expand All Button").GetComponent<UnityEngine.UI.Button>().interactable, "the events page has no cards to open");
+            StringAssert.Contains("LoadFailed", AllText(eventsContent.Find("List Card/Event Rows")));
             Click(eventsContent.Find("Filter Card/Tool Buttons/Explain Button"));
             yield return null;
-            StringAssert.Contains("Load lỗi", TextOf(eventsContent.Find("List Card/List")));
+            StringAssert.Contains("Load lỗi", AllText(eventsContent.Find("List Card/Event Rows")));
             Capture(panelObject, "hdc-debug-events.png");
 
             Click(window.Find("Page Bar/Device Tab"));
             yield return null;
             Transform deviceContent = window.Find("Pages/Device Page/Body/Viewport/Content");
+            string[] deviceCards = { "Build Card", "Library Card", "Consent Card", "Mediation Card", "Device Card", "Network Card", "Adjust Card" };
+            foreach (string card in deviceCards)
+                Assert.IsFalse(deviceContent.Find(card + "/Body").gameObject.activeSelf, card + " starts collapsed");
+            Capture(panelObject, "hdc-debug-device-collapsed.png");
+            Transform expandAll = window.Find("Header/Expand All Button");
+            Transform collapseAll = window.Find("Header/Collapse All Button");
+            Assert.IsTrue(expandAll.GetComponent<UnityEngine.UI.Button>().interactable);
+            Click(deviceContent.Find("Build Card/Header Row/Expand Button"));
+            yield return null;
+            Assert.IsTrue(deviceContent.Find("Build Card/Body").gameObject.activeSelf);
+            Assert.AreEqual("Collapse", ButtonText(deviceContent.Find("Build Card/Header Row/Expand Button")));
             StringAssert.Contains("Unity Version", AllText(deviceContent.Find("Build Card")));
+            Click(expandAll);
+            yield return null;
+            foreach (string card in deviceCards)
+                Assert.IsTrue(deviceContent.Find(card + "/Body").gameObject.activeSelf, card + " opens with Expand all");
             StringAssert.Contains("Editor simulation", AllText(deviceContent.Find("Library Card")));
+            string consent = AllText(deviceContent.Find("Consent Card"));
+            StringAssert.Contains("CONSENT & ATT", consent.ToUpperInvariant());
+            StringAssert.Contains("Can Request Ads", consent);
+            StringAssert.Contains("Trong Editor không hỏi consent và ATT", consent);
+            Click(deviceContent.Find("Consent Card/Body/Consent Buttons/Privacy Options Button"));
+            yield return new WaitForSecondsRealtime(0.4f);
+            StringAssert.Contains("Không mở được privacy options", AllText(deviceContent.Find("Consent Card")), "the Editor has no consent form");
             string mediation = AllText(deviceContent.Find("Mediation Card"));
             StringAssert.Contains("META AUDIENCE NETWORK", mediation);
             StringAssert.Contains("Meta Test Mode On", mediation);
+            StringAssert.Contains("Open Ad Inspector", mediation);
+            Click(deviceContent.Find("Mediation Card/Body/Mediation Buttons/Ad Inspector Button"));
+            yield return null;
+            StringAssert.Contains("Ad Inspector chỉ mở được trên máy thật", AllText(deviceContent.Find("Mediation Card")));
             StringAssert.Contains("Adjust", AllText(deviceContent.Find("Adjust Card")));
-            Transform testAdUnits = deviceContent.Find("Library Card/Library Buttons/Test Ad Units Button");
+            Transform testAdUnits = deviceContent.Find("Library Card/Body/Library Buttons/Test Ad Units Button");
             Assert.AreEqual("Test Ad Units: Off", ButtonText(testAdUnits));
-            Transform restart = deviceContent.Find("Library Card/Library Buttons/Restart App Button");
+            Transform restart = deviceContent.Find("Library Card/Body/Library Buttons/Restart App Button");
             Assert.IsFalse(restart.gameObject.activeSelf, "only once the choice changed");
             Click(testAdUnits);
             yield return null;
@@ -187,12 +224,25 @@ namespace HDC.Ads.Tests
             StringAssert.Contains("Bấm Restart App", AllText(deviceContent.Find("Library Card")));
             Assert.IsTrue(restart.gameObject.activeSelf);
             Assert.AreEqual("Restart App", ButtonText(restart));
+            StringAssert.Contains("Meta không bao giờ được hỏi", AllText(deviceContent.Find("Mediation Card")));
             Capture(panelObject, "hdc-debug-device.png");
+            Click(deviceContent.Find("Mediation Card/Body/Mediation Buttons/Meta Test On Button"));
+            yield return null;
+            StringAssert.Contains("Ad source testing", AllText(deviceContent.Find("Mediation Card")));
+            Click(deviceContent.Find("Build Card/Header Row/Expand Button"));
+            Click(deviceContent.Find("Library Card/Header Row/Expand Button"));
+            yield return null;
+            Capture(panelObject, "hdc-debug-device-mediation.png");
+            Click(deviceContent.Find("Mediation Card/Body/Mediation Buttons/Meta Test Off Button"));
+            Click(deviceContent.Find("Build Card/Header Row/Expand Button"));
+            Click(deviceContent.Find("Library Card/Header Row/Expand Button"));
+            yield return null;
+            Assert.IsFalse(AllText(deviceContent.Find("Mediation Card")).Contains("Ad source testing"), "the Meta note goes with test mode");
             Click(testAdUnits);
             Assert.IsFalse(HDCAds.Testing.UseTestAdUnits);
             Assert.IsFalse(HDCTestAdUnitsSwitch.IsSaved);
 
-            Transform clearData = deviceContent.Find("Library Card/Library Buttons/Clear Data Button");
+            Transform clearData = deviceContent.Find("Library Card/Body/Library Buttons/Clear Data Button");
             Assert.IsTrue(clearData.gameObject.activeSelf, "always offered");
             Assert.AreEqual("Clear Data & Restart", ButtonText(clearData));
             Click(clearData);
@@ -202,10 +252,149 @@ namespace HDC.Ads.Tests
             StringAssert.Contains("Bấm lần nữa", AllText(deviceContent.Find("Library Card")));
             yield return new WaitForSecondsRealtime(HDCDevicePage.ClearDataConfirmSeconds + 0.3f);
             Assert.AreEqual("Clear Data & Restart", ButtonText(clearData), "the request lapses");
+            Click(collapseAll);
+            yield return null;
+            foreach (string card in deviceCards)
+                Assert.IsFalse(deviceContent.Find(card + "/Body").gameObject.activeSelf, card + " closes with Collapse all");
+            Assert.AreEqual("Expand", ButtonText(deviceContent.Find("Build Card/Header Row/Expand Button")));
 
             Click(window.Find("Header/Close Button"));
             Assert.IsFalse(panel.IsOpen);
             yield return new ExitPlayMode();
+        }
+
+        [UnityTest]
+        public IEnumerator AClosedPanelStopsRedrawingAndRedrawsWhenOpened()
+        {
+            yield return new EnterPlayMode();
+            HDCAdsTracker.ClearEvents();
+            GameObject panelObject = Object.Instantiate(HDCTestPaths.DebugPanelPrefab());
+            var panel = panelObject.GetComponent<HDCAdsDebugPanel>();
+            yield return null;
+            panel.ShowPage(2);
+            panel.Open();
+            yield return null;
+            Transform window = panelObject.transform.Find("Safe Area/Window");
+            Transform notice = window.Find("Pages/Events Page/Body/Viewport/Content/List Card/Notice");
+            Assert.AreEqual("Không có sự kiện nào khớp bộ lọc.", TextOf(notice));
+
+            panel.Close();
+            Assert.IsFalse(panel.IsOpen);
+            Assert.IsTrue(window.gameObject.activeSelf, "the window stays built while closed, so it opens again without a hitch");
+            Assert.IsFalse(window.GetComponent<Canvas>().enabled, "a closed window draws nothing");
+            HDCAdsSdk.Emit(new HDCAdEvent { id = "fa_native_gameplay", format = "fullscreen", type = "Loaded" });
+            yield return new WaitForSecondsRealtime(1.5f);
+            Assert.AreEqual("Không có sự kiện nào khớp bộ lọc.", TextOf(notice), "a closed panel does not redraw");
+
+            panel.Open();
+            Assert.IsTrue(window.GetComponent<Canvas>().enabled);
+            Assert.AreEqual("1 sự kiện, mới nhất ở trên.", TextOf(notice), "opening redraws the page at once");
+            panel.Close();
+            Object.Destroy(panelObject);
+            HDCAdsTracker.ClearEvents();
+            yield return new ExitPlayMode();
+        }
+
+        [UnityTest]
+        public IEnumerator EventRowsStackAtTheirOwnHeightInTheFrameTheyChange()
+        {
+            yield return new EnterPlayMode();
+            HDCAdsTracker.ClearEvents();
+            HDCAdsSdk.Emit(new HDCAdEvent { id = "fa_native_gameplay", format = "fullscreen", type = "LoadFailed", code = 3, message = "No fill." });
+            HDCAdsSdk.Emit(new HDCAdEvent { id = "pu_popup", format = "popup", type = "Loaded", adSource = "AdMob Network" });
+            GameObject panelObject = Object.Instantiate(HDCTestPaths.DebugPanelPrefab());
+            var panel = panelObject.GetComponent<HDCAdsDebugPanel>();
+            yield return null;
+            panel.ShowPage(2);
+            panel.Open();
+            Canvas.ForceUpdateCanvases();
+            Transform content = panelObject.transform.Find("Safe Area/Window/Pages/Events Page/Body/Viewport/Content");
+            Transform rows = content.Find("List Card/Event Rows/Rows");
+            AssertStacked(rows, 2, "on the first show");
+
+            Click(content.Find("Filter Card/Tool Buttons/Explain Button"));
+            Canvas.ForceUpdateCanvases();
+            AssertStacked(rows, 2, "when Explain adds a line to every row");
+
+            HDCAdsSdk.Emit(new HDCAdEvent { id = "fa_native_ui", format = "fullscreen", type = "Shown" });
+            panelObject.GetComponentsInChildren<HDCEventsPage>(true)[0].Refresh();
+            Canvas.ForceUpdateCanvases();
+            AssertStacked(rows, 3, "when a new event comes in");
+            StringAssert.Contains("fa_native_ui", AllText(rows.Cast<Transform>().OrderByDescending(row => row.localPosition.y).First(row => row.gameObject.activeSelf)), "the newest event is on top");
+
+            panel.Close();
+            Object.Destroy(panelObject);
+            HDCAdsTracker.ClearEvents();
+            yield return new ExitPlayMode();
+        }
+
+        private static void AssertStacked(Transform rows, int count, string when)
+        {
+            List<RectTransform> shown = rows.Cast<Transform>().Where(row => row.gameObject.activeSelf).Cast<RectTransform>()
+                .OrderByDescending(row => row.anchoredPosition.y).ToList();
+            Assert.AreEqual(count, shown.Count, when);
+            float above = float.MaxValue;
+            foreach (RectTransform row in shown)
+            {
+                Assert.AreEqual(UnityEngine.UI.LayoutUtility.GetPreferredHeight(row), row.rect.height, 0.5f, $"{row.name} fits its lines {when}");
+                Assert.LessOrEqual(row.anchoredPosition.y, above, $"{row.name} sits under the row above {when}");
+                above = row.anchoredPosition.y - row.rect.height;
+                float lineAbove = float.MaxValue;
+                foreach (string part in new[] { "Main/Title", "Main/Detail", "Main/Explain" })
+                {
+                    var line = (RectTransform)row.Find(part);
+                    if (!line.gameObject.activeSelf)
+                        continue;
+                    Assert.AreEqual(UnityEngine.UI.LayoutUtility.GetPreferredHeight(line), line.rect.height, 0.5f, $"{row.name} {part} is not squeezed {when}");
+                    float top = row.InverseTransformPoint(line.TransformPoint(new Vector3(0f, line.rect.yMax, 0f))).y;
+                    Assert.LessOrEqual(top, lineAbove + 0.5f, $"{row.name} {part} does not overlap the line above {when}");
+                    lineAbove = row.InverseTransformPoint(line.TransformPoint(new Vector3(0f, line.rect.yMin, 0f))).y;
+                }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator OnlyAnOpenPanelAndItsShownPageTakeTaps()
+        {
+            yield return new EnterPlayMode();
+            GameObject panelObject = Object.Instantiate(HDCTestPaths.DebugPanelPrefab());
+            var panel = panelObject.GetComponent<HDCAdsDebugPanel>();
+            yield return null;
+            Transform window = panelObject.transform.Find("Safe Area/Window");
+            Transform close = window.Find("Header/Close Button");
+            Vector2 pagePoint = CenterOf(window.Find("Pages/Ads Page/Body/Viewport"));
+            yield return null;
+            Assert.IsFalse(HitsAt(CenterOf(close)).Any(hit => hit.transform.IsChildOf(window)), "a closed panel takes no taps");
+
+            panel.Open();
+            yield return null;
+            Assert.IsTrue(HitsAt(CenterOf(close)).Any(hit => hit.transform.IsChildOf(close)), "an open panel takes taps");
+            Assert.IsTrue(HitsAt(pagePoint).Any(hit => hit.transform.IsChildOf(window.Find("Pages/Ads Page"))));
+
+            panel.ShowPage(3);
+            yield return null;
+            List<GameObject> hits = HitsAt(pagePoint);
+            Assert.IsFalse(hits.Any(hit => hit.transform.IsChildOf(window.Find("Pages/Ads Page"))), "a hidden page takes no taps");
+            Assert.IsTrue(hits.Any(hit => hit.transform.IsChildOf(window.Find("Pages/Device Page"))), "the shown page does");
+
+            panel.Close();
+            yield return null;
+            Assert.IsFalse(HitsAt(pagePoint).Any(hit => hit.transform.IsChildOf(window)));
+            Object.Destroy(panelObject);
+            yield return new ExitPlayMode();
+        }
+
+        private static Vector2 CenterOf(Transform item)
+        {
+            var rect = (RectTransform)item;
+            return RectTransformUtility.WorldToScreenPoint(null, rect.TransformPoint(rect.rect.center));
+        }
+
+        private static List<GameObject> HitsAt(Vector2 point)
+        {
+            var results = new List<RaycastResult>();
+            EventSystem.current.RaycastAll(new PointerEventData(EventSystem.current) { position = point }, results);
+            return results.Select(result => result.gameObject).ToList();
         }
 
         [UnityTest]
@@ -249,6 +438,8 @@ namespace HDC.Ads.Tests
                 Transform page = window.Find("Pages/Ads Page");
                 Transform tab = page.Find("Channel Tabs/FAKE");
                 Assert.AreEqual("Fake", TextOf(tab.Find("Name")));
+                Assert.AreEqual(128f, ((RectTransform)page.Find("Channel Tabs")).sizeDelta.y, 0.01f, "a ninth tab opens a second row");
+                Assert.AreEqual(-136f, ((RectTransform)page.Find("Body")).offsetMax.y, 0.01f);
                 Click(tab);
                 yield return null;
 
@@ -319,7 +510,7 @@ namespace HDC.Ads.Tests
             panel.ShowPage(1);
             yield return null;
             Transform content = panelObject.transform.Find("Safe Area/Window/Pages/Remote Config Page/Body/Viewport/Content");
-            StringAssert.Contains("Project defaults (Editor)", AllText(content.Find("Status Card")));
+            StringAssert.Contains("Default · Editor", AllText(content.Find("Status Card")));
             string note = TextOf(content.Find("Viewer Card/Applied Note/Text"));
             StringAssert.Contains("APPLIED = DEFAULT", note);
             StringAssert.Contains("Trong Editor HDC dùng config mặc định cho ads_config", note);
@@ -349,7 +540,7 @@ namespace HDC.Ads.Tests
                     yield return null;
                 Debug.Log($"[HDCTest] fetch: outcome={HDCConfigReport.Outcome} firebase={HDCConfigReport.Firebase} fetch={HDCConfigReport.FetchStatus} keys={HDCConfigReport.RemoteValueCount} core={HDCConfigReport.CoreKey}");
                 foreach (HDCConfigEntry entry in HDCConfigReport.Entries)
-                    Debug.Log($"[HDCTest] entry {entry.Key}: source={entry.Source} origin={entry.RemoteOrigin} remote={entry.Remote.Length} saved={entry.Saved.Length} default={entry.Default.Length}");
+                    Debug.Log($"[HDCTest] entry {entry.Key}: source={entry.Source} origin={entry.RemoteOrigin} remote={entry.Remote.Length} default={entry.Default.Length}");
                 Assert.IsTrue(HDCConfigReport.Finished);
 
                 GameObject panelObject = Object.Instantiate(HDCTestPaths.DebugPanelPrefab());

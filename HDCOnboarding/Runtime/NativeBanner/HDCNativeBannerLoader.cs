@@ -143,24 +143,28 @@ namespace HDC.Onboarding
             else
             {
                 if (lastShowing == loop.groupName)
+                {
                     HideLast();
+                    lastShowing = null;
+                }
+
                 yield return banner.Load();
                 status = banner.Ad.Status;
             }
 
-            HideLast();
             if (status == HDCSplashAdStatus.Loaded)
             {
                 retrySeconds = FirstRetrySeconds;
-                lastShowing = loop.groupName;
                 int shownBefore = banner.ShownCount;
-                yield return HDCOnboardingAds.ShowPopupUntilShown(loop.groupName, bannerArea, null, false);
+                yield return HDCOnboardingAds.ShowPopupUntilShown(loop.groupName, bannerArea, null);
                 if (banner.ShownCount == shownBefore)
                 {
                     yield return WaitBeforeRetry($"show failed group={loop.groupName}");
                     yield break;
                 }
 
+                HideLast();
+                lastShowing = loop.groupName;
                 float timeShowing = HoldSeconds(loop, banner.Ad.AdSourceAdapterClassName);
                 if (loop.adShowCount > 0)
                     loop.adShowCount--;

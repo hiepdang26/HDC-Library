@@ -10,11 +10,13 @@ namespace HDC.Ads.Infrastructure
     internal sealed class HDCEditorBridge : IHDCNativeBridge
     {
         private const float LoadSeconds = 0.5f;
+        private const float SlowLoadSeconds = 2f;
         private const float ShowSeconds = 1f;
         private const float PopupShowSeconds = 3f;
         private const string SimulatedSource = "Editor simulation";
         internal const string SimulatedSourceId = "editor";
         private const string FailingUnitMarker = "fail";
+        private const string SlowUnitMarker = "slow";
 
         private const int NoFillCode = 3;
 
@@ -58,7 +60,7 @@ namespace HDC.Ads.Infrastructure
                 case "load":
                     if (args.adUnitIds == null || args.adUnitIds.Length == 0)
                         return Failure("adUnitIds is empty");
-                    ad = new SimulatedAd(format, args.id, args.adUnitIds[0], ReloadsAfterShow(format, args)) { Layout = PopupLayout(args) };
+                    ad = new SimulatedAd(format, args.id, args.adUnitIds[0], ReloadsAfterShow(format, args)) { Layout = args.layout };
                     ads[key] = ad;
                     SimulateLoad(key, ad);
                     return Result(true);
@@ -107,17 +109,6 @@ namespace HDC.Ads.Infrastructure
             }
         }
 
-        private static string PopupLayout(Args args)
-        {
-            foreach (SourceLayout sourceLayout in args.adSourceLayouts ?? new SourceLayout[0])
-            {
-                if (sourceLayout != null && Array.IndexOf(sourceLayout.adSources ?? new string[0], SimulatedSourceId) >= 0)
-                    return sourceLayout.layout;
-            }
-
-            return args.layout;
-        }
-
         private static string State(SimulatedAd ad)
         {
             if (ad == null)
@@ -125,15 +116,18 @@ namespace HDC.Ads.Infrastructure
             if (ad.Showing)
                 return "Showing";
             if (ad.Hidden)
-                return "Hidden";
+                return "Closed";
             if (ad.Ready)
                 return "Displayable";
+            if (ad.Failed)
+                return "Failed";
             return ad.Closed ? "Closed" : "Loading";
         }
 
         private void SimulateLoad(string key, SimulatedAd ad)
         {
-            HDCMainThread.PostDelayed(LoadSeconds, () =>
+            float seconds = ad.AdUnitId.IndexOf(SlowUnitMarker, StringComparison.OrdinalIgnoreCase) >= 0 ? SlowLoadSeconds : LoadSeconds;
+            HDCMainThread.PostDelayed(seconds, () =>
             {
                 if (!IsCurrent(key, ad))
                     return;
@@ -142,6 +136,7 @@ namespace HDC.Ads.Infrastructure
                     HDCAdEvent failed = Event(ad, HDCAdEventType.LoadFailed);
                     failed.code = NoFillCode;
                     failed.message = "No fill (Editor simulation: the ad unit id contains \"fail\")";
+                    ad.Failed = true;
                     Send(failed);
                     return;
                 }
@@ -245,9 +240,11 @@ namespace HDC.Ads.Infrastructure
                 return;
 
             ad.Showing = false;
-            ad.Hidden = false;
+            ad.Hidden = ad.Format == HDCAdFormat.Popup;
             if (wasShowing)
                 Send(Event(ad, HDCAdEventType.Closed));
+            if (ad.Format == HDCAdFormat.Popup)
+                return;
             if (ad.Format == HDCAdFormat.Banner)
                 ad.Ready = true;
             else if (ad.ReloadsAfterShow)
@@ -323,6 +320,7 @@ namespace HDC.Ads.Infrastructure
             public bool Showing;
             public bool Hidden;
             public bool Closed;
+            public bool Failed;
             public bool ShowWhenLoaded;
             public int ShowTurn;
             public string Layout;
@@ -346,14 +344,6 @@ namespace HDC.Ads.Infrastructure
             public bool reloadAfterShow;
             public string layout;
             public string[] layoutNames;
-            public SourceLayout[] adSourceLayouts;
-        }
-
-        [Serializable]
-        private sealed class SourceLayout
-        {
-            public string[] adSources;
-            public string layout;
         }
 #pragma warning restore 0649
     }

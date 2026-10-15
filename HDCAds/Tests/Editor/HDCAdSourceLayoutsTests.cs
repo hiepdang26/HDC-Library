@@ -47,19 +47,11 @@ namespace HDC.Ads.Tests
         }
 
         [Test]
-        public void PopupSourceLayoutsKeepOnlyUsableEntriesWithCurrentNames()
+        public void APopupSendsOnlyItsOwnLayout()
         {
-            HDCPopupOptions.SourceLayout[] layouts = HDCNativePopupAd.SourceLayouts(new[]
-            {
-                new HDCAdCoreConfig.AdSourceLayout { adSources = new[] { " 123 ", "" }, layout = "mrec_single_manual_13" },
-                new HDCAdCoreConfig.AdSourceLayout { adSources = new string[0], layout = "popup_single_manual_02" },
-                new HDCAdCoreConfig.AdSourceLayout { adSources = new[] { "456" }, layout = "" },
-                null,
-            });
-
-            Assert.AreEqual(1, layouts.Length);
-            CollectionAssert.AreEqual(new[] { "123" }, layouts[0].adSources);
-            Assert.AreEqual("popup_single_manual_13", layouts[0].layout);
+            StringAssert.DoesNotContain("adSourceLayouts", JsonUtility.ToJson(new HDCPopupOptions()), "the native library no longer picks popup layouts by ad source");
+            Assert.AreEqual("popup_single_manual_01", HDCAdCoreConfig.Parse(Core).PopupGroupNamed("popup").nativeAdUnit.layout,
+                "an old adSourceLayouts entry in the config is ignored");
         }
 
         [Test]
@@ -78,11 +70,11 @@ namespace HDC.Ads.Tests
                 .ToList();
 
             Assert.IsTrue(findings.Any(text => text.StartsWith("FA:") && text.Contains("'fs_single_fancy_09'")), string.Join("\n", findings));
-            Assert.IsTrue(findings.Any(text => text.StartsWith("PU:") && text.Contains("'popup_tall'")), string.Join("\n", findings));
+            Assert.IsFalse(findings.Any(text => text.Contains("'popup_tall'")), "popups no longer read adSourceLayouts: " + string.Join("\n", findings));
         }
 
         [UnityTest]
-        public IEnumerator EachNativeAdShowsTheLayoutOfItsAdSource()
+        public IEnumerator AFullscreenAdPicksItsLayoutByAdSourceAndAPopupKeepsItsOwn()
         {
             yield return new EnterPlayMode();
             bool ready = false;
@@ -100,8 +92,8 @@ namespace HDC.Ads.Tests
             yield return WaitFor(() => HDCAds.Popup.CanShow("popup"), 5f);
             Assert.IsTrue(HDCAds.Popup.Show("popup"));
             yield return WaitFor(() => HDCAdsTracker.Find(HDCAdFormat.Popup, "pu_popup")?.Layout != null, 3f);
-            Assert.AreEqual("popup_single_manual_13", HDCAdsTracker.Find(HDCAdFormat.Popup, "pu_popup").Layout,
-                "the popup of an ad from the listed source shows that source's layout, under its current name");
+            Assert.AreEqual("popup_single_manual_01", HDCAdsTracker.Find(HDCAdFormat.Popup, "pu_popup").Layout,
+                "a popup shows its own layout whatever the ad source");
             yield return new ExitPlayMode();
         }
 

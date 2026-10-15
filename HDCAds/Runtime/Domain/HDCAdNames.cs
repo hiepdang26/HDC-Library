@@ -21,6 +21,7 @@ namespace HDC.Ads.Domain
         internal const string AdsRemovedKey = "REMOVEADS";
         internal const string ForceAdTotalKey = "fa_total_impression";
         internal const string RewardedCountKey = "rw_count";
+        internal const string PrivacyTogglesKey = "privacy_toggles";
 
         internal static string AdMobForceAd(string group) => "fa_plugin_" + group;
 

@@ -41,8 +41,10 @@ namespace HDC.Onboarding.Tests
                     "the splash canvas only holds the backdrop and the header with the loading bar");
 
                 var banner = (RectTransform)new SerializedObject(components.OfType<HDCNativeBannerLoader>().Single()).FindProperty("bannerArea").objectReferenceValue;
-                Assert.AreEqual(Vector2.zero, banner.anchorMin);
-                Assert.AreEqual(new Vector2(1f, 0.15f), banner.anchorMax, "the native banners show in the bottom 15% of the screen, as before");
+                var bannerArea = banner.GetComponent<HDCSplashAdArea>();
+                Assert.IsNotNull(bannerArea, "the banner area follows the orientation like the splash areas");
+                Assert.AreEqual(HDCSplashAdAreaKind.NativeBanner, bannerArea.Kind);
+                Assert.IsTrue(bannerArea.FollowsOrientation);
 
                 SerializedProperty tracked = new SerializedObject(components.OfType<HDCAdTracking>().Single()).FindProperty("trackedAds");
                 CollectionAssert.AreEqual(new[] { "splash", "native_splash", "native_intro1", "native_intro2", "native_intro_full" },

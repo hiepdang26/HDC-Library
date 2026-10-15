@@ -10,7 +10,13 @@ namespace HDC.Ads.Tests
 
         public event Action<HDCAdEvent> AdEvent;
 
-        public void Initialize(Action onReady) => this.onReady += onReady;
+        internal int Initializations { get; private set; }
+
+        public void Initialize(Action onReady)
+        {
+            Initializations++;
+            this.onReady += onReady;
+        }
 
         internal void BecomeReady()
         {

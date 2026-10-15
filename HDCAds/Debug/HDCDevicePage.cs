@@ -6,6 +6,7 @@ using System.Linq;
 using HDC.Ads.Composition;
 using HDC.Ads.Diagnostics;
 using HDC.Ads.Infrastructure;
+using HDC.Ads.Logic;
 using HDC.Ads.Ports;
 using UnityEngine;
 #if HDC_WEB_REQUEST
@@ -28,9 +29,13 @@ namespace HDC.Ads.DebugUI
         [SerializeField] private Button testAdUnitsButton;
         [SerializeField] private Button restartButton;
         [SerializeField] private Button clearDataButton;
+        [SerializeField] private HDCKeyValueList consentList;
+        [SerializeField] private Button privacyOptionsButton;
+        [SerializeField] private Button resetConsentButton;
         [SerializeField] private HDCKeyValueList mediationList;
         [SerializeField] private Button metaOnButton;
         [SerializeField] private Button metaOffButton;
+        [SerializeField] private Button adInspectorButton;
         [SerializeField] private HDCKeyValueList deviceList;
         [SerializeField] private HDCKeyValueList networkList;
         [SerializeField] private Button probeButton;
@@ -47,6 +52,8 @@ namespace HDC.Ads.DebugUI
         private PublicInfo publicInfo;
         private float clearDataArmedUntil = -1f;
         private Coroutine disarmClearData;
+        private string adInspectorNote;
+        private string consentNote;
 
         [Serializable]
         private sealed class PublicInfo
@@ -114,6 +121,7 @@ namespace HDC.Ads.DebugUI
             });
             metaOnButton.onClick.AddListener(() =>
             {
+                HDCAdsSdk.EnableTestDevice();
                 HDCAds.Testing.EnableMetaTestMode();
                 ReadPartners();
                 Refresh();
@@ -124,18 +132,67 @@ namespace HDC.Ads.DebugUI
                 ReadPartners();
                 Refresh();
             });
-            probeButton.onClick.AddListener(() => Probe(true));
+            adInspectorButton.onClick.AddListener(OpenAdInspector);
+            privacyOptionsButton.onClick.AddListener(() => HDCAds.Consent.ShowPrivacyOptions(error =>
+            {
+                consentNote = error == null
+                    ? HDCDebugStyle.Colored(HDCDebugStyle.MutedHex, "Privacy options đã đóng.")
+                    : HDCDebugStyle.Colored(HDCDebugStyle.BadHex, "Không mở được privacy options: " + error);
+                MarkDirty();
+            }));
+            resetConsentButton.onClick.AddListener(() =>
+            {
+                HDCAdsRuntime.Current.Context.Consent.Reset();
+                consentNote = HDCDebugStyle.Colored(HDCDebugStyle.WarnHex, HDCAppRestart.Relaunches
+                    ? "Đã xoá consent đã lưu. Bấm Restart App ở thẻ HDC Ads để app hỏi lại từ đầu."
+                    : "Đã xoá consent đã lưu. iOS không cho app tự mở lại: thoát app rồi mở lại để app hỏi lại từ đầu.");
+                Refresh();
+            });
+            probeButton.onClick.AddListener(() =>
+            {
+                OpenCard(probeButton);
+                Probe(true);
+                Refresh();
+            });
             adjustButton.onClick.AddListener(() =>
             {
+                OpenCard(adjustButton);
                 HDCAdjustProbe.Ask();
                 Refresh();
             });
         }
 
-        protected override void OnEnable()
+        private static void OpenCard(Component inCard)
+        {
+            HDCDebugFoldout foldout = inCard.GetComponentInParent<HDCDebugFoldout>();
+            if (foldout != null)
+                foldout.Apply(true);
+        }
+
+        private void OpenAdInspector()
+        {
+#if UNITY_EDITOR
+            adInspectorNote = HDCDebugStyle.Colored(HDCDebugStyle.WarnHex, "Ad Inspector chỉ mở được trên máy thật (Android, iOS).");
+#else
+            bool registered = !HDCAdsSdk.IsTestDevice;
+            if (registered)
+                HDCAdsSdk.EnableTestDevice();
+            adInspectorNote = HDCDebugStyle.Colored(HDCDebugStyle.MutedHex,
+                registered ? "Đã đăng ký máy làm thiết bị test của Google, đang mở Ad Inspector..." : "Đang mở Ad Inspector...");
+            HDCAdsSdk.OpenAdInspector(error =>
+            {
+                adInspectorNote = error == null
+                    ? HDCDebugStyle.Colored(HDCDebugStyle.MutedHex, "Ad Inspector đã đóng.")
+                    : HDCDebugStyle.Colored(HDCDebugStyle.BadHex, "Không mở được Ad Inspector: " + error);
+                MarkDirty();
+            });
+#endif
+            Refresh();
+        }
+
+        internal override void Shown()
         {
             ReadPartners();
-            base.OnEnable();
             if (!probedOnce)
             {
                 probedOnce = true;
@@ -146,13 +203,25 @@ namespace HDC.Ads.DebugUI
 
         protected override void Redraw()
         {
-            RedrawBuild();
-            RedrawLibrary();
-            RedrawMediation();
-            RedrawDevice();
-            RedrawNetwork();
-            RedrawAdjust();
+            if (Shown(buildList))
+                RedrawBuild();
+            if (Shown(libraryList))
+                RedrawLibrary();
+            if (Shown(consentList))
+                RedrawConsent();
+            if (Shown(mediationList))
+                RedrawMediation();
+            if (Shown(deviceList))
+                RedrawDevice();
+            if (Shown(networkList))
+                RedrawNetwork();
+            if (Shown(adjustList))
+                RedrawAdjust();
+            probeButton.interactable = !probing;
+            adjustButton.interactable = HDCAdjustProbe.Found || HDCAdjustProbe.State == "Not checked";
         }
+
+        private static bool Shown(Component part) => part.gameObject.activeInHierarchy;
 
         private void RedrawBuild()
         {
@@ -188,7 +257,7 @@ namespace HDC.Ads.DebugUI
             if (ClearDataArmed)
                 libraryList.Note(HDCDebugStyle.Colored(HDCDebugStyle.WarnHex,
                     $"Bấm lần nữa trong {ClearDataConfirmSeconds:0} giây để xoá toàn bộ dữ liệu của app: PlayerPrefs, file, cache và Remote Config đã lưu. Công tắc Test Ad Units được giữ lại. " +
-                    (HDCAppRestart.Relaunches ? "App sẽ tự mở lại." : "iOS không cho app tự mở lại: app sẽ thoát, mở lại app bằng tay.")));
+                    (HDCAppRestart.Relaunches ? "App sẽ tự mở lại." : "iOS không cho app tự mở lại: app sẽ thoát, mở lại app bằng tay. Lựa chọn ATT và quyền thông báo do iOS giữ, app không xoá được: muốn được hỏi lại thì xoá app rồi cài lại.")));
             libraryList.End();
 
             HDCDebugStyle.SetLabel(debugLogButton, HDCAdsSdk.DebugLog ? "Debug Log: On" : "Debug Log: Off");
@@ -266,11 +335,76 @@ namespace HDC.Ads.DebugUI
                     AdapterRow(ShortName(adapter.AdapterClass), adapter);
             }
 
+            bool metaTest = partnerTestModes.Any(pair => pair.Key.HasTestMode && pair.Value.On);
+            if (HDCAdsSdk.UseTestAdUnits)
+                mediationList.Note(HDCDebugStyle.Colored(HDCDebugStyle.WarnHex,
+                    "Test Ad Units đang bật: mọi vị trí load ad unit mẫu của Google, không đi qua mediation, nên Meta không bao giờ được hỏi. Tắt Test Ad Units ở thẻ HDC Ads rồi mở lại app."));
+            if (metaTest)
+                mediationList.Note("Meta Test Mode chỉ làm SDK Meta trả quảng cáo test khi Meta được hỏi. Nguồn nào thắng do mediation group của ad unit trên AdMob quyết định, "
+                    + "nên phần lớn quảng cáo vẫn là của AdMob. Muốn chỉ nhận Meta: bấm Open Ad Inspector, chọn ad unit, Ad source testing, Meta Audience Network, rồi load lại quảng cáo.");
+            if (!HDCAdsSdk.IsTestDevice)
+                mediationList.Note(HDCDebugStyle.Colored(HDCDebugStyle.MutedHex,
+                    "Ad Inspector chỉ mở trên thiết bị test của Google. Bấm Open Ad Inspector hoặc Meta On: máy được tự đăng ký làm thiết bị test trước."));
+            if (!string.IsNullOrEmpty(adInspectorNote))
+                mediationList.Note(adInspectorNote);
             mediationList.End();
 
-            bool metaTest = partnerTestModes.Any(pair => pair.Key.HasTestMode && pair.Value.On);
             HDCDebugStyle.Highlight(metaOnButton, metaTest);
             HDCDebugStyle.Highlight(metaOffButton, !metaTest);
+        }
+
+        private void RedrawConsent()
+        {
+            HDCConsentGate consent = HDCAdsRuntime.Current.Context.Consent;
+            consentList.Begin();
+            consentList.Row("Step", ConsentStep(consent.Current), consent.IsDone ? HDCDebugStyle.GoodColor : HDCDebugStyle.WarnColor);
+            if (consent.TogglesKnown)
+            {
+                consentList.Row("Ask Consent", consent.Toggles.Consent ? "Yes" : "No: ads_config.toggleConsent=false, counted as accepted",
+                    consent.Toggles.Consent ? HDCDebugStyle.TextColor : HDCDebugStyle.WarnColor);
+                consentList.Row("Ask ATT", consent.Toggles.Att ? "Yes" : "No: ads_config.toggleAtt=false, never asked",
+                    consent.Toggles.Att ? HDCDebugStyle.TextColor : HDCDebugStyle.WarnColor);
+                consentList.Row("Toggles From", consent.Toggles.Source);
+            }
+
+            consentList.Row("Consent Status", consent.ConsentSkipped ? consent.Status + " (not asked)" : consent.Status.ToString());
+            if (consent.IsDone)
+                consentList.Row("Can Request Ads", consent.CanRequestAds ? "Yes" : "No: no ad loads this session",
+                    consent.CanRequestAds ? HDCDebugStyle.GoodColor : HDCDebugStyle.BadColor);
+            consentList.Row("Privacy Options", consent.PrivacyOptionsRequired ? "Required: the game needs a button for it" : "Not required");
+            consentList.Row("Tracking (ATT)", consent.TogglesKnown && !consent.Toggles.Att ? consent.TrackingStatus + " (not asked, counted as accepted)" : consent.TrackingStatus.ToString(),
+                consent.TrackingStatus == HDCTrackingStatus.Authorized ? HDCDebugStyle.GoodColor : HDCDebugStyle.TextColor);
+            consentList.Row("Asked As EEA", consent.DebugInEea ? "Yes: a Google test device sees the EEA form" : "No");
+            if (!string.IsNullOrEmpty(consent.LastError))
+                consentList.Row("Last Error", consent.LastError, HDCDebugStyle.BadColor);
+#if UNITY_EDITOR
+            consentList.Note(HDCDebugStyle.Colored(HDCDebugStyle.MutedHex, "Trong Editor không hỏi consent và ATT: coi như được phép."));
+#endif
+            if (!HDCAdsSdk.IsTestDevice)
+                consentList.Note(HDCDebugStyle.Colored(HDCDebugStyle.MutedHex,
+                    "Muốn thấy form consent như ở châu Âu: bấm Make Test Device ở thẻ HDC Ads, bấm Reset Consent, rồi mở lại app."));
+            if (!string.IsNullOrEmpty(consentNote))
+                consentList.Note(consentNote);
+            consentList.End();
+        }
+
+        private static string ConsentStep(HDCConsentGate.Step step)
+        {
+            switch (step)
+            {
+                case HDCConsentGate.Step.NotStarted:
+                    return "Not started";
+                case HDCConsentGate.Step.WaitingForConfig:
+                    return "Waiting for ads_config (first launch)";
+                case HDCConsentGate.Step.Updating:
+                    return "Asking the consent service";
+                case HDCConsentGate.Step.ShowingForm:
+                    return "Consent form on screen";
+                case HDCConsentGate.Step.AskingTracking:
+                    return "ATT question on screen";
+                default:
+                    return "Done";
+            }
         }
 
         private void AdapterRow(string label, HDCAdapterStatus status) =>
@@ -332,7 +466,6 @@ namespace HDC.Ads.DebugUI
             if (lastProbeClock.HasValue)
                 networkList.Row("Checked At", lastProbeClock.Value.ToString("HH:mm:ss", CultureInfo.InvariantCulture));
             networkList.End();
-            probeButton.interactable = !probing;
         }
 
         private void RedrawAdjust()
@@ -345,7 +478,6 @@ namespace HDC.Ads.DebugUI
             foreach (KeyValuePair<string, string> pair in HDCAdjustProbe.Ordered())
                 adjustList.Row(pair.Key, pair.Value);
             adjustList.End();
-            adjustButton.interactable = HDCAdjustProbe.Found || HDCAdjustProbe.State == "Not checked";
         }
 
         private void ReadPartners()

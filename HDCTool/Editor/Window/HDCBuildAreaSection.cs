@@ -52,10 +52,11 @@ namespace HDC.Tool.Editor
             }
 
             string problem = ios ? HDCBuildRunner.IosRunProblem(window.SelectedAppleDevice) : AndroidProblem(window);
+            List<string> deviceOnly = problem == null && ios && HDCBuildState.IosTarget == HDCAppleTarget.Simulator ? HDCSimulatorSupport.DeviceOnlyLibraries() : null;
             if (problem != null)
                 GUILayout.Label(problem, warningStyle);
-            else if (ios && HDCBuildState.IosTarget == HDCAppleTarget.Simulator && HDCSimulatorSupport.DeviceOnlyLibraries().Count > 0)
-                GUILayout.Label(HDCBuildRunner.SimulatorNote(HDCSimulatorSupport.DeviceOnlyLibraries()), noteStyle);
+            else if (deviceOnly != null && deviceOnly.Count > 0)
+                GUILayout.Label(HDCBuildRunner.SimulatorNote(deviceOnly), noteStyle);
             GUILayout.Space(6f);
             if (ios)
                 IosButtons(window, problem == null);

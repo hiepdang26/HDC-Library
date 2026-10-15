@@ -146,6 +146,8 @@ namespace HDC.Onboarding
                 case HDCAdEventType.Loaded:
                     Track("l_s_loaded");
                     AdSourceAdapterClassName = !string.IsNullOrEmpty(adEvent.adSource) ? adEvent.adSource : adEvent.adapter ?? "";
+                    if (Status == HDCSplashAdStatus.LoadTimeOut)
+                        HDCOnboardingLog.Log($"Popup {GroupName} loaded after its {timeOut:0.#}s timeout: the ad is kept for its next show");
                     ChangeStatus(HDCSplashAdStatus.Loaded);
                     break;
                 case HDCAdEventType.Paid:

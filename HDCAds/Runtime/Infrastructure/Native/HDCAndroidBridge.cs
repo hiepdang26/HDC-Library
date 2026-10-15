@@ -6,8 +6,8 @@ namespace HDC.Ads.Infrastructure
 {
     internal sealed class HDCAndroidBridge : IHDCNativeBridge
     {
-        private const string BridgeClassName = "com.hdc.adsmultiplatform.unity.HdcUnityBridge";
-        private const string ListenerInterfaceName = "com.hdc.adsmultiplatform.unity.HdcUnityListener";
+        private const string BridgeClassName = "com.hdc.adsmultiplatform.unity.bridge.HdcUnityBridge";
+        private const string ListenerInterfaceName = "com.hdc.adsmultiplatform.unity.callback.HdcUnityListener";
 
         private readonly AndroidJavaClass bridgeClass = new AndroidJavaClass(BridgeClassName);
 

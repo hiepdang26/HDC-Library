@@ -112,6 +112,7 @@ namespace HDC.Tool.Editor
             bool mac = platform == HDCBuildPlatform.Ios && target == HDCAppleTarget.Mac;
             var clock = Stopwatch.StartNew();
             BuildReport report;
+            List<string> stampFolders = null;
             try
             {
                 if (platform == HDCBuildPlatform.Android)
@@ -129,12 +130,14 @@ namespace HDC.Tool.Editor
 
                 if (mac)
                     HDCIosLocalBuild.MacRun = HDCMacRun.On;
+                stampFolders = HDCBuildStamp.Write(rules);
                 HDCBuildSceneProcessor.ActiveRules = rules;
                 report = BuildPipeline.BuildPlayer(buildOptions);
             }
             finally
             {
                 HDCBuildSceneProcessor.ActiveRules = null;
+                HDCBuildStamp.Remove(stampFolders);
                 if (platform == HDCBuildPlatform.Android)
                     EditorUserBuildSettings.buildAppBundle = appBundleBefore;
                 if (platform == HDCBuildPlatform.Ios)

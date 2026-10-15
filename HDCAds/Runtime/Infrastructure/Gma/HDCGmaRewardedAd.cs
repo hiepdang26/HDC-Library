@@ -6,7 +6,7 @@ namespace HDC.Ads.Infrastructure
     internal sealed class HDCGmaRewardedAd : HDCGmaFullscreenAd
     {
         private RewardedAd ad;
-        private ResponseInfo response;
+        private HDCGmaResponse response;
 
         internal HDCGmaRewardedAd(string id, string adUnitId, bool preload, int bufferSize)
             : base(HDCAdFormat.Rewarded, id, adUnitId, preload, bufferSize)
@@ -18,22 +18,26 @@ namespace HDC.Ads.Infrastructure
         protected override bool HasPreloadedAd => RewardedAdPreloader.IsAdAvailable(PreloadId);
 
         protected override void RequestAd() =>
-            RewardedAd.Load(AdUnitId, new AdRequest(), (loaded, error) => HDCMainThread.Post(() =>
+            RewardedAd.Load(AdUnitId, new AdRequest(), (loaded, error) =>
             {
-                if (loaded == null || error != null || IsDestroyed)
+                HDCGmaFailure failure = loaded == null || error != null ? HDCGmaFailure.Read(error, "No ad returned") : null;
+                HDCMainThread.Post(() =>
                 {
-                    loaded?.Destroy();
-                    if (!IsDestroyed)
-                        OnLoadFailed(error, "No ad returned");
-                    return;
-                }
+                    if (failure != null || IsDestroyed)
+                    {
+                        loaded?.Destroy();
+                        if (!IsDestroyed)
+                            OnLoadFailed(failure);
+                        return;
+                    }
 
-                OnLoaded(Attach(loaded));
-            }));
+                    OnLoaded(Attach(loaded));
+                });
+            });
 
         protected override bool ShowLoadedAd()
         {
-            ResponseInfo shown = response;
+            HDCGmaResponse shown = response;
             ad.Show(reward => HDCMainThread.Post(() => OnRewarded(reward, shown)));
             return true;
         }
@@ -58,15 +62,23 @@ namespace HDC.Ads.Infrastructure
             RewardedAdPreloader.Preload(
                 PreloadId,
                 configuration,
-                (_, preloaded) => HDCMainThread.Post(() => OnPreloaded(preloaded)),
-                (_, error) => HDCMainThread.Post(() => OnPreloadFailed(error)),
+                (_, preloaded) =>
+                {
+                    HDCGmaResponse read = HDCGmaResponse.Read(preloaded);
+                    HDCMainThread.Post(() => OnPreloaded(read));
+                },
+                (_, error) =>
+                {
+                    HDCGmaFailure failure = HDCGmaFailure.Read(error, "Preload failed");
+                    HDCMainThread.Post(() => OnPreloadFailed(failure));
+                },
                 null);
 
         protected override void DestroyPreloadedAds() => RewardedAdPreloader.Destroy(PreloadId);
 
-        private ResponseInfo Attach(RewardedAd loaded)
+        private HDCGmaResponse Attach(RewardedAd loaded)
         {
-            ResponseInfo info = loaded.GetResponseInfo();
+            HDCGmaResponse info = HDCGmaResponse.Read(loaded.GetResponseInfo());
             ad = loaded;
             response = info;
             loaded.OnAdFullScreenContentOpened += () => HDCMainThread.Post(() => OnEvent(HDCAdEventType.Shown, info));
@@ -74,7 +86,11 @@ namespace HDC.Ads.Infrastructure
             loaded.OnAdClicked += () => HDCMainThread.Post(() => OnEvent(HDCAdEventType.Clicked, info));
             loaded.OnAdPaid += value => HDCMainThread.Post(() => OnPaid(value, info));
             loaded.OnAdFullScreenContentClosed += () => HDCMainThread.Post(() => OnClosed(info));
-            loaded.OnAdFullScreenContentFailed += error => HDCMainThread.Post(() => OnShowFailed(error, info, "Show failed"));
+            loaded.OnAdFullScreenContentFailed += error =>
+            {
+                HDCGmaFailure failure = HDCGmaFailure.Read(error, "Show failed");
+                HDCMainThread.Post(() => OnShowFailed(failure, info));
+            };
             return info;
         }
     }

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using HDC.Ads.Diagnostics;
 using HDC.Ads.Domain;
+using UnityEngine;
 
 namespace HDC.Ads.DebugUI
 {
@@ -50,6 +51,34 @@ namespace HDC.Ads.DebugUI
             if (explain)
                 text.Append('\n').Append("          ").Append(HDCDebugStyle.Colored(HDCDebugStyle.MutedHex, Explain(adEvent)));
             return text.ToString();
+        }
+
+        internal static string Time(HDCTrackedEvent tracked) => tracked.Clock.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
+
+        internal static string Subject(HDCAdEvent adEvent, bool withChannel) =>
+            (withChannel ? HDCDebugStyle.Colored(HDCDebugStyle.AccentHex, Channel(adEvent)) + "  ·  " : string.Empty)
+            + (string.IsNullOrEmpty(adEvent.id) ? "-" : adEvent.id);
+
+        internal static Color TypeColor(string type)
+        {
+            switch (type)
+            {
+                case HDCAdEventType.LoadFailed:
+                case HDCAdEventType.ShowFailed:
+                    return HDCDebugStyle.BadBadge;
+                case HDCAdEventType.Loaded:
+                case HDCAdEventType.Rewarded:
+                    return HDCDebugStyle.GoodBadge;
+                case HDCAdEventType.Shown:
+                case HDCAdEventType.Impression:
+                    return HDCDebugStyle.LiveBadge;
+                case HDCAdEventType.Paid:
+                    return HDCDebugStyle.BusyBadge;
+                case HDCAdEventType.Clicked:
+                    return HDCDebugStyle.SelectedColor;
+                default:
+                    return HDCDebugStyle.IdleBadge;
+            }
         }
 
         internal static string TypeHex(string type)
@@ -103,7 +132,7 @@ namespace HDC.Ads.DebugUI
             }
         }
 
-        private static string Detail(HDCAdEvent adEvent)
+        internal static string Detail(HDCAdEvent adEvent)
         {
             if (adEvent.type == HDCAdEventType.LoadFailed || adEvent.type == HDCAdEventType.ShowFailed)
                 return HDCDebugStyle.Colored(HDCDebugStyle.BadHex,

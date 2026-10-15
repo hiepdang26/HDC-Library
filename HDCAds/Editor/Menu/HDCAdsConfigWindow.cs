@@ -34,6 +34,8 @@ namespace HDC.Ads.Editor
         private const int BoxCount = 9;
         private const string KeysProperty = "customKeys";
         private const string CountryProperty = "countryCheck";
+        private const string SourceAndroidProperty = "configSourceAndroid";
+        private const string SourceIosProperty = "configSourceIos";
 
         internal static readonly Color Blue = new Color(0.30f, 0.55f, 1.00f, 1f);
         internal static readonly Color Purple = new Color(0.65f, 0.45f, 1.00f, 1f);
@@ -50,8 +52,8 @@ namespace HDC.Ads.Editor
         private static readonly string[] ValueFields = { "android", "ios", "country" };
         private static readonly string[] ValueHelp =
         {
-            "Used on Android until Remote Config has a value for the key.",
-            "Used on iOS until Remote Config has a value for the key. Empty: the Android value.",
+            "Used on Android when Remote Config gives no value for the key, or when Config Source is Default.",
+            "Used on iOS when Remote Config gives no value for the key, or when Config Source is Default. Empty: the Android value.",
             "Used in country mode, in place of Remote Config. Empty: the value of the platform.",
         };
 
@@ -60,10 +62,12 @@ namespace HDC.Ads.Editor
 
         private static readonly string[] CardHelp =
         {
-            "Default of the Remote Config key ads_config, used until Remote Config has a value. One JSON per platform, plus a Country JSON for country mode.",
-            "Default ad core config, for the key that ads_config names in selectedAdCoreName. One JSON per platform, plus a Country JSON for country mode.",
-            "Remote Config keys of the game itself, read with HDCCustomConfig.Get(key). Each value is used until Remote Config has one for the key, " +
-            "then the last fetched value is kept on the device.",
+            "Default of the Remote Config key ads_config, used when this launch gets no value from Remote Config, or when Config Source is Default. " +
+            "One JSON per platform, plus a Country JSON for country mode.",
+            "Default ad core config, for the key that ads_config names in selectedAdCoreName. Used like the Ads config default. One JSON per platform, " +
+            "plus a Country JSON for country mode.",
+            "Remote Config keys of the game itself, read with HDCCustomConfig.Get(key). Each value is used when this launch gets no value for the key " +
+            "from Remote Config, or when Config Source is Default. Nothing is kept on the device between launches.",
             "Country mode: a device in the target country gets the Country JSON of Ads config and Ad core, and the Country value of each custom key, " +
             "instead of the Remote Config values. A device counts as in the country when any signal below matches. Devices in Debug devices, or in " +
             "the Remote Config key devices ({\"debugDevices\":[...]}), never get it. The Editor gets it only with Simulate in Editor.",
@@ -87,6 +91,14 @@ namespace HDC.Ads.Editor
                 "Ad core config that a device in the target country gets on Android while country mode is on. Leave it empty to keep the usual one."),
             new Page("Country core (iOS)", "countryCoreConfigIos", HDCConfigJson.Kind.Core, true,
                 "Ad core config in country mode on iOS. Leave it empty to use the Android one."),
+        };
+
+        private static readonly (string Property, string Title)[] Sections =
+        {
+            (SourceAndroidProperty, "config source (Android)"),
+            (SourceIosProperty, "config source (iOS)"),
+            (KeysProperty, "custom keys"),
+            (CountryProperty, "country mode"),
         };
 
         [SerializeField] private HDCAdsSettings asset;
@@ -224,7 +236,7 @@ namespace HDC.Ads.Editor
             base.DiscardChanges();
         }
 
-        internal static void Toggle()
+        internal static void ShowOrFocus()
         {
             HDCAdsConfigWindow[] open = Resources.FindObjectsOfTypeAll<HDCAdsConfigWindow>();
             if (open.Length == 0)
@@ -233,8 +245,7 @@ namespace HDC.Ads.Editor
                 return;
             }
 
-            foreach (HDCAdsConfigWindow window in open)
-                window.CloseAsked();
+            open[0].Focus();
         }
 
         internal static Rect Centered(Rect screen, float width, float height)
@@ -242,28 +253,6 @@ namespace HDC.Ads.Editor
             float w = Mathf.Min(width, screen.width);
             float h = Mathf.Min(height, screen.height);
             return new Rect(Mathf.Round(screen.x + (screen.width - w) / 2f), Mathf.Round(screen.y + (screen.height - h) / 2f), w, h);
-        }
-
-        internal void CloseAsked()
-        {
-            if (hasUnsavedChanges)
-            {
-                int choice = EditorUtility.DisplayDialogComplex(WindowTitle, saveChangesMessage, "Save", "Cancel", "Discard");
-                if (choice == 1)
-                    return;
-                if (choice == 0)
-                {
-                    SaveChanges();
-                    if (hasUnsavedChanges)
-                        return;
-                }
-                else
-                {
-                    DiscardChanges();
-                }
-            }
-
-            Close();
         }
 
         private static HDCAdsConfigWindow Show(HDCAdsSettings target, int platformIndex, string source)
@@ -313,7 +302,7 @@ namespace HDC.Ads.Editor
 
         private void OnFocus()
         {
-            if (working != null && !SectionChanged(KeysProperty) && !SectionChanged(CountryProperty))
+            if (working != null && !Sections.Any(section => SectionChanged(section.Property)))
                 Release();
         }
 
@@ -381,6 +370,7 @@ namespace HDC.Ads.Editor
             if (Event.current.type == EventType.MouseMove)
                 Repaint();
             Toolbar();
+            SourceRow();
             scroll = EditorGUILayout.BeginScrollView(scroll);
             GUILayout.Space(6f);
             for (int card = 0; card < CardCount; card++)
@@ -415,7 +405,7 @@ namespace HDC.Ads.Editor
             using (new EditorGUI.DisabledScope(unsaved == 0))
             {
                 if (BarButton(unsaved > 0 ? "Save all (" + unsaved + ")" : "Save all", Green, 100f,
-                        "Saves every changed JSON that is valid, plus the custom keys and the country mode."))
+                        "Saves every changed JSON that is valid, plus the config source, the custom keys and the country mode."))
                     ShowNotification(new GUIContent(SaveAll().Count == 0 ? "Saved" : "Saved; the JSON with errors stay unsaved"), 1.5d);
             }
 
@@ -437,6 +427,49 @@ namespace HDC.Ads.Editor
 
             GUILayout.Space(4f);
             EditorGUILayout.EndHorizontal();
+        }
+
+        private void SourceRow()
+        {
+            string property = platform == IosPlatform ? SourceIosProperty : SourceAndroidProperty;
+            SerializedProperty source = settings.FindProperty(property);
+            if (source == null)
+                return;
+            bool remote = source.intValue != (int)HDCAdsConfigSource.Default;
+            GUILayout.Space(6f);
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                GUILayout.Space(8f);
+                GUILayout.Label(new GUIContent("Config Source (" + Platforms[platform] + ")",
+                    "Where the ads_config, the ad core and the custom keys of a build come from. Each platform has its own choice."), labelStyle,
+                    GUILayout.Width(EditorGUIUtility.labelWidth - 4f));
+                if (Tab("Remote Config", remote, Green, remote ? Green : Gray))
+                    SetSource(source, HDCAdsConfigSource.RemoteConfig);
+                if (Tab("Default", !remote, Amber, remote ? Gray : Amber))
+                    SetSource(source, HDCAdsConfigSource.Default);
+                GUILayout.FlexibleSpace();
+                if (SectionChanged(property))
+                {
+                    Rect pill = GUILayoutUtility.GetRect(130f, 22f, GUILayout.Width(130f), GUILayout.Height(22f));
+                    if (Event.current.type == EventType.Repaint)
+                        Pill(pill, "Unsaved changes", Amber);
+                    GUILayout.Space(14f);
+                }
+            }
+
+            GUILayout.Label(remote
+                ? "Every launch fetches Remote Config and waits up to " + HDCAdsSettings.RemoteConfigTimeoutSeconds.ToString("0") +
+                  " s of play time. A key that does not come from Remote Config in that launch uses the default below. Nothing is kept from earlier launches."
+                : "No Remote Config fetch: every launch uses the defaults below.", helpStyle);
+        }
+
+        private void SetSource(SerializedProperty source, HDCAdsConfigSource value)
+        {
+            if (source.intValue == (int)value)
+                return;
+            source.intValue = (int)value;
+            settings.ApplyModifiedProperties();
+            GUI.FocusControl(null);
         }
 
         private void PlatformBadge()
@@ -484,7 +517,7 @@ namespace HDC.Ads.Editor
         }
 
         private int UnsavedCount() =>
-            Enumerable.Range(0, Pages.Length).Count(IsChanged) + (SectionChanged(KeysProperty) ? 1 : 0) + (SectionChanged(CountryProperty) ? 1 : 0);
+            Enumerable.Range(0, Pages.Length).Count(IsChanged) + Sections.Count(section => SectionChanged(section.Property));
 
         private bool SectionChanged(string property) =>
             settings != null && original != null && settings.targetObject != null && original.targetObject != null &&
@@ -511,7 +544,7 @@ namespace HDC.Ads.Editor
                 saved.Add(Pages[page].Title);
             }
 
-            foreach ((string property, string title) in new[] { (KeysProperty, "custom keys"), (CountryProperty, "country mode") })
+            foreach ((string property, string title) in Sections)
             {
                 if (!SectionChanged(property))
                     continue;

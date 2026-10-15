@@ -32,7 +32,7 @@ Assembly `HDC.Ads` nằm trong `Runtime/`. Mỗi thư mục con là một tầng
 | `Logic` | `HDC.Ads.Logic` | Các quy tắc quảng cáo, xem chi tiết dưới bảng. |
 | `Domain` | `HDC.Ads.Domain` | Dữ liệu: `HDCAdsConfig` và `HDCAdCoreConfig` (đúng schema JSON trên Remote Config), `HDCAdEvent`, các tùy chọn, `HDCAdNames` (instance id và khóa lưu trữ), `HDCAdUnitKeys`, `HDCAdUnitSpec`, `HDCAdLayouts` (tên layout native hợp lệ, kèm tên cũ; phải khớp danh sách layout của thư viện native). |
 | `Diagnostics` | `HDC.Ads.Diagnostics` | Thứ bảng debug đọc: tracker sự kiện, báo cáo config và mediation, `HDCDebugInfo`, `IChannelDiagnostics`, `IConfigRule`, `HDCDebugAction`. |
-| `Ports` | `HDC.Ads.Ports` | Interface mà Logic gọi và Infrastructure hiện thực: `IAdNetwork`, `IFullscreenAd`, `IFullscreenCompanion`, `IViewAd`, `IPopupAd`, `IMediationPartner`, `IAdsSdk`, `IAdsTesting`, `IClock`, `IKeyValueStore`, `IMainThread`, `IAdsLog`, `IRemoteConfigValues`, `IDeviceRegionSource`, `IShowWithLeader`. |
+| `Ports` | `HDC.Ads.Ports` | Interface mà Logic gọi và Infrastructure hiện thực: `IAdNetwork`, `IFullscreenAd`, `IFullscreenCompanion`, `IViewAd`, `IPopupAd`, `IMediationPartner`, `IAdsSdk`, `IAdsTesting`, `IClock`, `IKeyValueStore`, `IMainThread`, `IAdsLog`, `IRemoteConfigValues`, `IDeviceRegionSource`, `IShowWithLeader`, `IConsentProvider`, `ITrackingAuthorization`. |
 | `Infrastructure` | `HDC.Ads.Infrastructure` | Code chạm vào SDK, xem chi tiết dưới bảng. |
 | `Composition` | `HDC.Ads.Composition` | `HDCAdsRuntime`: lắp port, mạng, partner, context và kênh lại với nhau. Đây là chỗ duy nhất biết cả Logic lẫn Infrastructure. |
 
@@ -42,22 +42,26 @@ Tầng `Logic` gồm:
   - Kênh break ad (`HDCBreakAds`, key BRK) không có position. Nó đọc `break_ads_config` của ad core, đếm giờ trên `IMainThread.Ticked` bằng `IClock.UnscaledTime` và ngừng khi `ApplicationPaused`. Ad của nó là native full-screen `fa_brk`, plan từ `HDCAdGroups.BreakAdPlan()`. Nó nghe luồng sự kiện của SDK để biết quảng cáo full-screen khác đang trên màn hình. Giao diện nằm ở assembly `HDC.Ads.BreakAd` và chỉ dùng API public.
 - Group và nguồn ad trong `Groups/`. `HDCCompanionShow` giữ chính sách của ad đi kèm, như native sau interstitial.
 - Chọn config trong `Config/`:
-  - `HDCConfigSelection` chọn `ads_config`, ad core config và custom key từ Remote Config, giá trị đã lưu hoặc mặc định, rồi áp chế độ quốc gia.
+  - `HDCConfigSelection` chọn `ads_config`, ad core config và custom key từ lần fetch Remote Config của lần mở này hoặc từ config mặc định, rồi áp chế độ quốc gia. Không có nguồn nào lưu trên máy.
   - `HDCCountryMode` quyết định máy có vào chế độ quốc gia không.
   - `HDCConfigMode` ghi rõ 3 cách chọn:
     - `RemoteConfig`: máy thật có Firebase.
     - `EditorDefaults`: Editor không fetch.
     - `NoRemoteConfig`: build không có Firebase.
+    - `Defaults`: `Config Source` của HDC Ads Settings là `Default`, nên không fetch.
+  - `HDCLoadClock` đếm timeout của lần tải theo thời gian game chạy: mỗi khung hình tính tối đa 1 giây, và có thêm 5 giây khi đang activate.
   - `HDCRemoteConfig` và `HDCAdsSetup` chỉ đưa dữ liệu vào và dùng kết quả. Chúng không tự quyết thứ tự ưu tiên hay chế độ quốc gia.
-- `HDCAdsContext`: config, cờ gỡ quảng cáo, mốc của quảng cáo full-screen gần nhất.
+- `HDCConsentGate`: thứ tự consent, ATT rồi SDK (xem README, phần Consent và ATT). Nó gọi `IConsentProvider` và `ITrackingAuthorization`, và tự quyết khi nào hỏi ATT (purpose 1, 3, 4 của TCF) và khi nào bỏ cuộc (10 giây).
+- `HDCAdsContext`: config, cờ gỡ quảng cáo, mốc của quảng cáo full-screen gần nhất. Nó chỉ áp dụng config và khởi tạo SDK sau khi `HDCConsentGate` xong và consent cho request quảng cáo.
 - `HDCAdGroups`: plan của từng slot.
 - `IUnitOrderPolicy` và bản hiện thực `HDCPriorityOrder`.
 - `IAdChannel`.
 
 Tầng `Infrastructure` gồm:
 
-- `Gma/`: plugin Google Mobile Ads.
-- `Native/`: cầu nối tới thư viện native, qua JNI và `DllImport`.
+- `Gma/`: plugin Google Mobile Ads, gồm `HDCUmpConsent` (UMP của plugin).
+- `Native/`: cầu nối tới thư viện native, qua JNI và `DllImport`, gồm `HDCAppTracking` (ATT trong `HDCAdsBridge.mm`).
+- `HDCNoConsentNeeded`, `HDCNoTracking`: bản dùng trong Editor và nơi không có UMP hay ATT.
 - `Mediation/`: các partner mediation.
 - `HDCAdsSdk`: khởi động SDK và luồng sự kiện.
 - Các port hiện thực bằng Unity, như `PlayerPrefs` và `Time`.
@@ -68,7 +72,7 @@ Các assembly khác:
 | Assembly | Thư mục | Vai trò |
 |---|---|---|
 | `HDC.Ads.Settings` | `Runtime/Settings` | Config mặc định và custom key của project (`HDC > Edit configs`), cùng `HDCCustomConfig` để game đọc custom key. Build ở mọi cấu hình. |
-| `HDC.Ads.Firebase` | `Runtime/Firebase` | `HDCRemoteConfig` lấy config và custom key từ Remote Config. Cần define `HDC_FIREBASE`. |
+| `HDC.Ads.Firebase` | `Runtime/Firebase` | `HDCRemoteConfig` lấy config và custom key từ Remote Config. Mỗi phiên chỉ tải một lần; lần gọi sau chờ lần đó. Nó theo dõi các Task của Firebase mỗi khung hình trên `HDCMainThread.Ticked`, không qua `ContinueWithOnMainThread`. Cần define `HDC_FIREBASE`. |
 | `HDC.Ads.Setup` | `Setup` | Prefab `HDCAdsSetup` khởi tạo ads ở scene đầu, và chứa sẵn prefab `HDCAdjust` và bảng debug làm object con. Build được cả khi tắt HDC ads. |
 | `HDC.Ads.Adjust` | `Adjust` | Prefab `HDCAdjust`: khởi động Adjust, đọc attribution, gửi doanh thu quảng cáo và mua hàng lên Adjust. Build ở mọi cấu hình. Phần gọi Adjust SDK cần define `HDC_ADJUST`, phần nghe `HDCAds.Revenue` cần thêm `HDC_ADS`. Component `HDCAdjust` chỉ giữ cài đặt, API và việc chọn cách khởi động. Các phần còn lại nằm ở `HDCAdjustSdk` (cấu hình, đọc attribution, deep link), `HDCAdjustAttributions` (trạng thái attribution, PlayerPrefs, sự kiện), `HDCAdjustRevenue` và `HDCAdjustPurchases`. |
 | `HDC.Ads.BreakAd` | `BreakAd` | Prefab `HDCBreakAd`: thanh đếm ngược của break ad (`HDCBreakAdView`), chỉ gọi API public `HDCAds.BreakAd`. Build ở mọi cấu hình; phần gọi HDCAds cần `HDC_ADS`. `BreakAd/Editor` (assembly `HDC.Ads.BreakAd.Editor`) dựng prefab và sprite (`HDCBreakAdBuilder.Build`) và có menu `HDC > Break Ad`. |

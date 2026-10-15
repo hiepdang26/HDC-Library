@@ -21,6 +21,8 @@ namespace HDC.Onboarding
 
         internal static bool SdkReady => HDCAds.IsInitialized;
 
+        internal static bool AdsGateDone => HDCAds.IsInitialized || (HDCAds.Consent.IsDone && !HDCAds.Consent.CanRequestAds);
+
         internal static bool FirebaseChecked => HDCConfigReport.Started ? HDCConfigReport.FirebaseKnown : ConfigApplied;
 
         internal static bool RemoteConfigDone => HDCConfigReport.Started ? HDCConfigReport.Finished : ConfigApplied;
@@ -61,22 +63,13 @@ namespace HDC.Onboarding
             return HDCAdNames.NativePopup(string.IsNullOrEmpty(group) ? position : group);
         }
 
-        internal static IEnumerator ShowPopupUntilShown(string position, RectTransform area, HDCWaitToken token, bool waitForOverlay = true)
+        internal static IEnumerator ShowPopupUntilShown(string position, RectTransform area, HDCWaitToken token)
         {
             HDCPopupEvents.Counts counts = HDCPopupEvents.Of(PopupInstance(position));
             int shown = counts.Shown;
             int failed = counts.Failed;
             int closed = counts.Closed;
             int hides = HDCPopupEvents.Hides(position);
-            if (waitForOverlay && Context.HasOverlayAd)
-                HDCOnboardingLog.Log($"Popup {position} waits for the full-screen ad on screen to close");
-            while (waitForOverlay && Context.HasOverlayAd)
-            {
-                if ((token != null && token.Cancelled) || HDCPopupEvents.Hides(position) != hides)
-                    yield break;
-                yield return null;
-            }
-
             if (!ShowPopup(position, area))
                 yield break;
 
@@ -96,7 +89,7 @@ namespace HDC.Onboarding
                 }
 
                 sinceShow += Time.unscaledDeltaTime;
-                if (sinceShow < PopupRetrySeconds || (waitForOverlay && Context.HasOverlayAd))
+                if (sinceShow < PopupRetrySeconds)
                     continue;
                 sinceShow = 0f;
                 if (!HDCAds.Popup.CanShow(position))

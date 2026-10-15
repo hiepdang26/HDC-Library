@@ -14,8 +14,10 @@ namespace HDC.Ads.DebugUI
     {
         private const float CopiedSeconds = 1.5f;
 
-        private const int ShownEvents = 80;
-        private const int ShownExplainedEvents = 40;
+        private const int ShownEvents = 40;
+        private const int ShownExplainedEvents = 20;
+        private const int FullScreenEvents = 80;
+        private const int FullScreenExplainedEvents = 40;
 
         [SerializeField] private HDCKeyValueList summaryList;
         [SerializeField] private Button sequentialButton;
@@ -27,7 +29,7 @@ namespace HDC.Ads.DebugUI
         [SerializeField] private Button clearButton;
         [SerializeField] private Button fullScreenButton;
         [SerializeField] private Text noticeText;
-        [SerializeField] private Text listText;
+        [SerializeField] private HDCEventRows eventRows;
 
         [Header("Helpers")]
         [SerializeField] private HDCOptionPicker optionPicker;
@@ -91,12 +93,36 @@ namespace HDC.Ads.DebugUI
                 copiedUntil = 0f;
             HDCDebugStyle.SetLabel(copyButton, copiedUntil > 0f ? "Copied" : "Copy");
 
-            int shown = Filtered().Count;
-            noticeText.text = shown == 0
-                ? "Không có sự kiện nào khớp bộ lọc."
-                : counting ? $"{shown} sự kiện, gộp theo loại và ad, nhiều nhất trước." : $"{shown} sự kiện, mới nhất ở trên.";
-            listText.text = shown == 0 ? string.Empty : ShownBody();
+            List<HDCTrackedEvent> events = Filtered();
+            int limit = explain ? ShownExplainedEvents : ShownEvents;
+            if (events.Count == 0)
+                noticeText.text = "Không có sự kiện nào khớp bộ lọc.";
+            else if (counting)
+                noticeText.text = $"{events.Count} sự kiện, gộp theo loại và ad, nhiều nhất trước.";
+            else
+                noticeText.text = events.Count > limit
+                    ? $"{limit} sự kiện mới nhất trong {events.Count}, mới nhất ở trên. Copy lấy tất cả."
+                    : $"{events.Count} sự kiện, mới nhất ở trên.";
+
+            eventRows.Begin();
+            if (counting)
+            {
+                foreach ((HDCAdEvent adEvent, int count) in Counted(events).Take(limit))
+                    eventRows.Count(count, adEvent, explain);
+            }
+            else
+            {
+                foreach (HDCTrackedEvent tracked in events.Take(limit))
+                    eventRows.Event(tracked, true, explain);
+            }
+
+            eventRows.End();
         }
+
+        private static IEnumerable<(HDCAdEvent Event, int Count)> Counted(IEnumerable<HDCTrackedEvent> events) =>
+            events.GroupBy(tracked => tracked.Event.type + "|" + tracked.Event.id)
+                .Select(group => (group.First().Event, group.Count()))
+                .OrderByDescending(group => group.Item2);
 
         private void RedrawSummary()
         {
@@ -148,7 +174,7 @@ namespace HDC.Ads.DebugUI
             return picked;
         }
 
-        private string ShownBody() => Body(explain ? ShownExplainedEvents : ShownEvents);
+        private string ShownBody() => Body(explain ? FullScreenExplainedEvents : FullScreenEvents);
 
         private string Body(int limit)
         {
@@ -166,9 +192,7 @@ namespace HDC.Ads.DebugUI
                 return text.ToString().TrimEnd();
             }
 
-            foreach (var group in events.GroupBy(tracked => tracked.Event.type + "|" + tracked.Event.id)
-                         .Select(group => new { Event = group.First().Event, Count = group.Count() })
-                         .OrderByDescending(group => group.Count))
+            foreach ((HDCAdEvent Event, int Count) group in Counted(events))
             {
                 text.Append("<b>").Append(group.Count).Append("×</b>   ")
                     .Append("<color=").Append(HDCEventText.TypeHex(group.Event.type)).Append("><b>").Append(group.Event.type).Append("</b></color>   ")

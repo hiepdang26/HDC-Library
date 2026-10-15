@@ -140,6 +140,113 @@ namespace HDC.Onboarding.Tests
             }
         }
 
+        [Test]
+        public void TheNativeBannerAreaFollowsTheOrientation()
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(HDCOnboardingPaths.NativeBannerPrefab);
+            Assert.IsNotNull(prefab, HDCOnboardingPaths.NativeBannerPrefab);
+            GameObject copy = Object.Instantiate(prefab);
+            try
+            {
+                HDCSplashAdArea area = copy.GetComponentInChildren<HDCSplashAdArea>(true);
+                Assert.IsNotNull(area, "the Banner Area carries HDCSplashAdArea");
+                Assert.AreEqual("Banner Area", area.name);
+                Assert.AreEqual(HDCSplashAdAreaKind.NativeBanner, area.Kind);
+                Assert.IsTrue(area.FollowsOrientation);
+
+                area.Apply(true);
+                Assert.AreEqual(Vector2.zero, area.Area.anchorMin);
+                Assert.AreEqual(new Vector2(1f, 0.075f), area.Area.anchorMax, "portrait: the bottom 7.5% of the screen");
+
+                area.Apply(false);
+                Assert.AreEqual(Vector2.zero, area.Area.anchorMin);
+                Assert.AreEqual(new Vector2(1f, 0.175f), area.Area.anchorMax, "landscape: the bottom 17.5% of the screen");
+                Assert.AreEqual(Vector2.zero, area.Area.offsetMin);
+                Assert.AreEqual(Vector2.zero, area.Area.offsetMax);
+            }
+            finally
+            {
+                Object.DestroyImmediate(copy);
+            }
+        }
+
+        [Test]
+        public void ANativeBannerAreaAlwaysSpansTheFullWidth()
+        {
+            HDCSplashAdArea area = AreaWithSides(HDCSplashAdAreaKind.NativeBanner, out GameObject root);
+            try
+            {
+                area.Apply(true);
+                Assert.AreEqual(new Vector2(0f, 0.01f), area.Area.anchorMin, "portrait: from the left edge, at the configured height");
+                Assert.AreEqual(new Vector2(1f, 0.075f), area.Area.anchorMax, "portrait: to the right edge");
+
+                area.Apply(false);
+                Assert.AreEqual(new Vector2(0f, 0.02f), area.Area.anchorMin, "landscape: from the left edge, at the configured height");
+                Assert.AreEqual(new Vector2(1f, 0.175f), area.Area.anchorMax, "landscape: to the right edge");
+                Assert.AreEqual(Vector2.zero, area.Area.offsetMin);
+                Assert.AreEqual(Vector2.zero, area.Area.offsetMax);
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void SplashAreasKeepTheSidesOfTheirAnchors()
+        {
+            HDCSplashAdArea area = AreaWithSides(HDCSplashAdAreaKind.NativeSplash, out GameObject root);
+            try
+            {
+                area.Apply(true);
+                Assert.AreEqual(new Vector2(0.2f, 0.01f), area.Area.anchorMin);
+                Assert.AreEqual(new Vector2(0.8f, 0.075f), area.Area.anchorMax);
+
+                area.Apply(false);
+                Assert.AreEqual(new Vector2(0.25f, 0.02f), area.Area.anchorMin);
+                Assert.AreEqual(new Vector2(0.75f, 0.175f), area.Area.anchorMax);
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void ABannerAreaIsNeverTakenForASplashArea()
+        {
+            var area = new GameObject("Banner Area", typeof(RectTransform)).AddComponent<HDCSplashAdArea>();
+            try
+            {
+                var fields = new SerializedObject(area);
+                fields.FindProperty("kind").intValue = (int)HDCSplashAdAreaKind.NativeBanner;
+                fields.ApplyModifiedPropertiesWithoutUndo();
+
+                Assert.IsNull(HDCSplash.AreaFor(null, HDCSplashAdAreaKind.NativeSplash));
+                Assert.IsNull(HDCSplash.AreaFor(null, HDCSplashAdAreaKind.NativeSplashAdMob));
+            }
+            finally
+            {
+                Object.DestroyImmediate(area.gameObject);
+            }
+        }
+
+        private static HDCSplashAdArea AreaWithSides(HDCSplashAdAreaKind kind, out GameObject root)
+        {
+            root = new GameObject("Canvas", typeof(RectTransform), typeof(Canvas));
+            var area = new GameObject("Area", typeof(RectTransform)).AddComponent<HDCSplashAdArea>();
+            area.transform.SetParent(root.transform, false);
+            var fields = new SerializedObject(area);
+            fields.FindProperty("kind").intValue = (int)kind;
+            fields.FindProperty("portraitAnchorMin").vector2Value = new Vector2(0.2f, 0.01f);
+            fields.FindProperty("portraitAnchorMax").vector2Value = new Vector2(0.8f, 0.075f);
+            fields.FindProperty("landscapeAnchorMin").vector2Value = new Vector2(0.25f, 0.02f);
+            fields.FindProperty("landscapeAnchorMax").vector2Value = new Vector2(0.75f, 0.175f);
+            fields.ApplyModifiedPropertiesWithoutUndo();
+            area.Refresh();
+            return area;
+        }
+
         private static HDCSplashAdArea Area(string prefabPath)
         {
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);

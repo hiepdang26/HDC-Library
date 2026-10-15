@@ -14,8 +14,8 @@ namespace HDC.Ads.Tests
             Store = store ?? new HDCFakeStore();
             AdMob = new HDCFakeNetwork(HDCAdUnitKeys.AdMob, Sdk);
             Native = new HDCFakeNetwork(HDCAdUnitKeys.Native, Sdk);
-            Runtime = new HDCAdsRuntime(Clock, Store, MainThread, Log, Sdk, new HDCFakeTesting(),
-                new IAdNetwork[] { AdMob, Native }, new HDCPriorityOrder(), null, extraChannels);
+            Runtime = new HDCAdsRuntime(Clock, Store, MainThread, Log, Sdk, Testing,
+                new IAdNetwork[] { AdMob, Native }, new HDCPriorityOrder(), null, extraChannels, Consent, Tracking);
         }
 
         internal HDCFakeClock Clock { get; } = new HDCFakeClock();
@@ -23,6 +23,9 @@ namespace HDC.Ads.Tests
         internal HDCFakeMainThread MainThread { get; } = new HDCFakeMainThread();
         internal HDCFakeLog Log { get; } = new HDCFakeLog();
         internal HDCFakeSdk Sdk { get; } = new HDCFakeSdk();
+        internal HDCFakeTesting Testing { get; } = new HDCFakeTesting();
+        internal HDCFakeConsent Consent { get; } = new HDCFakeConsent();
+        internal HDCFakeTracking Tracking { get; } = new HDCFakeTracking();
 
         internal HDCFakeNetwork AdMob { get; }
 

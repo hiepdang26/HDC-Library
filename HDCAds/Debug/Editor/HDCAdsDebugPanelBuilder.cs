@@ -11,12 +11,15 @@ namespace HDC.Ads.DebugUI.Editor
     {
         private const string PrefabName = "HDCAdsDebugPanel.prefab";
         private const int UiLayer = 5;
-        private const int MinLabelSize = 14;
         private const float ButtonHeight = 84f;
         private const float ChipHeight = 72f;
         private const float LabelColumn = 360f;
         private const float AreaFrame = 44f;
         private const float AreaHandle = 96f;
+        private const float FoldButtonWidth = 170f;
+        private const int TabColumns = 8;
+        private static readonly Vector2 TabSize = new Vector2(116f, 60f);
+        private const float TabSpacing = 8f;
 
         private static readonly Color WindowColor = new Color(0.043f, 0.067f, 0.125f, 0.98f);
         private static readonly Color HeaderColor = new Color(0.067f, 0.102f, 0.18f, 1f);
@@ -108,6 +111,10 @@ namespace HDC.Ads.DebugUI.Editor
 
             GameObject window = Box(safeArea.transform, "Window", WindowColor, true, true);
             Stretch(window.transform, new Vector2(16f, 16f), new Vector2(-16f, -16f));
+            var windowCanvas = window.AddComponent<Canvas>();
+            windowCanvas.enabled = false;
+            var windowRaycaster = window.AddComponent<GraphicRaycaster>();
+            windowRaycaster.enabled = false;
 
             GameObject header = Box(window.transform, "Header", HeaderColor, true, false);
             Top(header.transform, 0f, 150f);
@@ -115,11 +122,13 @@ namespace HDC.Ads.DebugUI.Editor
             GameObject titles = Element(header.transform, "Titles");
             Vertical(titles, new RectOffset(0, 0, 0, 0), 4f);
             Flexible(titles, 1f);
-            Label(titles.transform, "Title", "HDC Ads Debug", 40, FontStyle.Bold, TextColor, TextAnchor.MiddleLeft);
+            Label(titles.transform, "Title", "HDC Ads Debug", 28, FontStyle.Bold, TextColor, TextAnchor.MiddleLeft);
             Text status = Label(titles.transform, "Status", "", 22, FontStyle.Normal, SoftTextColor, TextAnchor.UpperLeft);
-            Button initSdk = Bar(header.transform, "Init SDK Button", "Init SDK", PrimaryColor, 190f);
-            Button refresh = Bar(header.transform, "Refresh Button", "Refresh", ButtonColor, 170f);
-            Button close = Bar(header.transform, "Close Button", "Close", DangerColor, 150f);
+            Button initSdk = Bar(header.transform, "Init SDK Button", "Init SDK", PrimaryColor, 150f, ButtonHeight, 22);
+            Button refresh = Bar(header.transform, "Refresh Button", "Refresh", ButtonColor, 140f, ButtonHeight, 22);
+            Button expandAll = Bar(header.transform, "Expand All Button", "Expand all", ButtonColor, 160f, ButtonHeight, 22);
+            Button collapseAll = Bar(header.transform, "Collapse All Button", "Collapse all", ButtonColor, 175f, ButtonHeight, 22);
+            Button close = Bar(header.transform, "Close Button", "Close", DangerColor, 110f, ButtonHeight, 22);
 
             GameObject pageBar = Element(window.transform, "Page Bar");
             Top(pageBar.transform, -162f, 92f);
@@ -127,7 +136,7 @@ namespace HDC.Ads.DebugUI.Editor
             var pageButtons = new Button[Pages.Length];
             for (int i = 0; i < Pages.Length; i++)
             {
-                pageButtons[i] = ButtonWithLabel(pageBar.transform, Pages[i] + " Tab", Pages[i], ButtonColor, 28);
+                pageButtons[i] = ButtonWithLabel(pageBar.transform, Pages[i] + " Tab", Pages[i], ButtonColor, 26);
                 Flexible(pageButtons[i].gameObject, 1f);
             }
 
@@ -142,12 +151,13 @@ namespace HDC.Ads.DebugUI.Editor
             HDCRemoteConfigPage config = RemoteConfigPage(pagesRoot.transform, viewer);
             HDCEventsPage events = EventsPage(pagesRoot.transform, picker, viewer);
             HDCDevicePage device = DevicePage(pagesRoot.transform);
-            config.gameObject.SetActive(false);
-            events.gameObject.SetActive(false);
-            device.gameObject.SetActive(false);
-            window.SetActive(false);
+            config.GetComponent<Canvas>().enabled = false;
+            events.GetComponent<Canvas>().enabled = false;
+            device.GetComponent<Canvas>().enabled = false;
 
             Assign(panel, "window", window);
+            Assign(panel, "windowCanvas", windowCanvas);
+            Assign(panel, "windowRaycaster", windowRaycaster);
             Assign(panel, "safeArea", safeArea.GetComponent<RectTransform>());
             Assign(panel, "scaler", scaler);
             Assign(panel, "closeButton", close);
@@ -156,9 +166,12 @@ namespace HDC.Ads.DebugUI.Editor
             Assign(panel, "statusText", status);
             Assign(panel, "initSdkButton", initSdk);
             Assign(panel, "refreshButton", refresh);
+            Assign(panel, "expandAllButton", expandAll);
+            Assign(panel, "collapseAllButton", collapseAll);
             AssignPages(panel, pageButtons, new HDCDebugPage[] { ads, config, events, device });
 
             string path = PrefabPath;
+            CarryOverSettings(root, path);
             PrefabUtility.SaveAsPrefabAsset(root, path);
             Object.DestroyImmediate(root);
             AssetDatabase.SaveAssets();
@@ -171,18 +184,18 @@ namespace HDC.Ads.DebugUI.Editor
             var workspace = page.AddComponent<HDCAdsDebugWorkspace>();
 
             GameObject tabsRoot = Element(page.transform, "Channel Tabs");
-            Top(tabsRoot.transform, 0f, 212f);
+            Top(tabsRoot.transform, 0f, TabSize.y);
             var grid = tabsRoot.AddComponent<GridLayoutGroup>();
             grid.padding = new RectOffset(24, 24, 0, 0);
-            grid.cellSize = new Vector2(243f, 100f);
-            grid.spacing = new Vector2(12f, 12f);
+            grid.cellSize = TabSize;
+            grid.spacing = new Vector2(TabSpacing, TabSpacing);
             grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-            grid.constraintCount = 4;
+            grid.constraintCount = TabColumns;
             grid.childAlignment = TextAnchor.UpperCenter;
             Button tabTemplate = Tab(tabsRoot.transform, "Tab Template");
             tabTemplate.gameObject.SetActive(false);
 
-            RectTransform content = Body(page.transform, -224f);
+            RectTransform content = Body(page.transform, -(TabSize.y + TabSpacing), out RectTransform body);
 
             GameObject actions = Card(content, "Actions Card");
             Text channelTitle = Label(actions.transform, "Channel Title", "ForceAd · FA", 34, FontStyle.Bold, TextColor, TextAnchor.MiddleLeft);
@@ -210,24 +223,23 @@ namespace HDC.Ads.DebugUI.Editor
             GameObject unitTemplate = UnitTemplate(unitsList.transform);
 
             GameObject eventsCard = Card(content, "Events Card");
-            Button[] eventButtons = HeaderRow(eventsCard.transform, "Recent Events", out _, ("Expand", 190f), ("Full Screen", 230f));
+            Button[] eventButtons = HeaderRow(eventsCard.transform, "Recent Events", out _, ("Full Screen", 230f), ("Expand", FoldButtonWidth));
             GameObject eventsBody = Element(eventsCard.transform, "Events Body");
             Vertical(eventsBody, new RectOffset(0, 0, 0, 0), 10f);
             Text eventsNotice = Label(eventsBody.transform, "Notice", "", 22, FontStyle.Italic, MutedTextColor, TextAnchor.UpperLeft);
-            GameObject eventsList = Element(eventsBody.transform, "Events List");
-            Vertical(eventsList, new RectOffset(0, 0, 0, 0), 12f);
-            Text eventTemplate = Label(eventsList.transform, "Event Template", "", 23, FontStyle.Normal, SoftTextColor, TextAnchor.UpperLeft);
-            eventTemplate.gameObject.SetActive(false);
-            eventsBody.SetActive(false);
+            HDCEventRows eventRows = EventRows(eventsBody.transform, "Events List");
+            Fold(eventsCard, eventButtons[1], eventsBody);
 
             GameObject systemCard = Card(content, "System Card");
-            Button[] systemButtons = HeaderRow(systemCard.transform, "System", out Text systemTitle, ("Expand", 190f));
+            Button[] systemButtons = HeaderRow(systemCard.transform, "System", out Text systemTitle, ("Expand", FoldButtonWidth));
             GameObject systemBody = Element(systemCard.transform, "System Body");
             Vertical(systemBody, new RectOffset(0, 0, 0, 0), 10f);
             HDCKeyValueList systemList = KeyValueList(systemBody.transform, "System List");
-            systemBody.SetActive(false);
+            Fold(systemCard, systemButtons[0], systemBody);
 
             Assign(workspace, "tabTemplate", tabTemplate);
+            Assign(workspace, "tabsArea", tabsRoot.GetComponent<RectTransform>());
+            Assign(workspace, "body", body);
             Assign(workspace, "channelTitleText", channelTitle);
             Assign(workspace, "selectionHintText", hint);
             Assign(workspace, "groupButton", groupButton);
@@ -239,13 +251,11 @@ namespace HDC.Ads.DebugUI.Editor
             Assign(workspace, "unitsNoticeText", unitsNotice);
             Assign(workspace, "unitTemplate", unitTemplate);
             Assign(workspace, "copyReportButton", detailButtons[0]);
-            Assign(workspace, "eventsToggleButton", eventButtons[0]);
-            Assign(workspace, "eventsFullScreenButton", eventButtons[1]);
+            Assign(workspace, "eventsFullScreenButton", eventButtons[0]);
             Assign(workspace, "eventsBody", eventsBody);
             Assign(workspace, "eventsNoticeText", eventsNotice);
-            Assign(workspace, "eventTemplate", eventTemplate.gameObject);
+            Assign(workspace, "eventRows", eventRows);
             Assign(workspace, "systemTitleText", systemTitle);
-            Assign(workspace, "systemToggleButton", systemButtons[0]);
             Assign(workspace, "systemBody", systemBody);
             Assign(workspace, "systemList", systemList);
             Assign(workspace, "optionPicker", picker);
@@ -343,9 +353,8 @@ namespace HDC.Ads.DebugUI.Editor
 
             GameObject viewerCard = Card(content, "Viewer Card");
             Button[] viewerButtons = HeaderRow(viewerCard.transform, "Config Viewer", out _, ("Copy", 160f), ("Full Screen", 230f));
-            GameObject modes = Grid(viewerCard.transform, "Mode Buttons", 4, 228f, ChipHeight);
+            GameObject modes = Grid(viewerCard.transform, "Mode Buttons", 3, 306f, ChipHeight);
             Button remote = ButtonWithLabel(modes.transform, "Remote Button", "Remote", ButtonColor, 24);
-            Button saved = ButtonWithLabel(modes.transform, "Saved Button", "Saved", ButtonColor, 24);
             Button defaults = ButtonWithLabel(modes.transform, "Default Button", "Default", ButtonColor, 24);
             Button applied = ButtonWithLabel(modes.transform, "Applied Button", "Applied", ButtonColor, 24);
             GameObject parts = Grid(viewerCard.transform, "Part Buttons", 3, 306f, ChipHeight);
@@ -363,16 +372,15 @@ namespace HDC.Ads.DebugUI.Editor
             Text body = Label(bodyBox.transform, "Body", "", 22, FontStyle.Normal, TextColor, TextAnchor.UpperLeft);
 
             GameObject mapCard = Card(content, "Map Card");
-            Button[] mapButtons = HeaderRow(mapCard.transform, "Ad Units Map", out _, ("Expand", 190f));
+            Button[] mapButtons = HeaderRow(mapCard.transform, "Ad Units Map", out _, ("Expand", FoldButtonWidth));
             GameObject mapBody = Element(mapCard.transform, "Map Body");
             Vertical(mapBody, new RectOffset(0, 0, 0, 0), 10f);
             HDCKeyValueList mapList = KeyValueList(mapBody.transform, "Map List");
-            mapBody.SetActive(false);
+            Fold(mapCard, mapButtons[0], mapBody);
 
             Assign(config, "statusList", statusList);
             Assign(config, "checkList", checkList);
             Assign(config, "remoteButton", remote);
-            Assign(config, "savedButton", saved);
             Assign(config, "defaultButton", defaults);
             Assign(config, "appliedButton", applied);
             Assign(config, "adsButton", adsButton);
@@ -384,7 +392,6 @@ namespace HDC.Ads.DebugUI.Editor
             Assign(config, "bodyText", body);
             Assign(config, "copyButton", viewerButtons[0]);
             Assign(config, "fullScreenButton", viewerButtons[1]);
-            Assign(config, "mapToggleButton", mapButtons[0]);
             Assign(config, "mapBody", mapBody);
             Assign(config, "mapList", mapList);
             Assign(config, "viewer", viewer);
@@ -418,7 +425,7 @@ namespace HDC.Ads.DebugUI.Editor
             GameObject listCard = Card(content, "List Card");
             HeaderRow(listCard.transform, "Event List", out _);
             Text notice = Label(listCard.transform, "Notice", "", 22, FontStyle.Italic, MutedTextColor, TextAnchor.UpperLeft);
-            Text list = Label(listCard.transform, "List", "", 23, FontStyle.Normal, SoftTextColor, TextAnchor.UpperLeft);
+            HDCEventRows list = EventRows(listCard.transform, "Event Rows");
 
             Assign(events, "summaryList", summaryList);
             Assign(events, "sequentialButton", sequential);
@@ -430,7 +437,7 @@ namespace HDC.Ads.DebugUI.Editor
             Assign(events, "clearButton", clear);
             Assign(events, "fullScreenButton", fullScreen);
             Assign(events, "noticeText", notice);
-            Assign(events, "listText", list);
+            Assign(events, "eventRows", list);
             Assign(events, "optionPicker", picker);
             Assign(events, "viewer", viewer);
             return events;
@@ -442,14 +449,12 @@ namespace HDC.Ads.DebugUI.Editor
             var device = page.AddComponent<HDCDevicePage>();
             RectTransform content = Body(page.transform, 0f);
 
-            GameObject buildCard = Card(content, "Build Card");
-            HeaderRow(buildCard.transform, "Build", out _);
-            HDCKeyValueList buildList = KeyValueList(buildCard.transform, "Build List");
+            Transform build = FoldCard(content, "Build Card", "Build", out _);
+            HDCKeyValueList buildList = KeyValueList(build, "Build List");
 
-            GameObject libraryCard = Card(content, "Library Card");
-            HeaderRow(libraryCard.transform, "HDC Ads", out _);
-            HDCKeyValueList libraryList = KeyValueList(libraryCard.transform, "Library List");
-            GameObject libraryButtons = Grid(libraryCard.transform, "Library Buttons", 2, 462f, ChipHeight);
+            Transform library = FoldCard(content, "Library Card", "HDC Ads", out _);
+            HDCKeyValueList libraryList = KeyValueList(library, "Library List");
+            GameObject libraryButtons = Grid(library, "Library Buttons", 2, 462f, ChipHeight);
             Button debugLog = ButtonWithLabel(libraryButtons.transform, "Debug Log Button", "Debug Log: Off", ButtonColor, 24);
             Button testDevice = ButtonWithLabel(libraryButtons.transform, "Test Device Button", "Make Test Device", ButtonColor, 24);
             Button testAdUnits = ButtonWithLabel(libraryButtons.transform, "Test Ad Units Button", "Test Ad Units: Off", ButtonColor, 24);
@@ -457,24 +462,27 @@ namespace HDC.Ads.DebugUI.Editor
             restart.gameObject.SetActive(false);
             Button clearData = ButtonWithLabel(libraryButtons.transform, "Clear Data Button", "Clear Data & Restart", DangerColor, 24);
 
-            GameObject mediationCard = Card(content, "Mediation Card");
-            HeaderRow(mediationCard.transform, "Mediation", out _);
-            HDCKeyValueList mediationList = KeyValueList(mediationCard.transform, "Mediation List");
-            GameObject mediationButtons = Grid(mediationCard.transform, "Mediation Buttons", 2, 462f, ChipHeight);
+            Transform consent = FoldCard(content, "Consent Card", "Consent & ATT", out _);
+            HDCKeyValueList consentList = KeyValueList(consent, "Consent List");
+            GameObject consentButtons = Grid(consent, "Consent Buttons", 2, 462f, ChipHeight);
+            Button privacyOptions = ButtonWithLabel(consentButtons.transform, "Privacy Options Button", "Privacy Options", PrimaryColor, 24);
+            Button resetConsent = ButtonWithLabel(consentButtons.transform, "Reset Consent Button", "Reset Consent", DangerColor, 24);
+
+            Transform mediation = FoldCard(content, "Mediation Card", "Mediation", out _);
+            HDCKeyValueList mediationList = KeyValueList(mediation, "Mediation List");
+            GameObject mediationButtons = Grid(mediation, "Mediation Buttons", 3, 306f, ChipHeight);
             Button metaOn = ButtonWithLabel(mediationButtons.transform, "Meta Test On Button", "Meta Test Mode On", ButtonColor, 24);
             Button metaOff = ButtonWithLabel(mediationButtons.transform, "Meta Test Off Button", "Meta Test Mode Off", ButtonColor, 24);
+            Button adInspector = ButtonWithLabel(mediationButtons.transform, "Ad Inspector Button", "Open Ad Inspector", PrimaryColor, 24);
 
-            GameObject deviceCard = Card(content, "Device Card");
-            HeaderRow(deviceCard.transform, "Device", out _);
-            HDCKeyValueList deviceList = KeyValueList(deviceCard.transform, "Device List");
+            Transform deviceBody = FoldCard(content, "Device Card", "Device", out _);
+            HDCKeyValueList deviceList = KeyValueList(deviceBody, "Device List");
 
-            GameObject networkCard = Card(content, "Network Card");
-            Button[] networkButtons = HeaderRow(networkCard.transform, "Network", out _, ("Check Public IP", 290f));
-            HDCKeyValueList networkList = KeyValueList(networkCard.transform, "Network List");
+            Transform network = FoldCard(content, "Network Card", "Network", out Button[] networkButtons, ("Check Public IP", 290f));
+            HDCKeyValueList networkList = KeyValueList(network, "Network List");
 
-            GameObject adjustCard = Card(content, "Adjust Card");
-            Button[] adjustButtons = HeaderRow(adjustCard.transform, "Adjust", out _, ("Refresh", 190f));
-            HDCKeyValueList adjustList = KeyValueList(adjustCard.transform, "Adjust List");
+            Transform adjust = FoldCard(content, "Adjust Card", "Adjust", out Button[] adjustButtons, ("Refresh", 190f));
+            HDCKeyValueList adjustList = KeyValueList(adjust, "Adjust List");
 
             Assign(device, "buildList", buildList);
             Assign(device, "libraryList", libraryList);
@@ -483,9 +491,13 @@ namespace HDC.Ads.DebugUI.Editor
             Assign(device, "testAdUnitsButton", testAdUnits);
             Assign(device, "restartButton", restart);
             Assign(device, "clearDataButton", clearData);
+            Assign(device, "consentList", consentList);
+            Assign(device, "privacyOptionsButton", privacyOptions);
+            Assign(device, "resetConsentButton", resetConsent);
             Assign(device, "mediationList", mediationList);
             Assign(device, "metaOnButton", metaOn);
             Assign(device, "metaOffButton", metaOff);
+            Assign(device, "adInspectorButton", adInspector);
             Assign(device, "deviceList", deviceList);
             Assign(device, "networkList", networkList);
             Assign(device, "probeButton", networkButtons[0]);
@@ -494,21 +506,71 @@ namespace HDC.Ads.DebugUI.Editor
             return device;
         }
 
+        private static Transform FoldCard(Transform parent, string name, string title, out Button[] buttons, params (string label, float width)[] extra)
+        {
+            GameObject card = Card(parent, name);
+            var all = new (string label, float width)[extra.Length + 1];
+            extra.CopyTo(all, 0);
+            all[extra.Length] = ("Expand", FoldButtonWidth);
+            buttons = HeaderRow(card.transform, title, out _, all);
+            GameObject body = Element(card.transform, "Body");
+            Vertical(body, new RectOffset(0, 0, 0, 0), 14f);
+            Fold(card, buttons[buttons.Length - 1], body);
+            return body.transform;
+        }
+
+        private static void Fold(GameObject card, Button toggle, GameObject body)
+        {
+            body.SetActive(false);
+            var foldout = card.AddComponent<HDCDebugFoldout>();
+            Assign(foldout, "toggleButton", toggle);
+            Assign(foldout, "body", body);
+        }
+
+        private static HDCEventRows EventRows(Transform parent, string name)
+        {
+            GameObject list = Element(parent, name);
+            var rows = list.AddComponent<HDCEventRows>();
+            GameObject holder = Element(list.transform, "Rows");
+            Stretch(holder.transform, Vector2.zero, Vector2.zero);
+
+            GameObject row = Box(holder.transform, "Event Template", UnitColor, true, false);
+            Top(row.transform, 0f, 0f);
+            Horizontal(row, new RectOffset(18, 18, 14, 14), 16f, TextAnchor.UpperLeft);
+            Text time = Label(row.transform, "Time", "00:00:00", 21, FontStyle.Normal, MutedTextColor, TextAnchor.UpperLeft);
+            Width(time.gameObject, 100f);
+            GameObject badge = Box(row.transform, "Badge", ButtonColor, true, false);
+            Horizontal(badge, new RectOffset(8, 8, 5, 5), 0f, TextAnchor.MiddleCenter);
+            Width(badge, 150f);
+            Label(badge.transform, "Label", "Loaded", 19, FontStyle.Bold, Color.white, TextAnchor.MiddleCenter);
+            GameObject main = Element(row.transform, "Main");
+            Vertical(main, new RectOffset(0, 0, 0, 0), 4f);
+            Flexible(main, 1f);
+            Label(main.transform, "Title", "", 22, FontStyle.Bold, TextColor, TextAnchor.UpperLeft);
+            Label(main.transform, "Detail", "", 20, FontStyle.Normal, SoftTextColor, TextAnchor.UpperLeft);
+            Label(main.transform, "Explain", "", 20, FontStyle.Italic, MutedTextColor, TextAnchor.UpperLeft);
+            row.SetActive(false);
+
+            Assign(rows, "rowTemplate", row);
+            Assign(rows, "rowsRoot", holder.GetComponent<RectTransform>());
+            return rows;
+        }
+
         private static Button Tab(Transform parent, string name)
         {
             GameObject tab = Box(parent, name, ButtonColor, true, true);
             var button = tab.AddComponent<Button>();
             button.targetGraphic = tab.GetComponent<Image>();
-            Text keyText = Label(tab.transform, "Key", "KEY", 32, FontStyle.Bold, TextColor, TextAnchor.MiddleCenter);
-            Stretch(keyText.transform, new Vector2(8f, 34f), new Vector2(-8f, -6f));
-            Text nameText = Label(tab.transform, "Name", "Channel", 20, FontStyle.Normal, SoftTextColor, TextAnchor.MiddleCenter);
-            Stretch(nameText.transform, new Vector2(8f, 6f), new Vector2(-8f, -62f));
+            Text keyText = Label(tab.transform, "Key", "KEY", 24, FontStyle.Bold, TextColor, TextAnchor.MiddleCenter);
+            Stretch(keyText.transform, new Vector2(4f, 22f), new Vector2(-4f, -2f));
+            Text nameText = Label(tab.transform, "Name", "Channel", 14, FontStyle.Normal, SoftTextColor, TextAnchor.MiddleCenter);
+            Stretch(nameText.transform, new Vector2(4f, 3f), new Vector2(-4f, -38f));
             GameObject dotObject = Element(tab.transform, "Dot");
             var dot = dotObject.AddComponent<Image>();
             dot.sprite = circle;
             dot.color = MutedTextColor;
             dot.raycastTarget = false;
-            Place(dotObject.transform, new Vector2(1f, 1f), new Vector2(-14f, -14f), new Vector2(20f, 20f));
+            Place(dotObject.transform, new Vector2(1f, 1f), new Vector2(-8f, -8f), new Vector2(12f, 12f));
             return button;
         }
 
@@ -654,12 +716,17 @@ namespace HDC.Ads.DebugUI.Editor
         {
             GameObject page = Element(parent, name);
             Stretch(page.transform, Vector2.zero, Vector2.zero);
+            page.AddComponent<Canvas>();
+            page.AddComponent<GraphicRaycaster>().enabled = false;
             return page;
         }
 
-        private static RectTransform Body(Transform page, float top)
+        private static RectTransform Body(Transform page, float top) => Body(page, top, out _);
+
+        private static RectTransform Body(Transform page, float top, out RectTransform scroll)
         {
             RectTransform content = ScrollView(page, "Body", out GameObject body);
+            scroll = (RectTransform)body.transform;
             Stretch(body.transform, Vector2.zero, new Vector2(0f, top));
             Vertical(content.gameObject, new RectOffset(24, 24, 8, 40), 20f);
             content.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
@@ -687,7 +754,7 @@ namespace HDC.Ads.DebugUI.Editor
 
         private static Text Label(Transform parent, string name, string value, int size, FontStyle style, Color color, TextAnchor alignment)
         {
-            var text = Element(parent, name).AddComponent<Text>();
+            Text text = Element(parent, name).AddComponent<HDCDebugText>();
             text.font = font;
             text.text = value;
             text.fontSize = size;
@@ -709,15 +776,13 @@ namespace HDC.Ads.DebugUI.Editor
             button.targetGraphic = element.GetComponent<Image>();
             Text text = Label(element.transform, "Label", label, labelSize, FontStyle.Bold, Color.white, TextAnchor.MiddleCenter);
             Stretch(text.transform, new Vector2(10f, 4f), new Vector2(-10f, -4f));
-            text.resizeTextForBestFit = true;
-            text.resizeTextMinSize = MinLabelSize;
-            text.resizeTextMaxSize = labelSize;
+            text.verticalOverflow = VerticalWrapMode.Truncate;
             return button;
         }
 
-        private static Button Bar(Transform parent, string name, string label, Color color, float width, float height = ButtonHeight)
+        private static Button Bar(Transform parent, string name, string label, Color color, float width, float height = ButtonHeight, int labelSize = 26)
         {
-            Button button = ButtonWithLabel(parent, name, label, color, 26);
+            Button button = ButtonWithLabel(parent, name, label, color, labelSize);
             Height(button.gameObject, height);
             if (width > 0f)
             {
@@ -727,6 +792,16 @@ namespace HDC.Ads.DebugUI.Editor
             }
 
             return button;
+        }
+
+        private static void Width(GameObject element, float width)
+        {
+            LayoutElement layout = element.GetComponent<LayoutElement>();
+            if (layout == null)
+                layout = element.AddComponent<LayoutElement>();
+            layout.minWidth = width;
+            layout.preferredWidth = width;
+            layout.flexibleWidth = 0f;
         }
 
         private static void Height(GameObject element, float height)
@@ -843,6 +918,35 @@ namespace HDC.Ads.DebugUI.Editor
             rect.pivot = anchor;
             rect.anchoredPosition = position;
             rect.sizeDelta = size;
+        }
+
+        private static void CarryOverSettings(GameObject root, string path)
+        {
+            var previous = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            if (previous == null)
+                return;
+            Copy(previous.GetComponent<Canvas>(), root.GetComponent<Canvas>(), "m_SortingOrder");
+            Copy(previous.GetComponent<GraphicRaycaster>(), root.GetComponent<GraphicRaycaster>(), "m_IgnoreReversedGraphics", "m_BlockingObjects", "m_BlockingMask");
+            foreach (GraphicRaycaster nested in root.transform.Find("Safe Area/Window").GetComponentsInChildren<GraphicRaycaster>(true))
+                Copy(root.GetComponent<GraphicRaycaster>(), nested, "m_IgnoreReversedGraphics", "m_BlockingObjects", "m_BlockingMask");
+            Copy(previous.GetComponent<HDCAdsDebugPanel>(), root.GetComponent<HDCAdsDebugPanel>(),
+                "startOpen", "activationCorner", "activationSize", "requiredTaps", "tapWindowSeconds", "cooldownSeconds", "f10Toggles", "keepAcrossScenes");
+        }
+
+        private static void Copy(Object from, Object to, params string[] fields)
+        {
+            if (from == null || to == null)
+                return;
+            var source = new SerializedObject(from);
+            var target = new SerializedObject(to);
+            foreach (string field in fields)
+            {
+                SerializedProperty property = source.FindProperty(field);
+                if (property != null)
+                    target.CopyFromSerializedProperty(property);
+            }
+
+            target.ApplyModifiedPropertiesWithoutUndo();
         }
 
         private static void Assign(Object target, string field, Object value)

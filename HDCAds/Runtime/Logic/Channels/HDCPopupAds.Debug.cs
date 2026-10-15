@@ -97,11 +97,7 @@ namespace HDC.Ads.Logic
                 return area;
             }
 
-            private static IEnumerable<string> Layouts(HDCAdCoreConfig.NativeUnit unit) =>
-                new[] { unit?.layout }.Concat((unit?.adSourceLayouts ?? new HDCAdCoreConfig.AdSourceLayout[0])
-                    .Where(sourceLayout => sourceLayout != null && !string.IsNullOrWhiteSpace(sourceLayout.layout)
-                                           && (sourceLayout.adSources ?? new string[0]).Any(source => !string.IsNullOrWhiteSpace(source)))
-                    .Select(sourceLayout => sourceLayout.layout));
+            private static IEnumerable<string> Layouts(HDCAdCoreConfig.NativeUnit unit) => new[] { unit?.layout };
 
             public override List<HDCDebugGroup> UnitGroups(string group, string position, bool askNative) =>
                 Configs.Where(config => config != null && !string.IsNullOrEmpty(config.groupName))
@@ -148,18 +144,7 @@ namespace HDC.Ads.Logic
                         .Line("Positions", Join(group.positionNames))
                         .Line("Native Unit", Dash(group.nativeAdUnit?.id))
                         .Add("Layout", LayoutText(group.nativeAdUnit?.layout), LayoutTone(group.nativeAdUnit?.layout));
-                    if ((group.nativeAdUnit?.adSourceLayouts?.Length ?? 0) > 0)
-                        map.Line("Layouts By Ad Source", SourceLayoutsText(group.nativeAdUnit.adSourceLayouts));
                 }
-            }
-
-            private static string SourceLayoutsText(HDCAdCoreConfig.AdSourceLayout[] sourceLayouts)
-            {
-                string[] parts = (sourceLayouts ?? new HDCAdCoreConfig.AdSourceLayout[0])
-                    .Where(sourceLayout => sourceLayout != null && !string.IsNullOrWhiteSpace(sourceLayout.layout))
-                    .Select(sourceLayout => HDCAdLayouts.Popup(sourceLayout.layout) + " for " + Join(sourceLayout.adSources))
-                    .ToArray();
-                return parts.Length == 0 ? "None" : string.Join("; ", parts);
             }
 
             private static string LayoutText(string configured)
@@ -199,7 +184,6 @@ namespace HDC.Ads.Logic
                     .Needed("Placed (Move)", popup?.Ad.IsPlaced ?? false)
                     .Line("Reload After Show", !config.disablePostInitReload)
                     .Add("Layout", LayoutText(config.nativeAdUnit?.layout), LayoutTone(config.nativeAdUnit?.layout))
-                    .Line("Layouts By Ad Source", SourceLayoutsText(config.nativeAdUnit?.adSourceLayouts))
                     .Line("Native State", nativeState ?? "-");
                 group.Units.Add(new HDCDebugUnit
                 {
@@ -232,13 +216,6 @@ namespace HDC.Ads.Logic
                     yield return HDCConfigFinding.Error($"PU: position '{position}' không thuộc popup group nào.");
                 foreach (HDCAdCoreConfig.PopupGroup group in groups.Where(g => string.IsNullOrEmpty(g.nativeAdUnit?.id)))
                     yield return HDCConfigFinding.Error($"PU: group '{group.groupName}' không có nativeAdUnit.id.");
-                foreach (HDCAdCoreConfig.PopupGroup group in groups)
-                {
-                    foreach (HDCAdCoreConfig.AdSourceLayout sourceLayout in (group.nativeAdUnit?.adSourceLayouts ?? new HDCAdCoreConfig.AdSourceLayout[0])
-                                 .Where(l => l != null && !string.IsNullOrWhiteSpace(l.layout) && !HDCAdLayouts.IsPopup(l.layout)))
-                        yield return HDCConfigFinding.Error($"PU: group '{group.groupName}' có adSourceLayouts dùng layout '{sourceLayout.layout}' không có, nên quảng cáo từ nguồn đó hiện layout mặc định {HDCAdLayouts.PopupDefault}.");
-                }
-
                 foreach (HDCAdCoreConfig.PopupGroup group in groups.Where(g => !string.IsNullOrWhiteSpace(g.nativeAdUnit?.layout) && !HDCAdLayouts.IsPopup(g.nativeAdUnit.layout)))
                     yield return HDCConfigFinding.Error($"PU: group '{group.groupName}' dùng layout '{group.nativeAdUnit.layout}' không có, nên popup hiện layout mặc định {HDCAdLayouts.PopupDefault}. " +
                                                         "Tên hợp lệ: popup_single_manual_01 tới 15, hoặc tên cũ mrec_single_manual_01 tới 15.");

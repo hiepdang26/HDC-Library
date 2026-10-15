@@ -128,6 +128,19 @@ namespace HDC.Onboarding.Tests
             HDCOnboardingBuildCheck.Check(settings, BuildTarget.Android, new[] { HDCOnboardingPaths.SplashScene });
         }
 
+        [Test]
+        public void TheToolScanReusesTheSceneDependenciesButABuildReadsThemAgain()
+        {
+            string[] scenes = { HDCOnboardingPaths.SplashScene, HDCOnboardingPaths.IntroScene };
+            System.Collections.Generic.HashSet<string> first = HDCOnboardingBuildCheck.Dependencies(scenes, true);
+            Assert.AreSame(first, HDCOnboardingBuildCheck.Dependencies(scenes, true), "the Build Tool scan reuses them while nothing changed");
+            System.Collections.Generic.HashSet<string> fresh = HDCOnboardingBuildCheck.Dependencies(scenes, false);
+            Assert.AreNotSame(first, fresh, "a build reads them again");
+            CollectionAssert.AreEquivalent(first, fresh);
+            Assert.AreNotSame(fresh, HDCOnboardingBuildCheck.Dependencies(new[] { HDCOnboardingPaths.SplashScene }, true), "another scene list reads them again");
+            Assert.IsTrue(fresh.Any(path => path.EndsWith("/HDCSplash.cs")), "the splash scene uses HDCSplash");
+        }
+
         private void Declare(string android, string ios)
         {
             var serialized = new SerializedObject(settings);

@@ -6,6 +6,9 @@ namespace HDC.Ads.Logic
 {
     internal sealed partial class HDCMrecAds : IMrecAds, IAdChannel
     {
+        private const float StillPixels = 0.5f;
+        private static readonly Vector3[] Corners = new Vector3[4];
+
         private readonly HDCAdsContext context;
         private HDCRectGroup group;
         private MoveMode moveMode;
@@ -13,6 +16,8 @@ namespace HDC.Ads.Logic
         private Vector2 movePoint;
         private GameObject moveTarget;
         private Camera moveCamera;
+        private bool following;
+        private Pushed pushed;
 
         internal HDCMrecAds(HDCAdsContext context)
         {
@@ -42,10 +47,15 @@ namespace HDC.Ads.Logic
             Group().Initialize();
             ApplyMove();
             Group().Show();
+            Follow(true);
             return Group().IsLoaded;
         }
 
-        public void Hide() => group?.Hide();
+        public void Hide()
+        {
+            Follow(false);
+            group?.Hide();
+        }
 
         public void Move(HDCAdPosition position)
         {
@@ -95,33 +105,91 @@ namespace HDC.Ads.Logic
 
         void IAdChannel.OnAdsRemoved() => Hide();
 
-        private void ApplyMove()
+        internal static Vector2 ScreenCenter(GameObject target, Camera camera)
         {
-            if (group == null)
-                return;
-            for (int i = 0; i < group.StartedCount; i++)
+            Transform transform = target.transform;
+            Camera view = CameraFor(transform, camera);
+            if (transform is RectTransform rect)
             {
-                HDCRectSource source = group.Sources[i];
-                switch (moveMode)
-                {
-                    case MoveMode.Position:
-                        source.Move(movePosition);
-                        break;
-                    case MoveMode.Point:
-                        source.Move(movePoint);
-                        break;
-                    case MoveMode.Target when moveTarget != null:
-                        source.Move(TargetPoint());
-                        break;
-                }
+                rect.GetWorldCorners(Corners);
+                Vector2 min = RectTransformUtility.WorldToScreenPoint(view, Corners[0]);
+                Vector2 max = RectTransformUtility.WorldToScreenPoint(view, Corners[2]);
+                return (min + max) / 2f;
+            }
+
+            return view != null ? (Vector2)view.WorldToScreenPoint(transform.position) : (Vector2)transform.position;
+        }
+
+        internal static Camera CameraFor(Transform target, Camera camera)
+        {
+            if (camera != null)
+                return camera;
+
+            Canvas canvas = target.GetComponentInParent<Canvas>();
+            if (canvas == null)
+                return null;
+
+            Canvas root = canvas.rootCanvas;
+            switch (root.renderMode)
+            {
+                case RenderMode.ScreenSpaceOverlay:
+                    return null;
+                case RenderMode.ScreenSpaceCamera:
+                    return root.worldCamera;
+                default:
+                    return root.worldCamera != null ? root.worldCamera : Camera.main;
             }
         }
 
-        private Vector2 TargetPoint()
+        private void Follow(bool on)
         {
-            Vector3 position = moveTarget.transform.position;
-            return moveCamera != null ? (Vector2)moveCamera.WorldToScreenPoint(position) : RectTransformUtility.WorldToScreenPoint(null, position);
+            if (on == following)
+                return;
+            following = on;
+            if (on)
+                context.MainThread.LateTicked += FollowMove;
+            else
+                context.MainThread.LateTicked -= FollowMove;
         }
+
+        private void ApplyMove() => Push(true);
+
+        private void FollowMove() => Push(false);
+
+        private void Push(bool always)
+        {
+            if (group == null || moveMode == MoveMode.None || (moveMode == MoveMode.Target && moveTarget == null))
+                return;
+
+            var next = new Pushed(moveMode, movePosition, PointToPush(), group.StartedCount, new Vector2Int(Screen.width, Screen.height), Screen.safeArea);
+            if (!always && next.Matches(pushed))
+                return;
+            pushed = next;
+
+            for (int i = 0; i < group.StartedCount; i++)
+            {
+                HDCRectSource source = group.Sources[i];
+                if (moveMode == MoveMode.Position)
+                    source.Move(movePosition);
+                else
+                    source.Move(next.Point);
+            }
+        }
+
+        private Vector2 PointToPush()
+        {
+            switch (moveMode)
+            {
+                case MoveMode.Point:
+                    return movePoint;
+                case MoveMode.Target:
+                    return TargetPoint();
+                default:
+                    return Vector2.zero;
+            }
+        }
+
+        private Vector2 TargetPoint() => ScreenCenter(moveTarget, moveCamera);
 
         private HDCRectGroup Group()
         {
@@ -134,6 +202,30 @@ namespace HDC.Ads.Logic
             group = new HDCRectGroup(sources, false, context.Log);
             group.Loaded += ApplyMove;
             return group;
+        }
+
+        private readonly struct Pushed
+        {
+            internal Pushed(MoveMode mode, HDCAdPosition position, Vector2 point, int sources, Vector2Int screenSize, Rect safeArea)
+            {
+                Mode = mode;
+                Position = position;
+                Point = point;
+                Sources = sources;
+                ScreenSize = screenSize;
+                SafeArea = safeArea;
+            }
+
+            internal MoveMode Mode { get; }
+            internal HDCAdPosition Position { get; }
+            internal Vector2 Point { get; }
+            internal int Sources { get; }
+            internal Vector2Int ScreenSize { get; }
+            internal Rect SafeArea { get; }
+
+            internal bool Matches(Pushed other) =>
+                Mode == other.Mode && Sources == other.Sources && ScreenSize == other.ScreenSize && SafeArea == other.SafeArea &&
+                (Mode == MoveMode.Position ? Position == other.Position : (Point - other.Point).sqrMagnitude < StillPixels * StillPixels);
         }
     }
 }

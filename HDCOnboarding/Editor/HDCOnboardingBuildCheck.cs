@@ -20,6 +20,11 @@ namespace HDC.Onboarding.Editor
             "A build scene has HDCNativeBannerLoader, but HDCAdsSettings has no first_native_banner_config custom key, so no native banner " +
             "shows. Add the key with HDC > Onboarding > Add config keys.";
 
+        private static readonly Dictionary<Type, string> ScriptPaths = new Dictionary<Type, string>();
+        private static HashSet<string> dependencies = new HashSet<string>(StringComparer.Ordinal);
+        private static string dependenciesKey;
+        private static bool listening;
+
         public int callbackOrder => 0;
 
         public void OnPreprocessBuild(BuildReport report)
@@ -41,11 +46,13 @@ namespace HDC.Onboarding.Editor
                 Debug.LogWarning("[Splash] " + finding.Message);
         }
 
-        internal static List<(bool Error, string Message)> Findings(HDCAdsSettings settings, BuildTarget platform, IReadOnlyCollection<string> scenes)
+        internal static List<(bool Error, string Message)> Findings(HDCAdsSettings settings, BuildTarget platform, IReadOnlyCollection<string> scenes,
+            bool cached = false)
         {
             var findings = new List<(bool Error, string Message)>();
-            bool splash = UsesScript(scenes, typeof(HDCSplash));
-            bool intro = UsesScript(scenes, typeof(HDCIntro));
+            HashSet<string> used = Dependencies(scenes, cached);
+            bool splash = UsesScript(used, typeof(HDCSplash), cached);
+            bool intro = UsesScript(used, typeof(HDCIntro), cached);
             if (splash || intro)
             {
                 string value = HDCOnboardingConfigKeys.DeclaredValue(settings, platform);
@@ -55,7 +62,7 @@ namespace HDC.Onboarding.Editor
                     findings.AddRange(Problems(value, splash, intro, scenes).Select(problem => (false, problem)));
             }
 
-            if (UsesScript(scenes, typeof(HDCNativeBannerLoader)))
+            if (UsesScript(used, typeof(HDCNativeBannerLoader), cached))
             {
                 string banner = HDCOnboardingConfigKeys.DeclaredValue(settings, platform, HDCOnboardingKeys.FirstNativeBannerConfig);
                 findings.AddRange(BannerProblems(banner, scenes).Select(problem => (false, problem)));
@@ -134,15 +141,47 @@ namespace HDC.Onboarding.Editor
             return names;
         }
 
-        private static bool UsesScript(IReadOnlyCollection<string> scenes, Type type)
+        internal static HashSet<string> Dependencies(IReadOnlyCollection<string> scenes, bool cached)
         {
-            string script = ScriptPath(type);
-            return !string.IsNullOrEmpty(script) && scenes.Any(scene => AssetDatabase.GetDependencies(scene, true).Contains(script));
+            Listen();
+            string key = string.Join("|", scenes.Select(scene => scene + "@" + (File.Exists(scene) ? File.GetLastWriteTimeUtc(scene).Ticks : 0L)));
+            if (cached && key == dependenciesKey)
+                return dependencies;
+            string[] existing = scenes.Where(File.Exists).ToArray();
+            dependencies = new HashSet<string>(existing.Length == 0 ? new string[0] : AssetDatabase.GetDependencies(existing, true), StringComparer.Ordinal);
+            dependenciesKey = key;
+            return dependencies;
         }
 
-        private static string ScriptPath(Type type) =>
-            AssetDatabase.FindAssets("t:MonoScript " + type.Name)
+        private static void Listen()
+        {
+            if (listening)
+                return;
+            listening = true;
+            EditorApplication.projectChanged += () =>
+            {
+                dependenciesKey = null;
+                ScriptPaths.Clear();
+            };
+        }
+
+        private static bool UsesScript(HashSet<string> used, Type type, bool cached)
+        {
+            string script = ScriptPath(type, cached);
+            return !string.IsNullOrEmpty(script) && used.Contains(script);
+        }
+
+        private static string ScriptPath(Type type, bool cached)
+        {
+            Listen();
+            if (cached && ScriptPaths.TryGetValue(type, out string known))
+                return known;
+            string found = AssetDatabase.FindAssets("t:MonoScript " + type.Name)
                 .Select(AssetDatabase.GUIDToAssetPath)
                 .FirstOrDefault(path => AssetDatabase.LoadAssetAtPath<MonoScript>(path)?.GetClass() == type);
+            if (!string.IsNullOrEmpty(found))
+                ScriptPaths[type] = found;
+            return found;
+        }
     }
 }

@@ -27,29 +27,24 @@ namespace HDC.Ads.Logic
                 choice.Ads = Choose(AdsConfigKey, inputs.DefaultAds, inputs);
                 choice.CoreKey = SelectedCore(choice.Ads) ?? "";
                 choice.Core = choice.CoreKey.Length == 0 ? "" : Choose(choice.CoreKey, DefaultCore(inputs, choice.CoreKey), inputs);
-                if (inputs.Mode == HDCConfigMode.RemoteConfig)
-                {
-                    choice.Saves.Add(new KeyValuePair<string, string>(AdsConfigKey, choice.Ads));
-                    if (choice.CoreKey.Length > 0)
-                        choice.Saves.Add(new KeyValuePair<string, string>(choice.CoreKey, choice.Core));
-                }
             }
             else
             {
-                choice.Ads = inputs.DefaultAds ?? "";
-                choice.Core = inputs.DefaultCore ?? "";
+                choice.Ads = Record(AdsConfigKey, inputs.DefaultAds);
+                choice.CoreKey = SelectedCore(choice.Ads) ?? "";
+                choice.Core = choice.CoreKey.Length == 0 ? inputs.DefaultCore ?? "" : Record(choice.CoreKey, inputs.DefaultCore);
             }
 
             choice.Country = country.Check(inputs.CountryRules, RemoteDebugDevices(inputs));
             HDCConfigReport.CountryChecked(choice.Country);
             if (choice.Country.IsOn)
             {
-                choice.Ads = UseCountry(AdsConfigKey, inputs.CountryAds, choice.Ads, keyed);
-                string countryCoreKey = keyed ? SelectedCore(choice.Ads) : null;
+                choice.Ads = UseCountry(AdsConfigKey, inputs.CountryAds, choice.Ads, true);
+                string countryCoreKey = SelectedCore(choice.Ads);
                 if (!string.IsNullOrEmpty(countryCoreKey))
                     choice.CoreKey = countryCoreKey;
                 if (!keyed || choice.CoreKey.Length > 0)
-                    choice.Core = UseCountry(choice.CoreKey, inputs.CountryCore, choice.Core, keyed);
+                    choice.Core = UseCountry(choice.CoreKey, inputs.CountryCore, choice.Core, choice.CoreKey.Length > 0);
                 foreach (KeyValuePair<string, string> pair in inputs.CustomCountry)
                 {
                     if (inputs.CustomDefaults.ContainsKey(pair.Key))
@@ -60,7 +55,6 @@ namespace HDC.Ads.Logic
             {
                 foreach (KeyValuePair<string, string> custom in inputs.CustomDefaults)
                     choice.Custom[custom.Key] = ChooseCustom(custom.Key, custom.Value, inputs);
-                choice.SaveCustom = inputs.Mode == HDCConfigMode.RemoteConfig;
             }
 
             return choice;
@@ -78,48 +72,57 @@ namespace HDC.Ads.Logic
         {
             HDCConfigEntry entry = HDCConfigReport.Entry(key);
             entry.Default = fallback ?? "";
-            entry.Saved = inputs.Saved(key) ?? "";
-            bool defaultsOnly = inputs.Mode == HDCConfigMode.EditorDefaults;
-            if (defaultsOnly)
-            {
-                entry.RemoteOrigin = "Not fetched in the Editor";
-            }
-            else if (inputs.Remote == null)
-            {
-                entry.RemoteOrigin = "Firebase not ready";
-            }
-            else
+            if (UsesRemote(inputs))
             {
                 entry.Remote = inputs.Remote.Read(key, out string origin) ?? "";
                 entry.RemoteOrigin = origin ?? "";
             }
+            else
+            {
+                entry.RemoteOrigin = NotFetched(inputs);
+            }
 
-            if (!defaultsOnly && entry.Remote.Length > 0)
+            if (entry.Remote.Length > 0)
                 Use(entry, entry.Remote, HDCConfigSource.Remote);
-            else if (!defaultsOnly && entry.Saved.Length > 0)
-                Use(entry, entry.Saved, HDCConfigSource.Saved);
             else
                 Use(entry, entry.Default, HDCConfigSource.Default);
             return entry.Used;
         }
 
+        private static string Record(string key, string value)
+        {
+            HDCConfigEntry entry = HDCConfigReport.Entry(key);
+            entry.Default = value ?? "";
+            entry.RemoteOrigin = "Not in this build: no Firebase";
+            Use(entry, entry.Default, HDCConfigSource.Default);
+            return entry.Used;
+        }
+
         private static (string Value, HDCConfigSource Source) ChooseCustom(string key, string fallback, HDCConfigInputs inputs)
         {
-            if (inputs.Mode == HDCConfigMode.RemoteConfig && inputs.Remote != null)
+            if (UsesRemote(inputs))
             {
                 string remote = inputs.Remote.Read(key, out _);
                 if (!string.IsNullOrEmpty(remote))
                     return (remote, HDCConfigSource.Remote);
             }
 
-            if (inputs.Mode != HDCConfigMode.EditorDefaults)
-            {
-                string saved = inputs.SavedCustom(key) ?? "";
-                if (saved.Length > 0)
-                    return (saved, HDCConfigSource.Saved);
-            }
-
             return (fallback ?? "", HDCConfigSource.Default);
+        }
+
+        private static bool UsesRemote(HDCConfigInputs inputs) => inputs.Mode == HDCConfigMode.RemoteConfig && inputs.Remote != null;
+
+        private static string NotFetched(HDCConfigInputs inputs)
+        {
+            switch (inputs.Mode)
+            {
+                case HDCConfigMode.EditorDefaults:
+                    return "Not fetched in the Editor";
+                case HDCConfigMode.Defaults:
+                    return "Not fetched: HDC Ads Settings uses Default";
+                default:
+                    return "Not used: " + (string.IsNullOrEmpty(inputs.RemoteProblem) ? "Firebase not ready" : inputs.RemoteProblem);
+            }
         }
 
         private static string UseCountry(string key, string countryValue, string current, bool record)
@@ -132,7 +135,7 @@ namespace HDC.Ads.Logic
         }
 
         private static IEnumerable<string> RemoteDebugDevices(HDCConfigInputs inputs) =>
-            inputs.Mode == HDCConfigMode.RemoteConfig && inputs.Remote != null
+            UsesRemote(inputs)
                 ? HDCDebugDevices.Parse(inputs.Remote.Read(HDCCountryMode.DevicesKey, out _))
                 : new List<string>();
 

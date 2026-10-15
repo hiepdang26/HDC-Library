@@ -37,17 +37,24 @@ namespace HDC.Ads.Infrastructure
 
         internal static void ResetStatics() => initializeCalled = false;
 
+        internal static void OpenAdInspector(Action<string> onClosed) =>
+            MobileAds.OpenAdInspector(error =>
+            {
+                string problem = error == null ? null : $"{error.GetCode()} · {error.GetMessage()}";
+                HDCMainThread.Post(() => onClosed?.Invoke(problem));
+            });
+
         internal static void EnableTestDevice()
         {
             RequestConfiguration configuration = MobileAds.GetRequestConfiguration() ?? new RequestConfiguration();
             var ids = new HashSet<string>(configuration.TestDeviceIds ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
-            foreach (string id in DeviceIds())
+            foreach (string id in TestDeviceIds())
                 ids.Add(id);
             configuration.TestDeviceIds = new List<string>(ids);
             MobileAds.SetRequestConfiguration(configuration);
         }
 
-        private static IEnumerable<string> DeviceIds()
+        internal static IEnumerable<string> TestDeviceIds()
         {
 #if UNITY_ANDROID && !UNITY_EDITOR
             string androidId = null;
@@ -72,6 +79,14 @@ namespace HDC.Ads.Infrastructure
                 yield return Md5(androidId);
             }
 #endif
+#if UNITY_IOS && !UNITY_EDITOR
+            string advertisingId = UnityEngine.iOS.Device.advertisingIdentifier;
+            if (IsRealAdvertisingId(advertisingId))
+            {
+                yield return Md5(advertisingId);
+                yield return Md5(advertisingId).ToUpperInvariant();
+            }
+#endif
             string deviceId = SystemInfo.deviceUniqueIdentifier;
             if (!string.IsNullOrEmpty(deviceId) && deviceId != SystemInfo.unsupportedIdentifier)
             {
@@ -81,6 +96,9 @@ namespace HDC.Ads.Infrastructure
 
             yield return AdRequest.TestDeviceSimulator;
         }
+
+        internal static bool IsRealAdvertisingId(string advertisingId) =>
+            !string.IsNullOrWhiteSpace(advertisingId) && advertisingId.Trim().Trim('0', '-').Length > 0;
 
         private static string Md5(string value)
         {
@@ -94,43 +112,22 @@ namespace HDC.Ads.Infrastructure
             }
         }
 
-        internal static HDCAdEvent Event(string id, string format, string type, string adUnitId, ResponseInfo response)
+        internal static HDCAdEvent Event(string id, string format, string type, string adUnitId, HDCGmaResponse response)
         {
             var adEvent = new HDCAdEvent { id = id, format = format, type = type, adUnitId = adUnitId };
             if (response == null)
                 return adEvent;
 
-            try
-            {
-                adEvent.responseId = response.GetResponseId();
-                adEvent.adapter = response.GetMediationAdapterClassName();
-                adEvent.adSource = response.GetLoadedAdapterResponseInfo()?.AdSourceName;
-            }
-            catch (Exception exception)
-            {
-                Debug.LogWarning("[HDCAds] cannot read the ad response: " + exception.Message);
-            }
-
+            adEvent.responseId = response.ResponseId;
+            adEvent.adapter = response.Adapter;
+            adEvent.adSource = response.AdSource;
             return adEvent;
         }
 
-        internal static HDCAdEvent WithError(this HDCAdEvent adEvent, AdError error, string fallbackMessage)
+        internal static HDCAdEvent WithError(this HDCAdEvent adEvent, HDCGmaFailure failure)
         {
-            adEvent.code = -1;
-            adEvent.message = fallbackMessage;
-            if (error == null)
-                return adEvent;
-
-            try
-            {
-                adEvent.code = error.GetCode();
-                adEvent.message = error.GetMessage();
-            }
-            catch (Exception)
-            {
-                adEvent.message = error.ToString();
-            }
-
+            adEvent.code = failure?.Code ?? -1;
+            adEvent.message = failure?.Message;
             return adEvent;
         }
 

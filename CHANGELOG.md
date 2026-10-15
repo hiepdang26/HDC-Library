@@ -36,8 +36,42 @@ Những thứ sau đã đổi so với 0.5.0:
   - `fullTop`, `topLeft`, `topRight`, `bottomLeft`, `bottomRight` bị bỏ khỏi `bannerChannel` (ads_config) và `bannerUnit` (ad core).
   - `HDCBannerSlot` không còn. Các hàm của `HDCAds.Banner` không còn tham số slot: `Show()`, `Hide()`, `CanShow()`, `Expand(enableClick)`, `Initialize()`. Lời gọi không truyền slot không phải sửa.
 
+- Remote Config không còn nguồn `Saved`. HDC không lưu ads_config, ad core config và custom key lên máy để dùng cho lần mở sau nữa.
+  - Mỗi lần mở game, config lấy từ lần fetch Remote Config của chính lần đó; key nào thiếu thì lấy config mặc định của project.
+  - `HDCRemoteConfig.Fetch` và `FetchAndInitialize` đổi timeout mặc định từ 10 lên 30 giây (`HDCRemoteConfig.TimeoutSeconds`).
+  - PlayerPrefs mà bản trước đã lưu (`ads_config`, key ad core, `HDCAds.Custom.<key>`) không còn được đọc, và không bị xoá.
+
 ### Thêm
 
+- Tracking câu trả lời trên form consent: `4_cs_accept`, `4_cs_partial`, `4_cs_denied`, đọc từ purpose TCF ngay khi form đóng. `4_cs_ok` không đếm được người từ chối, vì bấm Do not consent vẫn cho quảng cáo giới hạn.
+- Cờ bằng false thì coi như đồng ý hết.
+  - `toggleConsent` = false: `HDCAds.Consent.Status` là `Obtained`, và gửi `4_cs_accept` sau `4_cs_skip`.
+  - `toggleAtt` = false: `HDCAds.Consent.TrackingStatus` là `Authorized` trên iOS, và gửi `4_att_auth` sau `4_att_skip`.
+- Tracking consent và ATT: các bước `4_cs_*` và `4_att_*` trong funnel splash, gửi `f_`/`n_` và `a_` như các bước khác, ngay sau `4_admob_start`. Gồm cờ tắt, form hiện và đóng, có cho quảng cáo không, câu hỏi ATT và câu trả lời. Bảng đầy đủ ở README, mục Consent và ATT.
+- `ads_config` có `toggleConsent` và `toggleAtt` (mặc định `true`), như hệ thống cũ.
+  - `false` thì không hỏi consent (form UMP) hoặc ATT, và coi như đã đồng ý.
+  - Thiếu khoá thì vẫn hỏi như trước.
+  - Cờ lấy từ `ads_config` của phiên này, hoặc cờ lưu từ lần mở trước. Lần mở đầu tiên chờ `ads_config` rồi mới hỏi.
+  - Bảng debug và Config Check hiện hai cờ.
+- HDC Ads Settings có hàng `Config Source` cho từng nền tảng: `Remote Config` (mặc định), hoặc `Default` (không fetch, luôn dùng config mặc định). API mới `HDCAdsSettings.ConfigSource` và enum `HDCAdsConfigSource`.
+- Bảng debug, trang Remote Config, có thêm:
+  - dòng `Config Source`;
+  - dòng `Steps`: thời gian của từng bước (Firebase, Fetch, Activation, kết quả);
+  - dòng `Extra Load Calls`;
+  - `Load Time` ghi thêm thời gian game chạy, khi app từng ở nền trong lúc tải.
+  - Trong lúc tải, đầu bảng ghi `Đang tải Remote Config` và ẩn `Init SDK`.
+- Consent (Google UMP) và ATT của iOS, theo luồng của hệ thống cũ: hỏi consent, rồi ATT nếu consent cho quảng cáo cá nhân hoá, rồi mới khởi tạo SDK quảng cáo.
+  - `HDCAdsSetup` bắt đầu hỏi ngay khi scene đầu chạy, song song với Remote Config.
+  - Splash dừng ở bước `4_admob` tới khi người dùng trả lời. Consent không cho request quảng cáo thì splash bỏ quảng cáo (`5_load_ad_skip_consent`).
+  - API mới `HDCAds.Consent`: `IsDone`, `CanRequestAds`, `Status`, `TrackingStatus`, `PrivacyOptionsRequired`, `ShowPrivacyOptions`, sự kiện `Done`.
+  - Google test ads làm máy được hỏi như ở châu Âu.
+  - iOS: post-process link `AppTrackingTransparency.framework`, và ghi `NSUserTrackingUsageDescription` mặc định khi chưa có.
+  - Bảng debug: thẻ Consent & ATT ở trang Device, có nút `Privacy Options` và `Reset Consent`.
+  - Khác hệ thống cũ:
+    - consent từ chối thì mọi kênh tắt trong phiên đó, không chỉ splash;
+    - ATT đợi app active rồi mới hỏi;
+    - dịch vụ consent không trả lời thì sau 10 giây dùng consent đã lưu;
+    - game gọi được form đổi lựa chọn.
 - `HDCAds.Revenue` báo doanh thu của từng impression. Mỗi sự kiện có:
   - kênh, position, group (force ad và popup) và định dạng;
   - mạng, nguồn quảng cáo và ad unit;
@@ -52,13 +86,14 @@ Những thứ sau đã đổi so với 0.5.0:
   - Ô văn bản kéo đổi chiều rộng được. Bấm đúp vào asset cũng mở cửa sổ này.
   - Thanh trên cùng có nút màu: `Save all`, `Expand all`, `Collapse all`, `Full width`, `Select asset`.
   - Mọi chỉnh sửa là bản nháp cho tới khi lưu. Đóng cửa sổ khi còn thay đổi thì Unity hỏi có lưu không.
-  - Shift+; mở và đóng cửa sổ, cửa sổ mở ở giữa cửa sổ Unity. Shift+B cũng mở và đóng Build Tool.
+  - Shift+; mở cửa sổ ở giữa cửa sổ Unity; bấm lại khi cửa sổ đang mở thì chỉ đưa nó lên trước và focus, không đóng. Shift+B làm như vậy với Build Tool.
   - Cửa sổ chỉ hiện config của một nền tảng: tab đang mở của Build Tool, hoặc nền tảng đang active trong Build Settings.
 - Bảng debug `HDCAdsDebugPanel`, gồm bốn trang:
   - Ads: trạng thái từng ad unit, cùng mã lỗi của SDK kèm giải thích.
   - Remote Config: kiểm tra config và cho biết config đang áp dụng lấy từ nguồn nào.
   - Events: các sự kiện quảng cáo.
   - Device: có thẻ Mediation, cho biết trạng thái từng adapter và Meta test mode.
+- Bảng debug: nút `Open Ad Inspector` ở thẻ Mediation (trang Device) mở Ad Inspector của Google Mobile Ads. Thẻ còn ghi chú vì sao bật Meta test mode mà quảng cáo vẫn là AdMob (mediation group quyết định nguồn thắng; `Test Ad Units` bật thì không qua mediation), và cách chỉ nhận quảng cáo Meta bằng Ad source testing.
 - Bảng debug: tab PU và MREC có khung kéo được. Giữ khung khoảng nửa giây rồi kéo để đặt popup hay MREC ở bất kỳ chỗ nào trên màn hình; thả ra thì nó nằm yên ở đó. Popup đổi cỡ bằng bốn núm ở góc, không nhỏ hơn cỡ tối thiểu của layout. Khung popup nhớ vị trí và cỡ cho lần mở sau.
 - Ad unit test của Google cho mọi định dạng (`UseTestAdUnits`).
 - Chế độ quốc gia như hệ thống cũ: máy ở nước đích (mặc định `vn`) dùng config quốc gia của project thay cho Remote Config.
@@ -77,7 +112,7 @@ Những thứ sau đã đổi so với 0.5.0:
   - Thẻ banner trên bảng debug có thêm dòng `Refresh Fails On Screen` và `Swaps`.
 - Layout theo nguồn quảng cáo (thư viện `hdc-ads-android` 0.3.4 và framework iOS build lại):
   - Fullscreen: `adSourceGroups` trong layout group. HDCLib chọn layout theo `adSourceId` của quảng cáo đã load, giống hệ thống cũ.
-  - Popup: `nativeAdUnit.adSourceLayouts`. Thư viện native chọn layout cho từng quảng cáo theo nguồn, trên cả Android và iOS.
+  - Popup không chọn layout theo nguồn: thư viện native theo cấu trúc mới (`update/refactor`) bỏ `adSourceLayouts`, nên popup luôn dùng `nativeAdUnit.layout` và trường này trong config bị bỏ qua.
   - Sự kiện Loaded của native fullscreen có `adSourceId` và tên nguồn; sự kiện Shown của popup có layout và nguồn của quảng cáo đang hiện. Bảng debug hiện layout thật đã hiện, Config Check kiểm tên layout của các nguồn.
 - Custom key Remote Config của game, như custom remote config của hệ thống cũ:
   - Khai báo ở `HDC > Edit configs > Custom keys`, mỗi key có giá trị mặc định cho Android và iOS. Cửa sổ cảnh báo key trống, trùng, trùng key của HDC hoặc sai quy tắc tên.
@@ -135,6 +170,7 @@ Những thứ sau đã đổi so với 0.5.0:
   - Sửa thẳng Player Settings (version, version code và số build đều có nút `+1`, package hoặc bundle ID, keystore, team của máy chọn từ dropdown như Xcode) và version các SDK. Ô App name đặt tên dưới icon (iOS `CFBundleDisplayName`, Android `app_name`); để trống thì dùng Product name.
   - Build scenes kéo thả được: kéo tay cầm để đổi thứ tự, thả scene từ cửa sổ Project vào để thêm.
   - Giao diện gồm các thẻ có màu riêng, thông tin ở trên cùng: Overview (gồm cả preset và rule của nó), App, iOS hoặc Android, SDK versions, rồi Validation scan, Change log, Build scenes. Mỗi thẻ thu gọn được và máy nhớ trạng thái của nó. Lần đầu mở, cửa sổ chiếm nửa phải và trọn chiều cao của cửa sổ Unity.
+  - Nút `Expand all` và `Collapse all` trên thanh công cụ mở hoặc gập mọi thẻ cùng lúc, nút mờ khi không còn gì để làm. Trạng thái thẻ được giữ trong bộ nhớ thay vì đọc EditorPrefs mỗi lần vẽ; thẻ SDK versions và Validation scan chỉ dựng lại các dòng khi dữ liệu đổi. Đo trên một clone, cửa sổ 900 × 1000: một lần vẽ cả cửa sổ mất khoảng 1,1–1,3 ms khi gập hết, 2,3 ms khi mở hết với 3 scene và 2,9 ms với 63 scene, ngang bản trước khi có nút.
   - Android: chọn máy qua adb, build APK hoặc AAB, build rồi cài và mở trên máy, cài, gỡ, mở, dừng app, xoá dữ liệu, xem màn hình qua scrcpy.
   - iOS: chạy trên iPhone đang cắm, My Mac hoặc simulator. Export Xcode (append vào lần export trước khi được), export rồi mở Xcode với máy đã chọn, build và chạy. Build và chạy đi qua Xcode bằng AppleScript, nên chạy được cả iPhone iOS 16 mà `devicectl` không nhận. Swift package (Firebase) của một thư mục export mới được tải trước bằng `xcodebuild`, nên lần chạy đầu không báo `Missing package product`. Dropdown Team lấy danh sách từ các tài khoản trong Xcode.
   - Tên bản build `{mã sản phẩm}_{preset}_{version}_{số build}_{APK|AAB|Xcode}`, kèm báo cáo `_buildreport.txt` cạnh bản build. Build được từ dòng lệnh với `HDC.Tool.Editor.HDCBuildRunner.BuildFromCommandLine -hdcPreset Release`.
@@ -146,8 +182,26 @@ Những thứ sau đã đổi so với 0.5.0:
 
 ### Thay đổi
 
+- Popup: `HDCAds.Popup.Reinitialize` không còn huỷ quảng cáo đã load mà chưa hiện, hay lần load đang chạy, mà giữ chúng. Chỉ quảng cáo đã hiện và lần load lỗi mới được load lại.
+- Native banner (`first_native_banner_config`): banner mới hiện trước, banner trước chỉ bị ẩn khi banner mới đã lên. Load lỗi hoặc hết `timeOut` thì banner trước vẫn ở lại, vùng banner không còn trống giữa hai lượt.
+- Popup của Intro không còn chờ quảng cáo full-screen khác đóng rồi mới gọi show: mỗi quảng cáo là một instance riêng, nên các lệnh show chồng lên nhau được. Thư viện native vẫn đưa popup lên khi màn game trống.
+- Splash, iOS: native sau interstitial (`nativeAfterInterId`) hiện ngay bên dưới interstitial như hệ thống cũ và như Android, thay vì chờ interstitial đóng.
+  - Native load xong trước hoặc trong lúc interstitial hiện đều được show ngay.
+  - Thư viện native đặt nó vào cửa sổ dưới interstitial, đồng hồ chạy ở đó, và đưa nó lên khi interstitial đóng.
+  - Quảng cáo mở app kiểu native hay App Open vẫn chờ đóng rồi mới tới native.
+- MREC: `Move(GameObject)` lấy tâm khung của RectTransform thay vì pivot, và tự lấy camera theo Canvas của object. MREC đang hiện đi theo object mỗi khi nó di chuyển (animation, xoay màn, đổi safe area), thay vì chỉ cập nhật lúc load, refresh hay `Show`; vị trí chỉ được gửi sang native khi thật sự đổi. Khung có pivot khác (0,5; 0,5) giờ đặt MREC ở tâm khung.
+- `HDCAds.Initialize` chờ consent và ATT xong rồi mới áp dụng config quảng cáo và khởi tạo SDK. Consent không cho request quảng cáo thì không khởi tạo SDK, `HDCAds.IsInitialized` giữ `false` và callback của `Initialize` không chạy.
+- `HDCAdsSetup`: `maxWaitSeconds` tính từ lúc consent và ATT xong.
 - Splash: hai vùng quảng cáo native splash thành prefab riêng (`HDCNativeSplashArea`, `HDCNativeSplashAdMobArea`) nằm ngoài canvas; canvas của scene Splash chỉ còn `Backdrop` và `Header`. Vùng native splash tự chọn theo màn (component `HDCSplashAdArea`): màn dọc cao 7,5%, màn ngang cao 17,5%, full chiều ngang. Scene cũ chuyển bằng `HDC > Onboarding > Move splash ad areas into prefabs`.
-- iOS: popup hiện đè lên quảng cáo fullscreen (interstitial, native fullscreen) thay vì bị bỏ qua, rồi dời xuống màn bên dưới khi quảng cáo đó đóng. Popup chỉ còn bị bỏ qua khi trang App Store, trang web mở từ quảng cáo, hoặc hộp thoại đang ở trên. Đây là thay đổi của thư viện native, lấy từ nhánh main của AdsMultiplatform.
+- Native banner: `Banner Area` của prefab `HDCNativeBanner` cũng tự chọn theo màn như vùng native splash: màn dọc cao 7,5%, màn ngang cao 17,5%, full chiều ngang (trước đây cố định 15%). Chiều ngang luôn full ở mọi màn dọc và ngang: component luôn giữ anchor ngang từ 0 tới 1, chỉ chiều cao lấy từ các anchor. `HDCSplashAdAreaKind` có thêm `NativeBanner`; splash không bao giờ lấy vùng này làm vùng native splash.
+- Thư viện native theo cấu trúc mới của AdsMultiplatform (chia tầng, MVVM, Koin; nhánh `update/refactor`), gồm mọi sửa của nhánh `main` tới `3084fc7` (`hdc-ads-android` 0.4.0 và framework iOS build lại):
+  - Android: `hdc-ads-android` kéo thêm `koin-core-jvm` 4.0.0 (Kotlin 2.0, bytecode Java 8). Lớp JNI của bridge đổi package (`com.hdc.adsmultiplatform.unity.bridge.HdcUnityBridge`, `…unity.callback.HdcUnityListener`); `HDCAndroidBridge` đã đổi theo.
+  - Popup: `Close` và `Hide` giữ quảng cáo; `Show` sau đó hiện lại đúng quảng cáo đó cho tới khi có quảng cáo mới. Quảng cáo mới chỉ được load theo `reloadTime` khi popup đang hiện. HDCLib không còn tự load popup mới khi `Show` sau khi đóng.
+  - Popup iOS: lệnh show chờ dưới quảng cáo fullscreen (interstitial, native full-screen), trang mở từ quảng cáo hay hộp thoại, rồi hiện khi chúng đóng, thay vì hiện đè lên.
+  - Popup Android: lệnh show chờ khi game mất focus (interstitial, trang store, hộp thoại) hoặc đang có native full-screen trên game, rồi hiện khi được, thay vì bỏ qua. Nhiều popup hiện cùng lúc được. Popup Android có đếm ngược và nút đóng của layout.
+  - Native full-screen iOS: hiện lúc interstitial đang mở thì nằm dưới interstitial và đếm giờ ở đó, rồi lộ ra khi interstitial đóng, như Android. Một instance chỉ có một màn: show lần hai khi màn đầu còn đang hiện bị từ chối.
+  - Interstitial: có sự kiện Impression trên cả Android và iOS; lỗi lúc show báo là `ShowFailed` thay vì `LoadFailed`.
+  - Sự kiện Paid của mọi định dạng mang precision của SDK.
 
 - Toàn bộ thư viện quảng cáo dời vào thư mục `HDCAds/` (Runtime, Plugins, Editor, Setup, Adjust, Debug, Tests), để chừa chỗ cho module mới cạnh nó.
   - GUID, tên assembly và namespace giữ nguyên, nên code game, scene và prefab không phải sửa.
@@ -160,6 +214,19 @@ Những thứ sau đã đổi so với 0.5.0:
 - Khi SDK sẵn sàng, các kênh khởi động theo thứ tự AL, AR, RW, FA, BN, MREC, PU. Trước đây FA khởi động trước RW.
 - Bảng debug bỏ tab CL (collapsible banner), vì HDCLib chưa có kênh này.
 - Bảng debug không còn hỏi phía native mỗi giây.
+- Bảng debug: `Meta Test Mode On` cũng đăng ký máy làm test device của Google, và `Open Ad Inspector` tự đăng ký máy khi chưa là test device, nên Ad Inspector không còn báo lỗi vì máy chưa là test device. Trên iOS, `HDCAds.Testing.EnableTestDevice()` đăng ký thêm IDFA khi ATT đã cho phép.
+- Bảng debug gọn hơn:
+  - Mọi thẻ của trang Device thu gọn sẵn, mỗi thẻ có nút `Expand`. `Expand all` và `Collapse all` cạnh `Refresh` mở hoặc gập mọi thẻ của trang đang xem.
+  - Chữ `HDC Ads Debug` nhỏ hơn; tab kênh (AL, AR, RW…) nhỏ lại, 8 tab một hàng.
+  - Event List của trang Events và Recent Events của trang Ads xếp mỗi sự kiện một hàng: giờ, nhãn loại có màu, kênh và ID, chi tiết.
+  - Dựng lại prefab giữ các tùy chọn đã chỉnh trên prefab cũ (blocking mask, sorting order, tùy chọn mở bảng).
+- Bảng debug mở và dùng không còn giật (đo trong Editor, MacBook M1 Pro):
+  - Lần mở đầu không còn chờ tải font: font tải khi bảng khởi động. Mở lần đầu từ khoảng 470 ms còn khoảng 36 ms; mở lại từ khoảng 14 ms còn khoảng 4 ms.
+  - Đóng bảng và chuyển trang tắt Canvas thay vì tắt GameObject; mỗi trang có Canvas riêng. Bảng đóng hoặc trang ẩn thì không vẽ lại. Chuyển sang trang đã mở trước đó còn khoảng 4–6 ms (trang Events trước đây khoảng 48 ms); đóng bảng khoảng 3 ms.
+  - Danh sách sự kiện tự xếp hàng và giữ hàng cũ: sự kiện mới ở trang Events từ khoảng 21 ms còn khoảng 3 ms.
+  - Chữ của bảng (`HDCDebugText`) nhớ cỡ đã đo, và không layout lại khi giá trị đổi mà cỡ không đổi: làm mới trang Ads khi mở hết thẻ từ khoảng 11 ms còn khoảng 1 ms.
+  - Bỏ tự co chữ (best fit) ở các nút; Event List hiện 40 sự kiện (20 khi `Explain`), `Full Screen` vẫn 80 (40).
+  - Khi có nhiều sự kiện liền nhau, trang vẽ lại nhiều nhất khoảng 3 lần mỗi giây.
 - Dọn kiến trúc, không đổi hành vi:
   - Việc chọn config (Remote Config, giá trị đã lưu, mặc định) và chế độ quốc gia nằm ở một use case trong Logic (`HDCConfigSelection`). Trước đây chúng nằm trong `HDCRemoteConfig` và lặp lại một phần trong `HDCAdsSetup`.
   - Phần đọc vùng và ngôn ngữ của máy tách khỏi phần quyết định, và đứng sau port `IDeviceRegionSource`.
@@ -186,6 +253,33 @@ Những thứ sau đã đổi so với 0.5.0:
 
 ### Sửa
 
+- Native banner: lần load còn đang chạy khi group tới lượt lần nữa bị huỷ và load lại từ đầu, vì `Reinitialize` huỷ cả lần load đang chạy. Ad unit load chậm hơn một vòng xoay vì thế không bao giờ kịp hiện, mà request cứ tăng. Giờ lượt sau giữ lần load đó.
+- Editor: popup load lỗi giờ báo trạng thái `Failed` như thư viện native. Trước đây nó báo `Loading`.
+- Android: đọc purpose TCF (`IABTCF_PurposeConsents`) từ SharedPreferences mặc định của app, nơi Google UMP lưu. Trước đây HDC đọc qua `PlayerPrefs`, mà Unity lưu `PlayerPrefs` ở file riêng, nên trên Android luôn đọc ra chuỗi rỗng.
+- Bảng debug, iOS: `Clear Data & Quit` giờ xoá cả các suite `NSUserDefaults` của SDK trong `Library/Preferences` (Firebase Installations, Firebase Analytics, Google Mobile Ads `__gads__`…), như Android vẫn xoá. Trước đây chỉ domain của app bị xoá, nên sau khi mở lại, Firebase và Google Mobile Ads vẫn giữ dữ liệu của lần cài trước. Thử trên iOS Simulator: sau khi bấm, mọi domain còn 0 key và chỉ còn file metadata của container. Dòng nhắc trên trang Device nói rõ lựa chọn ATT và quyền thông báo do iOS giữ, app không xoá được.
+- MREC nằm đúng chỗ Unity đặt trên mọi máy.
+  - Trước đây HDCLib đổi pixel Unity sang point bằng `GetDeviceScale()`, trên iOS là `UIScreen.scale`, trong khi Unity vẽ theo `nativeScale` hoặc Fixed DPI.
+  - Theo cách tính đó, MREC đặt giữa màn bị lệch:
+    - iPhone 8 Plus: 27 pt sang trái và 48 pt lên trên.
+    - iPhone 12/13 mini: 7,5 pt sang trái và 16 pt lên trên.
+    - Bật Display Zoom: lệch sang phải và xuống dưới.
+    - Android: lệch khi game giảm độ phân giải.
+  - Giờ tỉ lệ được đo từ view của Unity trên iOS (hàm mới `HDCAds_ViewMetrics` trong `HDCAdsBridge.mm`) và từ content view trên Android.
+  - `SizeInPixels` và khung MREC của bảng debug cũng dùng tỉ lệ này. Trên iPhone 8 Plus, `SizeInPixels` trước đây trả 900 × 750, trong khi MREC chỉ chiếm khoảng 783 × 652 pixel Unity.
+- Bảng debug, trang Remote Config: nhãn `Applied` không còn báo sai `Direct`. Trước đây nhãn so config HDCAds đang chạy với lần tải config gần nhất, nên khi config bị tải lần nữa (ví dụ bấm `Init SDK` lúc SDK còn đang khởi tạo) trang báo `APPLIED = DIRECT` kèm "HDCAds.Initialize nhận config khác với giá trị HDCRemoteConfig chọn (Remote)", trong khi config đang chạy là của lần tải đầu. Giờ nguồn được chốt đúng lúc `HDCAds.Initialize` nhận config. Dòng ad core hiện `No ad core` khi `ads_config` không có `selectedAdCoreName`, bản build không có Firebase hiện `Default` kèm lý do (cả hai trước đây hiện `Direct`). Nút `Init SDK` ẩn khi HDCAds đang khởi tạo, thay bằng dòng `Đang khởi tạo HDCAds`; bản build không có Firebase không chọn config lần nữa khi đã gọi `HDCAds.Initialize`.
+- Remote Config: bấm `Init SDK` trên bảng debug trong lúc config đang tải làm HDC fetch lần thứ hai.
+  - Firebase iOS từ chối ngay fetch thứ hai khi fetch đầu chưa xong (`A fetch is already in progress. Ignoring duplicate request.`; bảng debug ghi `Pending (Fetch encountered an error…)`). Vì thế game chạy bằng config đã lưu hoặc mặc định.
+  - Trang Remote Config còn trộn số của hai lần tải, ví dụ `Load Time 89.2 s` trong khi `Applied At` trùng `Load Started`.
+  - Giờ mỗi lần mở game chỉ tải một lần; lần gọi sau chờ lần đang chạy.
+- Remote Config: timeout giờ chỉ đếm thời gian game chạy (mỗi khung hình tính tối đa 1 giây). Lúc app ở nền, hay dưới hộp thoại hệ thống, không làm hết giờ.
+  - Fetch đã xong thì luôn được dùng, kể cả khi kết quả tới cùng khung hình với timeout.
+  - Trước đây timeout và callback của Firebase chạy ở hai `Update` khác nhau, nên bên nào chạy trước thì thắng.
+- Build Tool: bỏ tick Debug panel, Debug log hay đổi rule khác rồi build lại thì bản build vẫn giữ giá trị cũ nếu scene không đổi, vì Unity dùng lại dữ liệu scene đã build lần trước và bỏ qua bước áp rule (đo trên clone: lần build thứ hai không xử lý scene nào, bảng debug vẫn bật). Giờ trong lúc build, tool đặt tạm `Assets/HDCTool/Resources/HDCBuildRules.txt` ghi rule của preset, build xong thì xoá. Rule đổi thì Unity build lại dữ liệu scene, nên rule của Build Tool luôn thắng giá trị trong scene. Rule giữ nguyên thì Unity vẫn dùng lại dữ liệu cũ (export iOS trên clone khoảng 45 giây, như trước).
+- Popup trong vùng trải hết chiều ngang màn (như `Banner Area` của native banner) giờ luôn full chiều ngang trên máy thật. Trước đây chiều rộng được đổi từ pixel sang point bằng scale của Google Mobile Ads (`UIScreen.scale`), trong khi Unity vẽ theo `nativeScale`. Theo cách tính đó, popup hụt và hở hai bên trên iPhone 8 Plus (360 pt trên màn 414 pt), iPhone 12/13 mini (360 pt trên 375 pt), khi bật Display Zoom, hoặc khi game giảm độ phân giải (`Screen.SetResolution`, Fixed DPI, cả trên Android). Giờ HDCLib xin hết chiều rộng màn và thư viện native tự giới hạn đúng bằng màn.
+- iOS: mọi lỗi và response của Google Mobile Ads (load, preload, show, banner) giờ được đọc ngay trong callback, rồi mới chuyển sang luồng chính. Trước đây vài chỗ đọc ở frame sau, cùng kiểu đã làm Ad Inspector crash.
+- iOS: nút Ad Inspector của bảng debug không còn làm app crash (`EXC_BAD_ACCESS` trong `GADUGetAdErrorCode`) khi Ad Inspector báo lỗi, ví dụ máy chưa là test device. Lỗi của plugin Google Mobile Ads chỉ còn sống trong callback, nên mã và nội dung lỗi giờ được đọc ngay trong callback; bảng debug hiện chúng.
+- Build Tool: danh sách Build scenes dài không còn làm cửa sổ giật khi cuộn. Trước đây mỗi lần vẽ, mỗi dòng kiểm tra lại file của mọi scene, nên một lượt vẽ mất khoảng 22 ms với 30 scene, 75 ms với 60 scene và 200 ms với 100 scene; giờ kết quả được tính một lần mỗi khi danh sách hoặc project đổi, và một lượt vẽ dưới 0,2 ms.
+- Build Tool mở và dùng mượt hơn. Validation scan chạy lại mỗi lần click vào cửa sổ hay đổi một tuỳ chọn; trước đây mỗi lần mất khoảng 100 ms (kiểm tra Onboarding quét phụ thuộc của từng scene ba lần, kiểm tra Firebase duyệt cả thư mục Assets), giờ khoảng 1 ms vì kết quả tìm asset và phụ thuộc của scene được nhớ tới khi project thay đổi. Scene 0 chỉ mở lại để kiểm tra khi file của nó đổi. Team Xcode và phiên bản SDK đọc ở luồng nền, thư viện iOS cho Simulator chỉ quét lại khi project đổi (trước đây cứ 5 giây một lần), file APK mới nhất không còn tìm lại mỗi lần vẽ. Build thật (Build Tool và File > Build Settings) vẫn kiểm tra lại từ đầu.
 - Editor: `HDCAdsSettings.asset` và `HDCBuildSettings.asset` không còn bị thay bằng asset mặc định khi Unity đang import.
   - Trước đây, nếu Unity chưa load được asset (ví dụ ngay sau khi biên dịch lại), menu `HDC > Settings asset`, nút `HDC settings` của Build Tool, cửa sổ HDC Ads Settings và Build Tool tạo asset mới đè lên file cũ. Config mặc định và custom key bị thay bằng giá trị mặc định.
   - Giờ chúng không bao giờ tạo đè lên file có sẵn, và không tạo gì khi Unity đang biên dịch hay import. Cửa sổ báo đang chờ và tự hiện lại khi Unity load được asset; build bằng Build Tool dừng với thông báo thay vì tạo asset mới.

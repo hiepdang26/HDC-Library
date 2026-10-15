@@ -17,6 +17,7 @@ namespace HDC.Ads.DebugUI
         private int usedRows;
         private int usedHeaders;
         private int usedNotes;
+        private int cursor;
 
         public void Begin()
         {
@@ -24,14 +25,16 @@ namespace HDC.Ads.DebugUI
             HideTemplate(headerTemplate);
             HideTemplate(noteTemplate);
             usedRows = usedHeaders = usedNotes = 0;
+            cursor = Mathf.Max(rowTemplate.transform.GetSiblingIndex(),
+                Mathf.Max(headerTemplate.transform.GetSiblingIndex(), noteTemplate.transform.GetSiblingIndex())) + 1;
         }
 
         public void Header(string title) =>
-            HDCDebugStyle.Take(headers, headerTemplate, ref usedHeaders).GetComponent<Text>().text = (title ?? string.Empty).ToUpperInvariant();
+            InOrder(HDCDebugStyle.Next(headers, headerTemplate, ref usedHeaders)).GetComponent<Text>().text = (title ?? string.Empty).ToUpperInvariant();
 
         public void Row(string label, string value, Color valueColor)
         {
-            Transform row = HDCDebugStyle.Take(rows, rowTemplate, ref usedRows).transform;
+            Transform row = InOrder(HDCDebugStyle.Next(rows, rowTemplate, ref usedRows)).transform;
             row.Find("Label").GetComponent<Text>().text = label;
             Text valueText = row.Find("Value").GetComponent<Text>();
             valueText.text = string.IsNullOrEmpty(value) ? "-" : value;
@@ -40,13 +43,19 @@ namespace HDC.Ads.DebugUI
 
         public void Row(string label, string value) => Row(label, value, HDCDebugStyle.TextColor);
 
-        public void Note(string text) => HDCDebugStyle.Take(notes, noteTemplate, ref usedNotes).GetComponent<Text>().text = text;
+        public void Note(string text) => InOrder(HDCDebugStyle.Next(notes, noteTemplate, ref usedNotes)).GetComponent<Text>().text = text;
 
         public void End()
         {
             HDCDebugStyle.HideRest(rows, usedRows);
             HDCDebugStyle.HideRest(headers, usedHeaders);
             HDCDebugStyle.HideRest(notes, usedNotes);
+        }
+
+        private GameObject InOrder(GameObject item)
+        {
+            HDCDebugStyle.Place(item.transform, cursor++);
+            return item;
         }
 
         private static void HideTemplate(GameObject template)

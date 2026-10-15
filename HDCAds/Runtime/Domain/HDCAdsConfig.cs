@@ -8,6 +8,9 @@ namespace HDC.Ads.Domain
     {
         public string selectedAdCoreName = "";
 
+        public bool toggleConsent = true;
+        public bool toggleAtt = true;
+
         public ForceAdChannel forceAdChannel = new ForceAdChannel();
         public RewardedChannel rewardedChannel = new RewardedChannel();
         public BannerChannel bannerChannel = new BannerChannel();

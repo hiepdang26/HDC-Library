@@ -15,6 +15,16 @@ namespace HDC.Ads.Infrastructure
             remove => HDCMainThread.Ticked -= value;
         }
 
+        public event Action LateTicked
+        {
+            add
+            {
+                HDCMainThread.EnsureCreated();
+                HDCMainThread.LateTicked += value;
+            }
+            remove => HDCMainThread.LateTicked -= value;
+        }
+
         public event Action<bool> ApplicationPaused
         {
             add

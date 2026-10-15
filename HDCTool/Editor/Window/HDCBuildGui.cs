@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
@@ -35,6 +36,9 @@ namespace HDC.Tool.Editor
         private static readonly Color OkColor = new Color(0.4f, 0.78f, 0.45f, 1f);
         private static readonly Color Line = new Color(0.5f, 0.5f, 0.5f, 0.35f);
 
+        private static readonly Dictionary<string, bool> Folds = new Dictionary<string, bool>(StringComparer.Ordinal);
+        private static readonly List<string> Cards = new List<string>();
+
         private static GUIStyle cardStyle;
         private static GUIStyle headerStyle;
         private static GUIStyle bodyStyle;
@@ -54,9 +58,57 @@ namespace HDC.Tool.Editor
 
         internal static string FoldoutKey(string key) => "HDC.Build.Fold." + key;
 
-        internal static bool IsOpen(string key, bool open = true) => EditorPrefs.GetBool(FoldoutKey(key), open);
+        internal static IReadOnlyList<string> CardKeys => Cards;
 
-        internal static void SetOpen(string key, bool open) => EditorPrefs.SetBool(FoldoutKey(key), open);
+        internal static bool AllOpen => Every(true);
+
+        internal static bool AllClosed => Every(false);
+
+        internal static bool IsOpen(string key, bool open = true)
+        {
+            if (!Folds.TryGetValue(key, out bool current))
+                Folds[key] = current = EditorPrefs.GetBool(FoldoutKey(key), open);
+            return current;
+        }
+
+        internal static void SetOpen(string key, bool open)
+        {
+            if (Folds.TryGetValue(key, out bool current) && current == open && EditorPrefs.HasKey(FoldoutKey(key)))
+                return;
+            Folds[key] = open;
+            EditorPrefs.SetBool(FoldoutKey(key), open);
+        }
+
+        internal static void SetAll(bool open)
+        {
+            foreach (string key in Cards)
+                SetOpen(key, open);
+        }
+
+        internal static void Register(string key, bool open)
+        {
+            if (Cards.Contains(key))
+                return;
+            Cards.Add(key);
+            IsOpen(key, open);
+        }
+
+        internal static void Forget(string key)
+        {
+            Cards.Remove(key);
+            Folds.Remove(key);
+        }
+
+        private static bool Every(bool open)
+        {
+            for (int i = 0; i < Cards.Count; i++)
+            {
+                if (IsOpen(Cards[i]) != open)
+                    return false;
+            }
+
+            return true;
+        }
 
         internal static CardScope Card(string key, string title, Color accent, string subtitle = null, Action header = null, bool open = true) =>
             new CardScope(key, title, accent, subtitle, header, open);
@@ -77,6 +129,7 @@ namespace HDC.Tool.Editor
                     EditorGUI.DrawRect(new Rect(card.x + 1f, card.y + 1f, card.width - 2f, card.height - 2f), Panel);
                 }
 
+                Register(key, open);
                 bool current = IsOpen(key, open);
                 Rect head = EditorGUILayout.BeginHorizontal(headerStyle, GUILayout.Height(28f));
                 if (repaint)

@@ -30,7 +30,7 @@ namespace HDC.Ads.Tests
 
         internal static string Badge(Transform unit) => TextOf(unit.Find("Top/Badge/Label"));
 
-        internal static void Capture(GameObject panel, string file)
+        internal static void Capture(GameObject panel, string file, Transform scrollTo = null)
         {
             string folder = Environment.GetEnvironmentVariable(CaptureFolderVariable);
             if (string.IsNullOrEmpty(folder))
@@ -54,7 +54,22 @@ namespace HDC.Ads.Tests
             Canvas.ForceUpdateCanvases();
             LayoutRebuilder.ForceRebuildLayoutImmediate((RectTransform)panel.transform);
             Canvas.ForceUpdateCanvases();
+            RectTransform scrolled = null;
+            Vector2 scrolledFrom = Vector2.zero;
+            if (scrollTo != null)
+            {
+                scrolled = scrollTo.GetComponentInParent<ScrollRect>().content;
+                LayoutRebuilder.ForceRebuildLayoutImmediate(scrolled);
+                var card = (RectTransform)scrollTo;
+                Vector3 top = scrolled.InverseTransformPoint(card.TransformPoint(new Vector3(0f, card.rect.yMax, 0f)));
+                scrolledFrom = scrolled.anchoredPosition;
+                scrolled.anchoredPosition = new Vector2(scrolledFrom.x, -top.y);
+                Canvas.ForceUpdateCanvases();
+            }
+
             camera.Render();
+            if (scrolled != null)
+                scrolled.anchoredPosition = scrolledFrom;
             RenderTexture.active = target;
             var image = new Texture2D(1080, 1920, TextureFormat.RGB24, false);
             image.ReadPixels(new Rect(0, 0, 1080, 1920), 0, 0);

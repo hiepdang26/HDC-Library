@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Firebase;
-using Firebase.Extensions;
 using Firebase.RemoteConfig;
 using HDC.Ads.Composition;
 using HDC.Ads.Diagnostics;
@@ -16,149 +16,277 @@ namespace HDC.Ads
     {
         public const string AdsConfigKey = HDCConfigSelection.AdsConfigKey;
 
+        public const float TimeoutSeconds = HDCAdsSettings.RemoteConfigTimeoutSeconds;
+
+        private static Request current;
+
         public static bool FetchInEditor { get; set; }
 
         public static void Fetch(
             string defaultAdsConfig,
             IDictionary<string, string> defaultCoreConfigs,
             Action<string, string> onLoaded,
-            float timeoutSeconds = 10f)
+            float timeoutSeconds = TimeoutSeconds)
         {
             HDCMainThread.EnsureCreated();
-            bool defaultsOnly = Application.isEditor && !FetchInEditor;
-            var fetch = new Request(defaultAdsConfig, defaultCoreConfigs, onLoaded, defaultsOnly);
-            HDCConfigReport.LoadStarted(defaultsOnly);
-            if (defaultsOnly)
+            if (current != null)
             {
-                HDCMainThread.Post(() => fetch.Finish("defaults in the Editor"));
+                current.Join(onLoaded);
                 return;
             }
 
-            HDCMainThread.PostDelayed(timeoutSeconds, () => fetch.Finish("timeout"));
-            fetch.Start();
+            current = new Request(defaultAdsConfig, defaultCoreConfigs, onLoaded, ModeFor(HDCAdsSettings.Load()), timeoutSeconds);
+            current.Start();
         }
 
         public static void FetchAndInitialize(
             string defaultAdsConfig,
             IDictionary<string, string> defaultCoreConfigs,
             Action onInitialized = null,
-            float timeoutSeconds = 10f)
+            float timeoutSeconds = TimeoutSeconds)
         {
             Fetch(defaultAdsConfig, defaultCoreConfigs, (ads, core) => HDCAds.Initialize(ads, core, onInitialized), timeoutSeconds);
         }
+
+        private static HDCConfigMode ModeFor(HDCAdsSettings settings)
+        {
+            if (Application.isEditor && !FetchInEditor)
+                return HDCConfigMode.EditorDefaults;
+            return settings.ConfigSource == HDCAdsConfigSource.Default ? HDCConfigMode.Defaults : HDCConfigMode.RemoteConfig;
+        }
+
+        private static HDCConfigPlan PlanFor(HDCConfigMode mode) =>
+            mode == HDCConfigMode.RemoteConfig ? HDCConfigPlan.RemoteConfig
+            : mode == HDCConfigMode.Defaults ? HDCConfigPlan.Default
+            : HDCConfigPlan.EditorDefaults;
+
+#if UNITY_EDITOR
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetForPlayMode()
+        {
+            current?.Abandon();
+            current = null;
+        }
+#endif
 
         private sealed class Request
         {
             private readonly string defaultAdsConfig;
             private readonly IDictionary<string, string> defaultCoreConfigs;
-            private readonly Action<string, string> onLoaded;
-            private readonly bool defaultsOnly;
+            private readonly List<Action<string, string>> listeners = new List<Action<string, string>>();
+            private readonly HDCConfigMode mode;
+            private readonly float timeoutSeconds;
+            private readonly HDCLoadClock clock;
             private FirebaseRemoteConfig remoteConfig;
+            private Task<DependencyStatus> checking;
+            private Task fetching;
+            private Task<bool> activating;
             private bool finished;
+            private string ads = "";
+            private string core = "";
 
-            internal Request(string defaultAdsConfig, IDictionary<string, string> defaultCoreConfigs, Action<string, string> onLoaded, bool defaultsOnly)
+            internal Request(
+                string defaultAdsConfig,
+                IDictionary<string, string> defaultCoreConfigs,
+                Action<string, string> onLoaded,
+                HDCConfigMode mode,
+                float timeoutSeconds)
             {
                 this.defaultAdsConfig = defaultAdsConfig ?? "";
                 this.defaultCoreConfigs = defaultCoreConfigs ?? new Dictionary<string, string>();
-                this.onLoaded = onLoaded;
-                this.defaultsOnly = defaultsOnly;
+                this.mode = mode;
+                this.timeoutSeconds = Mathf.Max(0f, timeoutSeconds);
+                clock = new HDCLoadClock(this.timeoutSeconds);
+                if (onLoaded != null)
+                    listeners.Add(onLoaded);
             }
 
             internal void Start()
             {
+                HDCConfigReport.LoadStarted(PlanFor(mode), timeoutSeconds);
+                if (mode != HDCConfigMode.RemoteConfig)
+                {
+                    string reason = mode == HDCConfigMode.Defaults ? "chosen in HDC Ads Settings" : "defaults in the Editor";
+                    HDCMainThread.Post(() => Finish(reason, false));
+                    return;
+                }
+
                 try
                 {
-                    FirebaseApp.CheckAndFixDependenciesAsync().ContinueWithOnMainThread(dependencies =>
-                    {
-                        if (finished)
-                            return;
-                        if (dependencies.IsFaulted || dependencies.IsCanceled || dependencies.Result != DependencyStatus.Available)
-                        {
-                            HDCConfigReport.FirebaseChecked(dependencies.IsFaulted || dependencies.IsCanceled
-                                ? "Check failed: " + Problem(dependencies.Exception)
-                                : dependencies.Result.ToString());
-                            Finish("Firebase unavailable");
-                            return;
-                        }
-
-                        HDCConfigReport.FirebaseChecked("Available");
-                        StartFetch();
-                    });
+                    checking = FirebaseApp.CheckAndFixDependenciesAsync();
                 }
                 catch (Exception exception)
                 {
                     Debug.LogWarning("[HDCAds] Firebase cannot start: " + Problem(exception));
                     HDCConfigReport.FirebaseChecked("Cannot start: " + Problem(exception));
-                    Finish("Firebase unavailable");
+                    HDCMainThread.Post(() => Finish("Firebase unavailable", false));
+                    return;
                 }
+
+                HDCMainThread.Ticked += Tick;
             }
 
-            private void StartFetch()
+            internal void Join(Action<string, string> onLoaded)
             {
+                if (onLoaded == null)
+                    return;
+                HDCConfigReport.Joined();
+                if (!finished)
+                {
+                    listeners.Add(onLoaded);
+                    return;
+                }
+
+                HDCMainThread.Post(() => Deliver(onLoaded));
+            }
+
+            internal void Abandon()
+            {
+                finished = true;
+                listeners.Clear();
+                HDCMainThread.Ticked -= Tick;
+            }
+
+            private void Tick()
+            {
+                if (finished)
+                {
+                    HDCMainThread.Ticked -= Tick;
+                    return;
+                }
+
+                if (checking != null && checking.IsCompleted)
+                    Checked(Take(ref checking));
+                if (!finished && fetching != null && fetching.IsCompleted)
+                    Fetched(Take(ref fetching));
+                if (!finished && activating != null && activating.IsCompleted)
+                    Activated(Take(ref activating));
+                if (finished)
+                    return;
+
+                if (clock.Tick(Time.unscaledDeltaTime, activating != null))
+                    Finish("timeout", false);
+            }
+
+            private static T Take<T>(ref T task) where T : class
+            {
+                T taken = task;
+                task = null;
+                return taken;
+            }
+
+            private void Checked(Task<DependencyStatus> task)
+            {
+                HDCConfigReport.StepDone("Firebase");
+                if (task.IsFaulted || task.IsCanceled || task.Result != DependencyStatus.Available)
+                {
+                    HDCConfigReport.FirebaseChecked(task.IsFaulted || task.IsCanceled
+                        ? "Check failed: " + Problem(task.Exception)
+                        : task.Result.ToString());
+                    Finish("Firebase unavailable", false);
+                    return;
+                }
+
+                HDCConfigReport.FirebaseChecked("Available");
                 try
                 {
                     remoteConfig = FirebaseRemoteConfig.DefaultInstance;
-                    remoteConfig.FetchAsync(TimeSpan.Zero).ContinueWithOnMainThread(fetch =>
-                    {
-                        if (finished)
-                            return;
-                        ReportFetch(fetch.IsFaulted || fetch.IsCanceled ? Problem(fetch.Exception) : null);
-                        bool fetched = !fetch.IsFaulted && !fetch.IsCanceled && remoteConfig.Info.LastFetchStatus == LastFetchStatus.Success;
-                        if (!fetched)
-                        {
-                            Finish("fetch failed");
-                            return;
-                        }
-
-                        remoteConfig.ActivateAsync().ContinueWithOnMainThread(activation =>
-                        {
-                            HDCConfigReport.ActivationDone(activation.IsFaulted || activation.IsCanceled
-                                ? "Failed: " + Problem(activation.Exception)
-                                : activation.Result ? "New values activated" : "Values were already active");
-                            Finish("fetched");
-                        });
-                    });
+                    fetching = remoteConfig.FetchAsync(TimeSpan.Zero);
                 }
                 catch (Exception exception)
                 {
-                    Debug.LogWarning("[HDCAds] cannot fetch the remote config: " + Problem(exception));
                     HDCConfigReport.FetchDone("Cannot fetch: " + Problem(exception), null, null);
-                    Finish("fetch failed");
+                    Finish("fetch failed", false);
                 }
             }
 
-            internal void Finish(string reason)
+            private void Fetched(Task task)
+            {
+                HDCConfigReport.StepDone("Fetch");
+                ReportFetch(task.IsFaulted || task.IsCanceled ? Problem(task.Exception) : null);
+                if (task.IsFaulted || task.IsCanceled || !LastFetchSucceeded())
+                {
+                    Finish("fetch failed", false);
+                    return;
+                }
+
+                try
+                {
+                    activating = remoteConfig.ActivateAsync();
+                }
+                catch (Exception exception)
+                {
+                    HDCConfigReport.ActivationDone("Failed: " + Problem(exception));
+                    Finish("activation failed", false);
+                }
+            }
+
+            private void Activated(Task<bool> task)
+            {
+                HDCConfigReport.StepDone("Activation");
+                bool failed = task.IsFaulted || task.IsCanceled;
+                HDCConfigReport.ActivationDone(failed
+                    ? "Failed: " + Problem(task.Exception)
+                    : task.Result ? "New values activated" : "Values were already active");
+                Finish(failed ? "activation failed" : "fetched", !failed);
+            }
+
+            private bool LastFetchSucceeded()
+            {
+                try
+                {
+                    return remoteConfig.Info.LastFetchStatus == LastFetchStatus.Success;
+                }
+                catch (Exception)
+                {
+                    return false;
+                }
+            }
+
+            private void Finish(string reason, bool fresh)
             {
                 if (finished)
                     return;
                 finished = true;
+                HDCMainThread.Ticked -= Tick;
 
                 HDCAdsSettings settings = HDCAdsSettings.Load();
                 HDCConfigChoice choice = HDCAdsRuntime.ConfigSelection().Select(new HDCConfigInputs
                 {
-                    Mode = defaultsOnly ? HDCConfigMode.EditorDefaults : HDCConfigMode.RemoteConfig,
-                    Remote = defaultsOnly || remoteConfig == null ? null : new FirebaseValues(remoteConfig),
+                    Mode = mode,
+                    Remote = fresh ? new FirebaseValues(remoteConfig) : null,
+                    RemoteProblem = reason,
                     DefaultAds = defaultAdsConfig,
                     DefaultCores = defaultCoreConfigs,
-                    Saved = Saved,
                     CustomDefaults = HDCCustomConfig.Defaults,
-                    SavedCustom = HDCCustomConfig.SavedValue,
                     CountryRules = settings.CountryRulesJson(),
                     CountryAds = settings.CountryAdsConfig,
                     CountryCore = settings.CountryCoreConfig,
                     CustomCountry = settings.CustomCountryValues(),
                 });
-                ReportRemoteValues();
-                foreach (KeyValuePair<string, string> save in choice.Saves)
-                    Save(save.Key, save.Value);
-                HDCCustomConfig.Apply(choice.CustomValues(), choice.SaveCustom);
+                if (fresh)
+                    ReportRemoteValues();
+                HDCCustomConfig.Apply(choice.CustomValues());
+                ads = choice.Ads;
+                core = choice.Core;
 
-                HDCConfigReport.LoadFinished(reason, choice.CoreKey);
-                if (HDCAdsSdk.DebugLog)
-                    Debug.Log($"[HDCAds] remote config ready ({reason}): core config '{choice.CoreKey}'");
+                HDCConfigReport.LoadFinished(reason, choice.CoreKey, clock.Running);
+                if (mode == HDCConfigMode.RemoteConfig && !fresh)
+                    Debug.LogWarning($"[HDCAds] Remote Config not used ({reason} after {HDCConfigReport.LoadSeconds:0.0} s): the configs come from HDC Ads Settings.");
+                else if (HDCAdsSdk.DebugLog)
+                    Debug.Log($"[HDCAds] configs ready ({reason} after {HDCConfigReport.LoadSeconds:0.0} s): core config '{choice.CoreKey}'");
+
+                Action<string, string>[] waiting = listeners.ToArray();
+                listeners.Clear();
+                foreach (Action<string, string> listener in waiting)
+                    Deliver(listener);
+            }
+
+            private void Deliver(Action<string, string> listener)
+            {
                 try
                 {
-                    onLoaded?.Invoke(choice.Ads, choice.Core);
+                    listener(ads, core);
                 }
                 catch (Exception exception)
                 {
@@ -186,8 +314,6 @@ namespace HDC.Ads
 
             private void ReportRemoteValues()
             {
-                if (defaultsOnly || remoteConfig == null)
-                    return;
                 try
                 {
                     foreach (KeyValuePair<string, ConfigValue> pair in remoteConfig.AllValues)
@@ -234,31 +360,6 @@ namespace HDC.Ads
                         Debug.LogWarning($"[HDCAds] cannot read remote config '{key}': {exception.Message}");
                         return "";
                     }
-                }
-            }
-
-            private static string Saved(string key)
-            {
-                try
-                {
-                    return PlayerPrefs.GetString(key, "");
-                }
-                catch (Exception)
-                {
-                    return "";
-                }
-            }
-
-            private static void Save(string key, string value)
-            {
-                try
-                {
-                    PlayerPrefs.SetString(key, value ?? "");
-                    PlayerPrefs.Save();
-                }
-                catch (Exception exception)
-                {
-                    Debug.LogWarning($"[HDCAds] cannot save '{key}': {exception.Message}");
                 }
             }
         }

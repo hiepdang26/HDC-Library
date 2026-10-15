@@ -22,6 +22,10 @@ namespace HDC.Tool.Editor
         [NonSerialized] private bool scanQueued;
         [NonSerialized] private bool devicesQueued;
         [NonSerialized] private List<HDCAppleTeam> teams;
+        [NonSerialized] private Task<List<HDCAppleTeam>> teamsRead;
+        [NonSerialized] private Task<List<HDCSdkVersions.Entry>> sdkRead;
+        [NonSerialized] private string latestApk;
+        [NonSerialized] private double latestApkAt = double.MinValue;
         private Vector2 scroll;
 
         internal HDCBuildSettings Settings { get; private set; }
@@ -33,6 +37,8 @@ namespace HDC.Tool.Editor
         internal List<HDCAppleDevice> AppleDevices { get; private set; } = new List<HDCAppleDevice>();
 
         internal List<HDCSdkVersions.Entry> Sdks { get; private set; }
+
+        internal bool ReadingSdks => sdkRead != null;
 
         internal string Notice { get; private set; } = "";
 
@@ -68,23 +74,23 @@ namespace HDC.Tool.Editor
 
         internal List<HDCAppleDevice> AppleDevicesFor(HDCAppleTarget target) => AppleDevices.Where(device => device.Kind == target).ToList();
 
-        internal List<HDCAppleTeam> Teams => teams ?? (teams = HDCAppleTeams.List());
+        internal List<HDCAppleTeam> Teams
+        {
+            get
+            {
+                if (teams != null)
+                    return teams;
+                if (teamsRead == null)
+                    teamsRead = Application.platform == RuntimePlatform.OSXEditor ? Task.Run(ReadTeams) : Task.FromResult(new List<HDCAppleTeam>());
+                string current = HDCIosLocalBuild.TeamId;
+                return current.Length == 0 ? new List<HDCAppleTeam>() : new List<HDCAppleTeam> { new HDCAppleTeam { Id = current } };
+            }
+        }
 
         internal const float MinWidth = 560f;
 
         [MenuItem("HDC/Build Tool #b", false, 5)]
-        private static void Toggle()
-        {
-            HDCBuildToolWindow[] open = Resources.FindObjectsOfTypeAll<HDCBuildToolWindow>();
-            if (open.Length == 0)
-            {
-                Open();
-                return;
-            }
-
-            foreach (HDCBuildToolWindow window in open)
-                window.Close();
-        }
+        private static void ShowOrFocus() => Open();
 
         internal static void Open()
         {
@@ -134,11 +140,11 @@ namespace HDC.Tool.Editor
             MarkStale();
         }
 
-        internal void Scan(bool inspectScene0 = true)
+        internal void Scan(bool fresh = true)
         {
-            if (inspectScene0 || scene0 == null || scene0.Path != HDCScene0.FirstScenePath() || HDCScene0.IsLoaded(scene0.Path))
+            if (fresh || !HDCScene0.IsCurrent(scene0))
                 scene0 = HDCScene0.Inspect();
-            checks[Platform] = HDCBuildChecks.Run(Platform, Preset, Rules, Settings, scene0);
+            checks[Platform] = HDCBuildChecks.Run(Platform, Preset, Rules, Settings, scene0, !fresh);
             scannedAt[Platform] = DateTime.Now;
             Repaint();
         }
@@ -166,10 +172,33 @@ namespace HDC.Tool.Editor
 
         internal void Refresh()
         {
-            teams = null;
-            Sdks = HDCSdkVersions.Read(HDCBuildFolders.IosExport(HDCAppleTarget.Phone));
+            RefreshTeams();
+            ReadSdks();
+            latestApkAt = double.MinValue;
             RefreshDevices();
             Scan();
+        }
+
+        private void ReadSdks()
+        {
+            if (sdkRead != null)
+                return;
+            string export = HDCBuildFolders.IosExport(HDCAppleTarget.Phone);
+            string dataPath = Application.dataPath;
+            string root = HDCSdkVersions.HDCLibRoot();
+            sdkRead = Task.Run(() => HDCSdkVersions.Read(export, dataPath, root));
+        }
+
+        private static List<HDCAppleTeam> ReadTeams()
+        {
+            try
+            {
+                return HDCAppleTeams.List();
+            }
+            catch (Exception)
+            {
+                return null;
+            }
         }
 
         internal void RefreshDevices()
@@ -212,7 +241,12 @@ namespace HDC.Tool.Editor
             Repaint();
         }
 
-        internal void RefreshTeams() => teams = null;
+        internal void RefreshTeams()
+        {
+            if (teamsRead != null)
+                return;
+            teams = null;
+        }
 
         internal void SetNotice(string message, MessageType type)
         {
@@ -247,6 +281,7 @@ namespace HDC.Tool.Editor
                 finally
                 {
                     building = false;
+                    latestApkAt = double.MinValue;
                     Repaint();
                 }
             });
@@ -281,6 +316,15 @@ namespace HDC.Tool.Editor
 
         internal string LatestApk()
         {
+            if (EditorApplication.timeSinceStartup - latestApkAt < 2d)
+                return latestApk;
+            latestApkAt = EditorApplication.timeSinceStartup;
+            latestApk = FindLatestApk();
+            return latestApk;
+        }
+
+        private string FindLatestApk()
+        {
             HDCBuildResult last = HDCBuildState.LastResult(HDCBuildPlatform.Android);
             if (last != null && last.Succeeded && last.outputPath.EndsWith(".apk", StringComparison.OrdinalIgnoreCase) && File.Exists(last.outputPath))
                 return last.outputPath;
@@ -306,6 +350,7 @@ namespace HDC.Tool.Editor
 
         private void OnFocus()
         {
+            latestApkAt = double.MinValue;
             if (Settings != null)
                 MarkStale();
         }
@@ -356,6 +401,20 @@ namespace HDC.Tool.Editor
                 appleScan = null;
                 Repaint();
             }
+
+            if (teamsRead != null && teamsRead.IsCompleted)
+            {
+                teams = (teamsRead.Status == TaskStatus.RanToCompletion ? teamsRead.Result : null) ?? HDCAppleTeams.List();
+                teamsRead = null;
+                Repaint();
+            }
+
+            if (sdkRead != null && sdkRead.IsCompleted)
+            {
+                Sdks = sdkRead.Status == TaskStatus.RanToCompletion ? sdkRead.Result : HDCSdkVersions.Read(HDCBuildFolders.IosExport(HDCAppleTarget.Phone));
+                sdkRead = null;
+                Repaint();
+            }
         }
 
         private void OnInspectorUpdate()
@@ -378,7 +437,7 @@ namespace HDC.Tool.Editor
             }
 
             if (Sdks == null)
-                Sdks = HDCSdkVersions.Read(HDCBuildFolders.IosExport(HDCAppleTarget.Phone));
+                ReadSdks();
             if (devicesQueued)
             {
                 devicesQueued = false;

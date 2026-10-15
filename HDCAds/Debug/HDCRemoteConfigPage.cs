@@ -17,7 +17,6 @@ namespace HDC.Ads.DebugUI
         private enum Mode
         {
             Remote,
-            Saved,
             Default,
             Applied,
         }
@@ -35,14 +34,13 @@ namespace HDC.Ads.DebugUI
 
         [Header("Viewer")]
         [SerializeField] private Button remoteButton;
-        [SerializeField] private Button savedButton;
         [SerializeField] private Button defaultButton;
         [SerializeField] private Button appliedButton;
         [SerializeField] private Button adsButton;
         [SerializeField] private Button coreButton;
         [SerializeField] private Button keysButton;
         [SerializeField] private Button optionTemplate;
-        [Tooltip("Says which source the config HDCAds runs on came from: Remote, Saved, Default or Direct.")]
+        [Tooltip("Says which source the config HDCAds runs on came from: Remote, Default, Country, No ad core or Direct.")]
         [SerializeField] private Text appliedNoteText;
         [SerializeField] private Text viewerInfoText;
         [SerializeField] private Text bodyText;
@@ -50,7 +48,6 @@ namespace HDC.Ads.DebugUI
         [SerializeField] private Button fullScreenButton;
 
         [Header("Ad units map")]
-        [SerializeField] private Button mapToggleButton;
         [SerializeField] private GameObject mapBody;
         [SerializeField] private HDCKeyValueList mapList;
 
@@ -68,9 +65,7 @@ namespace HDC.Ads.DebugUI
         private void Awake()
         {
             optionTemplate.gameObject.SetActive(false);
-            mapBody.SetActive(false);
             remoteButton.onClick.AddListener(() => SetMode(Mode.Remote));
-            savedButton.onClick.AddListener(() => SetMode(Mode.Saved));
             defaultButton.onClick.AddListener(() => SetMode(Mode.Default));
             appliedButton.onClick.AddListener(() => SetMode(Mode.Applied));
             adsButton.onClick.AddListener(() => SetPart(Part.Ads));
@@ -78,11 +73,6 @@ namespace HDC.Ads.DebugUI
             keysButton.onClick.AddListener(() => SetPart(Part.Keys));
             copyButton.onClick.AddListener(Copy);
             fullScreenButton.onClick.AddListener(() => viewer.Open(ViewerTitle(), BuildBody, true));
-            mapToggleButton.onClick.AddListener(() =>
-            {
-                mapBody.SetActive(!mapBody.activeSelf);
-                Refresh();
-            });
         }
 
         protected override void Redraw()
@@ -97,9 +87,12 @@ namespace HDC.Ads.DebugUI
         {
             statusList.Begin();
             statusList.Row("Configs From", ConfigsFrom(out HDCDebugTone tone), HDCDebugStyle.ToneColor(tone));
+            statusList.Row("Config Source", ConfigSourceText());
             if (HDCConfigReport.Started)
             {
-                statusList.Row("Firebase", Dash(HDCConfigReport.Firebase), HDCConfigReport.Firebase == "Available" ? HDCDebugStyle.GoodColor : HDCDebugStyle.WarnColor);
+                statusList.Row("Firebase", Dash(HDCConfigReport.Firebase),
+                    HDCConfigReport.DefaultsOnly ? HDCDebugStyle.TextColor
+                    : HDCConfigReport.Firebase == "Available" ? HDCDebugStyle.GoodColor : HDCDebugStyle.WarnColor);
                 if (!HDCConfigReport.DefaultsOnly)
                 {
                     statusList.Row("Fetch", Dash(HDCConfigReport.FetchStatus),
@@ -111,10 +104,17 @@ namespace HDC.Ads.DebugUI
                 }
 
                 statusList.Row("Load Started", HDCConfigReport.StartClock.ToString("HH:mm:ss", CultureInfo.InvariantCulture));
-                statusList.Row("Load Time", HDCConfigReport.LoadSeconds < 0f ? "Loading..." : HDCConfigReport.LoadSeconds.ToString("0.0", CultureInfo.InvariantCulture) + " s");
+                statusList.Row("Load Time", LoadTimeText());
+                if (HDCConfigReport.Steps.Count > 0)
+                    statusList.Row("Steps", StepsText());
+                if (HDCConfigReport.JoinedLoads > 0)
+                    statusList.Row("Extra Load Calls", HDCConfigReport.JoinedLoads.ToString(CultureInfo.InvariantCulture) + " · waited for the running load, no second fetch",
+                        HDCDebugStyle.WarnColor);
                 statusList.Row("Ad Core Key", Dash(HDCConfigReport.CoreKey));
-                if (!HDCConfigReport.DefaultsOnly)
-                    statusList.Row("Keys On Remote Config", HDCConfigReport.RemoteValueCount.ToString(CultureInfo.InvariantCulture));
+                if (!HDCConfigReport.DefaultsOnly && HDCConfigReport.Finished)
+                    statusList.Row("Keys On Remote Config", HDCConfigReport.Outcome == "fetched"
+                        ? HDCConfigReport.RemoteValueCount.ToString(CultureInfo.InvariantCulture)
+                        : "Not fetched this launch");
             }
 
             if (HDCConfigReport.AppliedAds != null)
@@ -155,7 +155,7 @@ namespace HDC.Ads.DebugUI
                 string value = HDCCustomConfig.Get(customKey);
                 Color color = source == HDCCustomConfig.RemoteSource ? HDCDebugStyle.GoodColor
                     : source.Length == 0 ? HDCDebugStyle.MutedColor
-                    : HDCConfigReport.DefaultsOnly ? HDCDebugStyle.TextColor : HDCDebugStyle.WarnColor;
+                    : HDCConfigReport.DefaultsOnly || source == HDCCustomConfig.CountrySource ? HDCDebugStyle.TextColor : HDCDebugStyle.WarnColor;
                 statusList.Row("Custom: " + customKey, (source.Length == 0 ? "Not loaded yet" : source) + " · " + ShortValue(value), color);
             }
         }
@@ -179,15 +179,52 @@ namespace HDC.Ads.DebugUI
 
             if (!HDCConfigReport.Finished)
                 return "Loading...";
-            if (HDCConfigReport.DefaultsOnly)
-                return "Project defaults (Editor)";
+            if (HDCConfigReport.Plan == HDCConfigPlan.EditorDefaults)
+                return "Default · Editor";
+            if (HDCConfigReport.Plan == HDCConfigPlan.Default)
+                return "Default · " + HDCConfigReport.Outcome;
+            if (HDCConfigReport.Plan == HDCConfigPlan.NoFirebase)
+                return "Default · no Firebase in this build";
 
-            HDCConfigEntry ads = HDCConfigReport.Find(HDCRemoteConfigKeys.Ads);
-            bool remote = HDCConfigReport.Entries.Count > 0 && HDCConfigReport.Entries.All(entry => entry.Source == HDCConfigSource.Remote);
+            bool remote = HDCConfigReport.Entries.Count > 0 && HDCConfigReport.Entries.All(entry => entry.Source != HDCConfigSource.Default);
+            bool partly = HDCConfigReport.Entries.Any(entry => entry.Source == HDCConfigSource.Remote);
             tone = remote ? HDCDebugTone.Good : HDCDebugTone.Warn;
-            string from = remote ? "Remote Config" : ads != null && ads.Source == HDCConfigSource.Remote ? "Remote Config, partly saved or default" : "Saved or default values";
+            string from = remote ? "Remote Config" : partly ? "Remote Config, partly Default" : "Default";
             return from + " · " + HDCConfigReport.Outcome;
         }
+
+        private static string ConfigSourceText()
+        {
+            HDCAdsConfigSource source = HDCAdsSettings.Load().ConfigSource;
+            string chosen = source == HDCAdsConfigSource.Default
+                ? "Default (HDC Ads Settings)"
+                : "Remote Config, timeout " + WholeSeconds(HDCConfigReport.Plan == HDCConfigPlan.RemoteConfig && HDCConfigReport.TimeoutSeconds > 0f
+                    ? HDCConfigReport.TimeoutSeconds
+                    : HDCAdsSettings.RemoteConfigTimeoutSeconds) + ", then Default";
+            if (HDCConfigReport.Started && HDCConfigReport.Plan == HDCConfigPlan.NoFirebase)
+                return chosen + " · no Firebase in this build, so Default";
+            return HDCConfigReport.Plan == HDCConfigPlan.EditorDefaults && HDCConfigReport.Started ? chosen + " · Editor uses Default" : chosen;
+        }
+
+        private static string LoadTimeText()
+        {
+            if (!HDCConfigReport.Finished)
+                return HDCConfigReport.Plan == HDCConfigPlan.RemoteConfig
+                    ? "Loading... " + Seconds(HDCConfigReport.ElapsedSeconds) + " (timeout " + WholeSeconds(HDCConfigReport.TimeoutSeconds) + ")"
+                    : "Loading...";
+            string text = Seconds(HDCConfigReport.LoadSeconds);
+            float running = HDCConfigReport.RunningSeconds;
+            if (HDCConfigReport.Plan == HDCConfigPlan.RemoteConfig && running >= 0f && HDCConfigReport.LoadSeconds - running >= 1f)
+                text += " · game running " + Seconds(running) + ", the rest in background or under a system prompt";
+            return text;
+        }
+
+        private static string StepsText() =>
+            string.Join(" · ", HDCConfigReport.Steps.Select(step => step.Name + " " + Seconds(step.Seconds)));
+
+        private static string Seconds(float seconds) => seconds.ToString("0.0", CultureInfo.InvariantCulture) + " s";
+
+        private static string WholeSeconds(float seconds) => seconds.ToString("0", CultureInfo.InvariantCulture) + " s";
 
         private static string AppliedFrom(Part target, out string reason, out HDCDebugTone tone)
         {
@@ -200,40 +237,53 @@ namespace HDC.Ads.DebugUI
                 return "-";
             }
 
-            HDCConfigEntry entry = HDCConfigReport.Find(key);
-            if (entry == null)
-            {
-                tone = HDCDebugTone.Normal;
-                reason = "Config được truyền thẳng vào HDCAds.Initialize, không qua Remote Config của HDC.";
-                return "Direct";
-            }
-
-            if (Compact(entry.Used) != Compact(applied))
+            if (target == Part.Core && HDCConfigReport.AppliedCoreKey.Length == 0)
             {
                 tone = HDCDebugTone.Warn;
-                reason = $"HDCAds.Initialize nhận config khác với giá trị HDCRemoteConfig chọn ({entry.Source}).";
+                reason = "ads_config đang chạy không có selectedAdCoreName, nên HDCAds không chọn ad core nào và không có group quảng cáo nào để load. "
+                         + "Thêm selectedAdCoreName (ví dụ adcore_main_ios) vào ads_config.";
+                return "No ad core";
+            }
+
+            HDCConfigSource? source = target == Part.Ads ? HDCConfigReport.AppliedAdsSource : HDCConfigReport.AppliedCoreSource;
+            if (source == null)
+            {
+                bool loaded = HDCConfigReport.Started;
+                tone = loaded ? HDCDebugTone.Warn : HDCDebugTone.Normal;
+                reason = loaded
+                    ? $"Game tự gọi HDCAds.Initialize với {key} khác config mà HDC tải được, nên HDCAds chạy config được truyền thẳng vào."
+                    : "Config được truyền thẳng vào HDCAds.Initialize, không qua Remote Config của HDC.";
                 return "Direct";
             }
 
-            switch (entry.Source)
+            switch (source.Value)
             {
                 case HDCConfigSource.Remote:
                     tone = HDCDebugTone.Good;
-                    reason = HDCConfigReport.Outcome == "fetched"
-                        ? $"{key} lấy từ Remote Config, vừa fetch xong."
-                        : $"{key} lấy từ Remote Config: giá trị Firebase đã kích hoạt từ lần trước (lần tải này: {HDCConfigReport.Outcome}).";
+                    reason = $"{key} lấy từ Remote Config, vừa fetch xong trong lần mở này.";
                     return "Remote";
-                case HDCConfigSource.Saved:
-                    tone = HDCDebugTone.Warn;
-                    reason = $"Remote Config không có giá trị cho {key}, nên dùng giá trị lần trước lưu trên máy.";
-                    return "Saved";
+                case HDCConfigSource.Country:
+                    tone = HDCDebugTone.Normal;
+                    reason = $"Country mode bật nên {key} lấy từ country config trong HDC Ads Settings.";
+                    return "Country";
                 default:
                     tone = HDCConfigReport.DefaultsOnly ? HDCDebugTone.Normal : HDCDebugTone.Warn;
-                    reason = HDCConfigReport.DefaultsOnly
-                        ? $"Trong Editor HDC dùng config mặc định cho {key}, không fetch Firebase."
-                        : $"Remote Config không có giá trị cho {key} và máy chưa lưu giá trị nào, nên dùng config mặc định của project.";
+                    reason = DefaultReason(key);
                     return "Default";
             }
+        }
+
+        private static string DefaultReason(string key)
+        {
+            if (HDCConfigReport.Plan == HDCConfigPlan.NoFirebase)
+                return $"Bản build không có Firebase (thiếu define HDC_FIREBASE), nên {key} lấy từ config mặc định của project.";
+            if (HDCConfigReport.Plan == HDCConfigPlan.EditorDefaults)
+                return $"Trong Editor HDC dùng config mặc định cho {key}, không fetch Firebase.";
+            if (HDCConfigReport.Plan == HDCConfigPlan.Default)
+                return $"HDC Ads Settings chọn Default cho bản build này, nên {key} lấy từ config mặc định, không fetch Remote Config.";
+            if (HDCConfigReport.Outcome != "fetched")
+                return $"Lần mở này không lấy được Remote Config ({HDCConfigReport.Outcome}), nên {key} lấy từ config mặc định của project.";
+            return $"Remote Config không có giá trị cho {key}, nên dùng config mặc định của project.";
         }
 
         private static string AppliedJson(Part target) => target == Part.Ads ? HDCConfigReport.AppliedAds : HDCConfigReport.AppliedCore;
@@ -242,11 +292,10 @@ namespace HDC.Ads.DebugUI
         {
             if (target == Part.Ads)
                 return HDCRemoteConfigKeys.Ads;
-            string coreKey = !string.IsNullOrEmpty(HDCConfigReport.CoreKey) ? HDCConfigReport.CoreKey : HDCAds.Config.selectedAdCoreName;
+            string coreKey = HDCConfigReport.AppliedAds != null ? HDCConfigReport.AppliedCoreKey
+                : !string.IsNullOrEmpty(HDCConfigReport.CoreKey) ? HDCConfigReport.CoreKey : HDCAds.Config.selectedAdCoreName;
             return string.IsNullOrEmpty(coreKey) ? "ad core config" : coreKey;
         }
-
-        private static string Compact(string json) => new string((json ?? string.Empty).Where(c => !char.IsWhiteSpace(c)).ToArray());
 
         private void RedrawCheck()
         {
@@ -286,7 +335,6 @@ namespace HDC.Ads.DebugUI
         private void RedrawViewer()
         {
             HDCDebugStyle.Highlight(remoteButton, mode == Mode.Remote);
-            HDCDebugStyle.Highlight(savedButton, mode == Mode.Saved);
             HDCDebugStyle.Highlight(defaultButton, mode == Mode.Default);
             HDCDebugStyle.Highlight(appliedButton, mode == Mode.Applied);
             HDCDebugStyle.Highlight(adsButton, part == Part.Ads);
@@ -309,7 +357,6 @@ namespace HDC.Ads.DebugUI
             if (part == Part.Keys)
             {
                 HDCDebugStyle.SetLabel(remoteButton, "Remote");
-                HDCDebugStyle.SetLabel(savedButton, "Saved");
                 HDCDebugStyle.SetLabel(defaultButton, "Default");
                 HDCDebugStyle.SetLabel(appliedButton, "Applied");
                 appliedNoteText.text = HDCConfigReport.AppliedAds == null
@@ -320,7 +367,6 @@ namespace HDC.Ads.DebugUI
 
             string source = AppliedFrom(part, out string reason, out HDCDebugTone tone);
             HDCDebugStyle.SetLabel(remoteButton, source == "Remote" ? "Remote · used" : "Remote");
-            HDCDebugStyle.SetLabel(savedButton, source == "Saved" ? "Saved · used" : "Saved");
             HDCDebugStyle.SetLabel(defaultButton, source == "Default" ? "Default · used" : "Default");
             HDCDebugStyle.SetLabel(appliedButton, "Applied: " + source);
             appliedNoteText.text = $"<b><color={Hex(tone)}>APPLIED = {source.ToUpperInvariant()}</color></b>   {reason}";
@@ -354,7 +400,11 @@ namespace HDC.Ads.DebugUI
             if (part == Part.Keys)
             {
                 if (HDCConfigReport.RemoteValueCount == 0)
-                    return HDCConfigReport.DefaultsOnly ? "Editor không fetch Remote Config, nên không có key nào." : "Remote Config chưa có key nào.";
+                    return HDCConfigReport.Plan == HDCConfigPlan.EditorDefaults ? "Editor không fetch Remote Config, nên không có key nào."
+                        : HDCConfigReport.Plan == HDCConfigPlan.NoFirebase ? "Bản build không có Firebase, nên không có key Remote Config nào."
+                        : HDCConfigReport.DefaultsOnly ? "HDC Ads Settings chọn Default, nên không fetch Remote Config."
+                        : HDCConfigReport.Finished && HDCConfigReport.Outcome != "fetched" ? $"Lần mở này không lấy được Remote Config ({HDCConfigReport.Outcome})."
+                        : "Remote Config chưa có key nào.";
                 return $"Key: {Dash(key)} · Firebase: {Dash(HDCConfigReport.RemoteOrigin(key))} · {Size(HDCConfigReport.RemoteValue(key))}. Mục này luôn là giá trị Remote Config.";
             }
 
@@ -367,7 +417,6 @@ namespace HDC.Ads.DebugUI
             switch (mode)
             {
                 case Mode.Remote: return "giá trị trên Remote Config";
-                case Mode.Saved: return "giá trị lần trước lưu trên máy";
                 case Mode.Default: return "config mặc định của project";
                 default: return "config HDCAds đang chạy (= " + AppliedFrom(part, out _, out _) + ")";
             }
@@ -419,15 +468,6 @@ namespace HDC.Ads.DebugUI
 
                     note = "Firebase: " + Dash(entry.RemoteOrigin);
                     return entry.Remote;
-                case Mode.Saved:
-                    if (entry != null)
-                    {
-                        note = "đọc lúc tải config";
-                        return entry.Saved;
-                    }
-
-                    note = "đọc lúc này";
-                    return Saved(currentKey);
                 case Mode.Default:
                     if (entry != null)
                         return entry.Default;
@@ -437,18 +477,6 @@ namespace HDC.Ads.DebugUI
                     if (HDCConfigReport.AppliedAds == null)
                         note = "HDCAds chưa khởi tạo";
                     return AppliedJson(part) ?? string.Empty;
-            }
-        }
-
-        private static string Saved(string currentKey)
-        {
-            try
-            {
-                return PlayerPrefs.GetString(currentKey, string.Empty);
-            }
-            catch (Exception)
-            {
-                return string.Empty;
             }
         }
 
@@ -538,7 +566,6 @@ namespace HDC.Ads.DebugUI
 
         private void RedrawMap()
         {
-            HDCDebugStyle.SetLabel(mapToggleButton, mapBody.activeSelf ? "Collapse" : "Expand");
             if (!mapBody.activeSelf)
                 return;
 

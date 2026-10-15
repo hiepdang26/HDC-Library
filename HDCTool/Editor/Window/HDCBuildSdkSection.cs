@@ -10,6 +10,12 @@ namespace HDC.Tool.Editor
         private const float RowHeight = 20f;
         private const float Indent = 16f;
 
+        private static IReadOnlyList<HDCSdkVersions.Entry> shownSource;
+        private static bool shownIos;
+        private static List<HDCSdkVersions.Entry> shown = new List<HDCSdkVersions.Entry>();
+        private static GUIContent[] shownValues = new GUIContent[0];
+        private static int shownNetworks;
+
         private static GUIStyle headerStyle;
         private static GUIStyle currentStyle;
         private static GUIStyle groupStyle;
@@ -20,13 +26,20 @@ namespace HDC.Tool.Editor
         internal static void Draw(HDCBuildToolWindow window)
         {
             bool ios = window.Platform == HDCBuildPlatform.Ios;
-            List<HDCSdkVersions.Entry> entries = HDCSdkVersions.ForPlatform(window.Sdks, ios);
-            int networks = entries.Count(entry => entry.Network);
-            string subtitle = window.Platform.Title() + " · " + (networks == 1 ? "1 mediation network" : networks + " mediation networks");
+            Show(window.Sdks, ios);
+            List<HDCSdkVersions.Entry> entries = shown;
+            int networks = shownNetworks;
+            string subtitle = window.Sdks == null ? window.Platform.Title() + " · reading..."
+                : window.Platform.Title() + " · " + (networks == 1 ? "1 mediation network" : networks + " mediation networks");
             using (HDCBuildGui.CardScope card = HDCBuildGui.Card("Sdk", "SDK versions", HDCBuildGui.Slate, subtitle))
             {
                 if (!card.Open)
                     return;
+                if (window.Sdks == null)
+                {
+                    HDCBuildGui.Note("Reading the SDK versions...");
+                    return;
+                }
                 Styles();
                 Header(window.Platform.Title());
                 string group = null;
@@ -40,7 +53,8 @@ namespace HDC.Tool.Editor
                         GUILayout.Label(group.ToUpperInvariant(), groupStyle);
                     }
 
-                    Row(entry, ios, row++);
+                    Row(entry, ios, row, shownValues[row]);
+                    row++;
                 }
 
                 GUILayout.Space(6f);
@@ -62,7 +76,23 @@ namespace HDC.Tool.Editor
                 EditorGUI.DrawRect(new Rect(rect.x, rect.yMax - 1f, rect.width, 1f), HDCBuildGui.Edge);
         }
 
-        private static void Row(HDCSdkVersions.Entry entry, bool ios, int index)
+        private static void Show(IReadOnlyList<HDCSdkVersions.Entry> source, bool ios)
+        {
+            if (ReferenceEquals(source, shownSource) && ios == shownIos)
+                return;
+            shownSource = source;
+            shownIos = ios;
+            shown = source == null ? new List<HDCSdkVersions.Entry>() : HDCSdkVersions.ForPlatform(source, ios);
+            shownNetworks = shown.Count(entry => entry.Network);
+            shownValues = shown.Select(entry =>
+            {
+                string value = HDCSdkVersions.Value(entry, ios);
+                string tip = ios ? entry.IosTip : entry.AndroidTip;
+                return new GUIContent(value, tip.Length > 0 ? tip : value);
+            }).ToArray();
+        }
+
+        private static void Row(HDCSdkVersions.Entry entry, bool ios, int index, GUIContent value)
         {
             Rect rect = GUILayoutUtility.GetRect(1f, RowHeight, GUILayout.ExpandWidth(true));
             HDCBuildGui.StripeRow(rect, index);
@@ -72,9 +102,7 @@ namespace HDC.Tool.Editor
             GUI.Label(name, entry.Name, entry.Network ? networkStyle : EditorStyles.label);
             if (entry.Network)
                 return;
-            string value = HDCSdkVersions.Value(entry, ios);
-            string tip = ios ? entry.IosTip : entry.AndroidTip;
-            GUI.Label(version, new GUIContent(value, tip.Length > 0 ? tip : value), ios && entry.IosDeclared ? declaredStyle : cellStyle);
+            GUI.Label(version, value, ios && entry.IosDeclared ? declaredStyle : cellStyle);
         }
 
         private static (Rect Name, Rect Version) Columns(Rect rect)

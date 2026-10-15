@@ -9,8 +9,12 @@ namespace HDC.Ads
     {
         public const string ResourceName = "HDCAdsSettings";
 
+        internal const float RemoteConfigTimeoutSeconds = 30f;
+
         public static readonly string[] CoreConfigKeys = { "adcore_main_android", "adcore_main_ios" };
 
+        [SerializeField] private HDCAdsConfigSource configSourceAndroid = HDCAdsConfigSource.RemoteConfig;
+        [SerializeField] private HDCAdsConfigSource configSourceIos = HDCAdsConfigSource.RemoteConfig;
         [SerializeField, TextArea(5, 30)] private string adsConfigAndroid = "{}";
         [SerializeField, TextArea(5, 30)] private string adsConfigIos = "";
         [SerializeField, TextArea(5, 30)] private string coreConfigAndroid = "{}";
@@ -21,6 +25,8 @@ namespace HDC.Ads
         [SerializeField, TextArea(5, 30)] private string countryCoreConfigAndroid = "";
         [SerializeField, TextArea(5, 30)] private string countryCoreConfigIos = "";
         [SerializeField] private CountryCheck countryCheck = new CountryCheck();
+
+        public HDCAdsConfigSource ConfigSource => PickPlatform(configSourceAndroid, configSourceIos);
 
         public string AdsConfig => ForPlatform(adsConfigAndroid, adsConfigIos);
 
@@ -112,6 +118,15 @@ namespace HDC.Ads
         {
 #if UNITY_IOS
             return string.IsNullOrWhiteSpace(ios) ? android : ios;
+#else
+            return android;
+#endif
+        }
+
+        private static T PickPlatform<T>(T android, T ios)
+        {
+#if UNITY_IOS
+            return ios;
 #else
             return android;
 #endif

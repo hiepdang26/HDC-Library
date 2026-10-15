@@ -69,6 +69,18 @@ namespace HDC.Onboarding
 
         private bool InterstitialOnScreen => interstitialShowing && interstitial != null && interstitial.IsOnScreen;
 
+        private bool NativeAfterShowsUnderRightAway
+        {
+            get
+            {
+#if UNITY_ANDROID
+                return false;
+#else
+                return interstitial != null && interstitial.IsInterstitial;
+#endif
+            }
+        }
+
         private void Awake()
         {
             HDCFirstSession.CheckAndCacheFirstOpenData();
@@ -84,10 +96,11 @@ namespace HDC.Onboarding
             StartLoading(0.9f, FirstLoadingSeconds);
             HDCOnboardingLog.Log("Splash start");
             HDCOnboardingTracking.Track("4_admob_start");
-            HDCOnboardingLog.Log("Waiting admob...");
-            yield return new WaitUntil(() => HDCOnboardingAds.SdkReady);
+            HDCConsentTracking.Begin();
+            HDCOnboardingLog.Log("Waiting consent, tracking and admob...");
+            yield return new WaitUntil(() => HDCOnboardingAds.AdsGateDone);
             HDCOnboardingTracking.Track("4_admob_end");
-            HDCOnboardingLog.Log("Admob ready");
+            HDCOnboardingLog.Log("Admob privacy gate completed");
 
             yield return new WaitUntil(() => HDCOnboardingAds.FirebaseChecked);
             HDCOnboardingLog.Log("Firebase initialized");
@@ -103,7 +116,7 @@ namespace HDC.Onboarding
             HDCOnboardingLog.Log("Internet available");
             HDCOnboardingTracking.Track("3_admob_start");
             HDCOnboardingLog.Log("Waiting Firebase remote & admob...");
-            yield return new WaitUntil(() => HDCOnboardingAds.RemoteConfigDone && HDCOnboardingAds.SdkReady);
+            yield return new WaitUntil(() => HDCOnboardingAds.RemoteConfigDone && HDCOnboardingAds.AdsGateDone);
             onFirebaseInitialized.Invoke();
             HDCOnboardingTracking.Track("3_admob_end");
             HDCOnboardingLog.Log("Remote & Admob available");
@@ -114,6 +127,14 @@ namespace HDC.Onboarding
             HDCOnboardingTracking.Track("4_remote_end");
 
             StartLoading(0.9f, config.loadingTime > 0f ? config.loadingTime : FirstLoadingSeconds);
+            if (!HDCAds.Consent.CanRequestAds)
+            {
+                HDCOnboardingLog.Warn("Ad request disabled by consent. Skip splash ads.");
+                HDCOnboardingTracking.Track("5_load_ad_skip_consent");
+                yield return FinishSplashWithoutAds();
+                yield break;
+            }
+
             if (HDCAds.IsAdsRemoved)
             {
                 HDCOnboardingLog.Log("Ads are removed. Skip splash ads.");
@@ -329,7 +350,7 @@ namespace HDC.Onboarding
             nativeAfterShowCalled = true;
             HDCOnboardingLog.Log($"Native after interstitials {nativeAfter.Position} splash showing");
             HDCOnboardingTracking.Track($"5_{nativeAfter.Position}_s_s");
-            yield return nativeAfter.Show(() => InterstitialOnScreen);
+            yield return nativeAfter.Show(NativeAfterShowsUnderRightAway ? null : (System.Func<bool>)(() => InterstitialOnScreen));
             HDCOnboardingLog.Log($"Native after interstitials {nativeAfter.Position} splash showing completed");
             HDCOnboardingTracking.Track($"5_{nativeAfter.Position}_s_e");
             nativeAfterShowEnd = true;

@@ -6,6 +6,9 @@ namespace HDC.Tool.Editor
 {
     internal static class HDCBuildHeader
     {
+        private static readonly GUIContent ExpandAll = new GUIContent("Expand all", "Opens every card.");
+        private static readonly GUIContent CollapseAll = new GUIContent("Collapse all", "Closes every card. A closed card costs nothing to draw.");
+
         private static GUIStyle tabStyle;
         private static GUIStyle brandStyle;
 
@@ -15,8 +18,28 @@ namespace HDC.Tool.Editor
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
                 GUILayout.Label("HDC Build Tool", brandStyle);
-                GUILayout.Label("Build iOS and Android from one window", EditorStyles.miniLabel);
+                if (HDCBuildGui.Wide)
+                    GUILayout.Label("Build iOS and Android from one window", EditorStyles.miniLabel);
                 GUILayout.FlexibleSpace();
+                using (new EditorGUI.DisabledScope(HDCBuildGui.AllOpen))
+                {
+                    if (GUILayout.Button(ExpandAll, EditorStyles.toolbarButton, GUILayout.Width(74f)))
+                    {
+                        GUI.FocusControl(null);
+                        HDCBuildGui.SetAll(true);
+                    }
+                }
+
+                using (new EditorGUI.DisabledScope(HDCBuildGui.AllClosed))
+                {
+                    if (GUILayout.Button(CollapseAll, EditorStyles.toolbarButton, GUILayout.Width(80f)))
+                    {
+                        GUI.FocusControl(null);
+                        HDCBuildGui.SetAll(false);
+                    }
+                }
+
+                GUILayout.Space(6f);
                 if (GUILayout.Button("Player settings", EditorStyles.toolbarButton, GUILayout.Width(100f)))
                     SettingsService.OpenProjectSettings("Project/Player");
                 if (GUILayout.Button("HDC settings", EditorStyles.toolbarButton, GUILayout.Width(90f)))

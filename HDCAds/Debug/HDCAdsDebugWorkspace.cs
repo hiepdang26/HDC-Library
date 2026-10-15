@@ -22,6 +22,10 @@ namespace HDC.Ads.DebugUI
         [Header("Channels")]
         [Tooltip("A channel's tab, with \"Key\" and \"Name\" texts and a \"Dot\" image. The page copies it for each channel.")]
         [SerializeField] private Button tabTemplate;
+        [Tooltip("The grid of channel tabs; it grows by one row of tabs at a time.")]
+        [SerializeField] private RectTransform tabsArea;
+        [Tooltip("The page's scrolling body, placed under the tabs.")]
+        [SerializeField] private RectTransform body;
 
         [Header("Actions")]
         [SerializeField] private Text channelTitleText;
@@ -40,15 +44,13 @@ namespace HDC.Ads.DebugUI
         [SerializeField] private Button copyReportButton;
 
         [Header("Recent events")]
-        [SerializeField] private Button eventsToggleButton;
         [SerializeField] private Button eventsFullScreenButton;
         [SerializeField] private GameObject eventsBody;
         [SerializeField] private Text eventsNoticeText;
-        [SerializeField] private GameObject eventTemplate;
+        [SerializeField] private HDCEventRows eventRows;
 
         [Header("System")]
         [SerializeField] private Text systemTitleText;
-        [SerializeField] private Button systemToggleButton;
         [SerializeField] private GameObject systemBody;
         [SerializeField] private HDCKeyValueList systemList;
 
@@ -61,7 +63,6 @@ namespace HDC.Ads.DebugUI
         private readonly List<GameObject> tabs = new List<GameObject>();
         private readonly List<GameObject> actionButtons = new List<GameObject>();
         private readonly List<GameObject> unitRows = new List<GameObject>();
-        private readonly List<GameObject> eventRows = new List<GameObject>();
         private IReadOnlyList<IAdChannel> tabChannels;
         private IAdChannel actionsChannel;
         private IAdChannel channel;
@@ -80,16 +81,11 @@ namespace HDC.Ads.DebugUI
             tabTemplate.gameObject.SetActive(false);
             actionTemplate.gameObject.SetActive(false);
             unitTemplate.SetActive(false);
-            eventTemplate.SetActive(false);
-            eventsBody.SetActive(false);
-            systemBody.SetActive(false);
 
             groupButton.onClick.AddListener(() => OpenPicker(true));
             positionButton.onClick.AddListener(() => OpenPicker(false));
             copyReportButton.onClick.AddListener(CopyReport);
-            eventsToggleButton.onClick.AddListener(() => Toggle(eventsBody));
             eventsFullScreenButton.onClick.AddListener(OpenEventsFullScreen);
-            systemToggleButton.onClick.AddListener(() => Toggle(systemBody));
 
             HDCAds.Initialized += MarkDirty;
             HDCAdsSdk.AdEvent += OnAdEvent;
@@ -101,7 +97,11 @@ namespace HDC.Ads.DebugUI
             HDCAdsSdk.AdEvent -= OnAdEvent;
         }
 
-        private void OnDisable()
+        private void OnDisable() => HideArea();
+
+        internal override void Hidden() => HideArea();
+
+        private void HideArea()
         {
             if (area != null)
                 area.Hide();
@@ -184,6 +184,7 @@ namespace HDC.Ads.DebugUI
                 }
 
                 HDCDebugStyle.HideRest(tabs, used);
+                FitTabs(used);
             }
 
             for (int i = 0; i < all.Count; i++)
@@ -362,9 +363,18 @@ namespace HDC.Ads.DebugUI
 
         private static string Count(int value) => value.ToString(CultureInfo.InvariantCulture);
 
+        private void FitTabs(int count)
+        {
+            var grid = tabsArea.GetComponent<GridLayoutGroup>();
+            int columns = Mathf.Max(1, grid.constraintCount);
+            int rows = Mathf.Max(1, (count + columns - 1) / columns);
+            float height = rows * grid.cellSize.y + (rows - 1) * grid.spacing.y;
+            tabsArea.sizeDelta = new Vector2(tabsArea.sizeDelta.x, height);
+            body.offsetMax = new Vector2(body.offsetMax.x, -(height + grid.spacing.y));
+        }
+
         private void RedrawEvents()
         {
-            HDCDebugStyle.SetLabel(eventsToggleButton, eventsBody.activeSelf ? "Collapse" : "Expand");
             if (!eventsBody.activeSelf)
                 return;
 
@@ -372,10 +382,10 @@ namespace HDC.Ads.DebugUI
             eventsNoticeText.text = picked.Count == 0
                 ? "Chưa có sự kiện nào của " + Scope() + "."
                 : $"{picked.Count} sự kiện mới nhất của {Scope()}, mới nhất ở trên.";
-            int used = 0;
+            eventRows.Begin();
             foreach (HDCTrackedEvent tracked in picked)
-                HDCDebugStyle.Take(eventRows, eventTemplate, ref used).GetComponent<Text>().text = HDCEventText.Line(tracked, false, false);
-            HDCDebugStyle.HideRest(eventRows, used);
+                eventRows.Event(tracked, false, false);
+            eventRows.End();
         }
 
         private List<HDCTrackedEvent> GroupEvents(int limit)
@@ -409,7 +419,6 @@ namespace HDC.Ads.DebugUI
         private void RedrawSystem()
         {
             systemTitleText.text = "System · " + channel.Title;
-            HDCDebugStyle.SetLabel(systemToggleButton, systemBody.activeSelf ? "Collapse" : "Expand");
             if (!systemBody.activeSelf)
                 return;
 
@@ -476,12 +485,6 @@ namespace HDC.Ads.DebugUI
         {
             lastCall = $"[{DateTime.Now.ToString("HH:mm:ss", CultureInfo.InvariantCulture)}] {call}";
             MarkDirty();
-        }
-
-        private void Toggle(GameObject body)
-        {
-            body.SetActive(!body.activeSelf);
-            Refresh();
         }
 
         private void ShowArea()

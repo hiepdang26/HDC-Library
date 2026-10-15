@@ -10,8 +10,6 @@ namespace HDC.Ads.Diagnostics
 
         internal string RemoteOrigin { get; set; } = "";
 
-        internal string Saved { get; set; } = "";
-
         internal string Default { get; set; } = "";
 
         internal string Used { get; set; } = "";

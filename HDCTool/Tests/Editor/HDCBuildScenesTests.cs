@@ -20,6 +20,27 @@ namespace HDC.Tool.Tests
             CollectionAssert.AreEqual(new[] { 0, -1, -1, 1 }, HDCBuildScenesSection.BuildIndexes(Scenes, path => path != "Assets/Gone.unity"));
 
         [Test]
+        public void ReadingTheListChecksEachSceneFileOnce()
+        {
+            int checks = 0;
+            HDCBuildScenesSection.Facts facts = HDCBuildScenesSection.Read(Scenes, path =>
+            {
+                checks++;
+                return path != "Assets/Gone.unity";
+            });
+
+            Assert.AreEqual(Scenes.Length, checks, "one check per scene, not one per scene for every row");
+            CollectionAssert.AreEqual(new[] { true, true, false, true }, facts.Exists);
+            CollectionAssert.AreEqual(new[] { 0, -1, -1, 1 }, facts.Indexes);
+            CollectionAssert.AreEqual(new[] { "Splash", "Intro", "Gone (missing)", "Game" }, facts.Names);
+            Assert.AreEqual("Assets/Game.unity", facts.Paths[3].tooltip);
+            Assert.AreEqual(3, facts.Enabled);
+            Assert.IsTrue(facts.AnyMissing);
+            Assert.IsFalse(HDCBuildScenesSection.Read(Scenes, _ => true).AnyMissing);
+            Assert.AreEqual(0, HDCBuildScenesSection.Read(new EditorBuildSettingsScene[0], _ => true).Count);
+        }
+
+        [Test]
         public void DroppedScenesAreAddedOnceAndTurnedOn()
         {
             EditorBuildSettingsScene[] result = HDCBuildScenesSection.WithScenes(Scenes, new[] { "Assets/Game.unity", "Assets/Shop.unity", "", "Assets/Shop.unity" });

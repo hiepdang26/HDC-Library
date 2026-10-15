@@ -14,7 +14,7 @@ namespace HDC.Ads.Logic
         private bool? adsRemoved;
 
         internal HDCAdsContext(IClock clock, IKeyValueStore store, IMainThread mainThread, IAdsLog log, IAdsSdk sdk,
-            IReadOnlyList<IAdNetwork> networks, IUnitOrderPolicy order)
+            IReadOnlyList<IAdNetwork> networks, IUnitOrderPolicy order, HDCConsentGate consent)
         {
             Clock = clock;
             Store = store;
@@ -23,6 +23,7 @@ namespace HDC.Ads.Logic
             Sdk = sdk;
             Networks = networks;
             Order = order;
+            Consent = consent;
             Groups = new HDCAdGroups(this);
         }
 
@@ -35,6 +36,8 @@ namespace HDC.Ads.Logic
         internal IReadOnlyList<IAdNetwork> Networks { get; }
 
         internal IUnitOrderPolicy Order { get; }
+
+        internal HDCConsentGate Consent { get; }
 
         internal HDCAdsConfig Config { get; private set; } = new HDCAdsConfig();
         internal HDCAdCoreConfig CoreConfig { get; private set; } = new HDCAdCoreConfig();
@@ -57,6 +60,8 @@ namespace HDC.Ads.Logic
 
         internal event Action BannerClicked;
 
+        internal event Action AdsNotAllowed;
+
         internal bool IsAdsRemoved
         {
             get
@@ -67,32 +72,51 @@ namespace HDC.Ads.Logic
             }
         }
 
+        internal bool InitializeCalled => initializeCalled;
+
+        internal void WhenInitialized(Action onInitialized)
+        {
+            if (onInitialized == null)
+                return;
+            if (IsInitialized)
+                onInitialized();
+            else
+                Initialized += onInitialized;
+        }
+
         internal void Initialize(string adsConfigJson, string coreConfigJson, Action onInitialized)
         {
             if (initializeCalled)
             {
                 Log.Warning("HDCAds.Initialize was already called");
-                if (onInitialized != null)
-                {
-                    if (IsInitialized)
-                        onInitialized();
-                    else
-                        Initialized += onInitialized;
-                }
-
+                WhenInitialized(onInitialized);
                 return;
             }
 
             initializeCalled = true;
             HDCConfigReport.Applied(adsConfigJson, coreConfigJson);
+            if (onInitialized != null)
+                Initialized += onInitialized;
+            Consent.UseConfig(HDCAdsConfig.Parse(adsConfigJson));
+            Consent.Start();
+            Consent.WhenDone(() => StartAds(adsConfigJson, coreConfigJson));
+        }
+
+        private void StartAds(string adsConfigJson, string coreConfigJson)
+        {
+            if (!Consent.CanRequestAds)
+            {
+                Log.Warning("consent does not allow ad requests, so no ad loads this session");
+                HDCCallbacks.Run(AdsNotAllowed, Log);
+                return;
+            }
+
             Config = HDCAdsConfig.Parse(adsConfigJson, out string adsError);
             if (adsError != null)
                 Log.Warning("invalid ads config: " + adsError);
             CoreConfig = HDCAdCoreConfig.Parse(coreConfigJson, out string coreError);
             if (coreError != null)
                 Log.Warning("invalid ad core config: " + coreError);
-            if (onInitialized != null)
-                Initialized += onInitialized;
             Sdk.AdEvent += OnAdEvent;
             Sdk.Initialize(OnSdkReady);
         }

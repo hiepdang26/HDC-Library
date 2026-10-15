@@ -70,6 +70,9 @@ namespace HDC.Ads.Logic
                     channel.Move(rect.center);
                     return $"Mrec.Move(new Vector2({rect.center.x:0}, {rect.center.y:0}))";
                 });
+                Vector2 size = channel.SizeInPixels;
+                if (size.x > 0f)
+                    area.PixelsPerPoint = size.x / MrecPoints.x;
                 switch (channel.moveMode)
                 {
                     case MoveMode.Point:

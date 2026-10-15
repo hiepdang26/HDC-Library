@@ -240,16 +240,8 @@ namespace HDC.Ads.Domain
             public string[] ids = new string[0];
             public string layout = "";
             public string[] layouts = new string[0];
-            public AdSourceLayout[] adSourceLayouts = new AdSourceLayout[0];
             public int reloadTime;
             public int timeShow;
-        }
-
-        [Serializable]
-        public sealed class AdSourceLayout
-        {
-            public string[] adSources = new string[0];
-            public string layout = "";
         }
 
         [Serializable]

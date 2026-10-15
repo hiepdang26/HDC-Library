@@ -72,10 +72,12 @@ namespace HDC.Tool.Editor
             internal string GmaPlugin = None;
         }
 
-        internal static List<Entry> Read(string iosExportFolder)
+        internal static List<Entry> Read(string iosExportFolder) => Read(iosExportFolder, Application.dataPath, HDCLibRoot());
+
+        internal static List<Entry> Read(string iosExportFolder, string dataPath, string libRoot)
         {
             var sources = new Sources();
-            foreach (string file in DependencyFiles())
+            foreach (string file in DependencyFiles(dataPath))
                 Collect(Safe(() => File.ReadAllText(file)) ?? "", sources.Android, sources.Ios);
             string lockFile = Path.Combine(iosExportFolder ?? "", "Podfile.lock");
             foreach (KeyValuePair<string, string> pod in LockedPods(Safe(() => File.ReadAllText(lockFile)) ?? ""))
@@ -83,10 +85,9 @@ namespace HDC.Tool.Editor
             string resolved = Path.Combine(iosExportFolder ?? "", "Unity-iPhone.xcworkspace", "xcshareddata", "swiftpm", "Package.resolved");
             foreach (KeyValuePair<string, string> pin in Pins(Safe(() => File.ReadAllText(resolved)) ?? ""))
                 sources.IosResolved["spm:" + pin.Key] = pin.Value;
-            string root = HDCLibRoot();
-            sources.LibraryVersion = PackageJsonVersion(root);
-            sources.NativeIos = XcframeworkDate(root);
-            sources.GmaPlugin = GmaPluginVersion();
+            sources.LibraryVersion = PackageJsonVersion(libRoot);
+            sources.NativeIos = XcframeworkDate(libRoot);
+            sources.GmaPlugin = GmaPluginVersion(dataPath);
             return Build(sources);
         }
 
@@ -329,9 +330,9 @@ namespace HDC.Tool.Editor
         private static string NetworkName(string key) =>
             Networks.TryGetValue(key, out (string Name, string IosSdkPod) known) ? known.Name : key.Length == 0 ? key : char.ToUpperInvariant(key[0]) + key.Substring(1);
 
-        private static IEnumerable<string> DependencyFiles() =>
-            Safe(() => Directory.EnumerateFiles(Application.dataPath, "*Dependencies.xml", SearchOption.AllDirectories)
-                .Where(file => !IsIgnored(file.Substring(Application.dataPath.Length)))
+        private static IEnumerable<string> DependencyFiles(string dataPath) =>
+            Safe(() => Directory.EnumerateFiles(dataPath, "*Dependencies.xml", SearchOption.AllDirectories)
+                .Where(file => !IsIgnored(file.Substring(dataPath.Length)))
                 .ToList()) ?? new List<string>();
 
         private static void Keep(Dictionary<string, string> values, string key, string version)
@@ -358,9 +359,9 @@ namespace HDC.Tool.Editor
             return File.Exists(plist) ? "built " + File.GetLastWriteTime(plist).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) : None;
         }
 
-        private static string GmaPluginVersion()
+        private static string GmaPluginVersion(string dataPath)
         {
-            string folder = Path.Combine(Application.dataPath, "GoogleMobileAds");
+            string folder = Path.Combine(dataPath, "GoogleMobileAds");
             string manifest = Directory.Exists(folder) ? Directory.EnumerateFiles(folder, "GoogleMobileAds_version-*_manifest.txt").FirstOrDefault() : null;
             Match match = manifest == null ? Match.Empty : GmaManifest.Match(Path.GetFileName(manifest));
             return match.Success ? match.Groups["version"].Value : None;

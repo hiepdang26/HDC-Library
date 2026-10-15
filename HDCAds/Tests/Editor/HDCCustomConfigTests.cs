@@ -14,38 +14,37 @@ namespace HDC.Ads.Tests
     public class HDCCustomConfigTests : HDCPlayModeTest
     {
         private const string Key = "hdc_test_custom";
+        private const string OldSavedKey = "HDCAds.Custom." + Key;
 
         [SetUp]
         public void Clean()
         {
-            PlayerPrefs.DeleteKey(HDCCustomConfig.SavedPrefix + Key);
+            PlayerPrefs.DeleteKey(OldSavedKey);
             HDCCustomConfig.Reset();
         }
 
         [TearDown]
         public void CleanUp()
         {
-            PlayerPrefs.DeleteKey(HDCCustomConfig.SavedPrefix + Key);
+            PlayerPrefs.DeleteKey(OldSavedKey);
             HDCCustomConfig.Reset();
         }
 
         [Test]
-        public void AValueComesFromRemoteThenSavedThenDefault()
+        public void AValueIsTheDefaultUntilRemoteConfigGivesOne()
         {
             HDCCustomConfig.Declare(new Dictionary<string, string> { { Key, "default" } });
-            Assert.AreEqual("default", HDCCustomConfig.Get(Key));
+            PlayerPrefs.SetString(OldSavedKey, "saved by an older version");
+            Assert.AreEqual("default", HDCCustomConfig.Get(Key), "values that older versions kept on the device are not read");
             Assert.IsFalse(HDCCustomConfig.IsReady);
-
-            PlayerPrefs.SetString(HDCCustomConfig.SavedPrefix + Key, "saved");
-            Assert.AreEqual("saved", HDCCustomConfig.Get(Key), "the last fetched value beats the default");
 
             int updates = 0;
             HDCCustomConfig.Updated += () => updates++;
-            HDCCustomConfig.Apply(new Dictionary<string, (string, string)> { { Key, ("remote", HDCCustomConfig.RemoteSource) } }, true);
+            HDCCustomConfig.Apply(new Dictionary<string, (string, string)> { { Key, ("remote", HDCCustomConfig.RemoteSource) } });
 
             Assert.AreEqual("remote", HDCCustomConfig.Get(Key));
             Assert.AreEqual(HDCCustomConfig.RemoteSource, HDCCustomConfig.SourceOf(Key));
-            Assert.AreEqual("remote", PlayerPrefs.GetString(HDCCustomConfig.SavedPrefix + Key), "kept for the next launch");
+            Assert.AreEqual("saved by an older version", PlayerPrefs.GetString(OldSavedKey), "nothing is written for the next launch");
             Assert.IsTrue(HDCCustomConfig.IsReady);
             Assert.AreEqual(1, updates);
             CollectionAssert.AreEqual(new[] { Key }, HDCCustomConfig.Keys.ToArray());
@@ -72,7 +71,7 @@ namespace HDC.Ads.Tests
             HDCCustomConfig.Updated += () => calls++;
             LogAssert.Expect(LogType.Exception, new Regex("a game handler failed"));
 
-            HDCCustomConfig.Apply(new Dictionary<string, (string, string)> { { Key, ("default", HDCCustomConfig.DefaultSource) } }, false);
+            HDCCustomConfig.Apply(new Dictionary<string, (string, string)> { { Key, ("default", HDCCustomConfig.DefaultSource) } });
 
             Assert.AreEqual(1, calls);
             Assert.AreEqual(HDCCustomConfig.DefaultSource, HDCCustomConfig.SourceOf(Key));
@@ -127,7 +126,6 @@ namespace HDC.Ads.Tests
         {
             yield return new EnterPlayMode();
             HDCCustomConfig.Declare(new Dictionary<string, string> { { Key, "default" } });
-            PlayerPrefs.SetString(HDCCustomConfig.SavedPrefix + Key, "saved on a device");
             bool loaded = false;
             HDCRemoteConfig.Fetch("{}", new Dictionary<string, string>(), (ads, core) => loaded = true);
             yield return WaitFor(() => loaded, 5f);
@@ -135,7 +133,6 @@ namespace HDC.Ads.Tests
             Assert.IsTrue(HDCCustomConfig.IsReady);
             Assert.AreEqual("default", HDCCustomConfig.Get(Key), "the Editor reads the project defaults, as for ads_config");
             Assert.AreEqual(HDCCustomConfig.DefaultSource, HDCCustomConfig.SourceOf(Key));
-            Assert.AreEqual("saved on a device", PlayerPrefs.GetString(HDCCustomConfig.SavedPrefix + Key), "the Editor saves nothing");
             yield return new ExitPlayMode();
         }
 #endif

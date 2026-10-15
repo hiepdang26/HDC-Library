@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.Linq;
 using GoogleMobileAds.Api;
 using HDC.Ads.Domain;
 using HDC.Ads.Ports;
@@ -10,9 +8,14 @@ namespace HDC.Ads.Infrastructure
     internal sealed class HDCNativePopupAd : HDCSdkAd, IPopupAd
     {
         private const string LoadingState = "Loading";
+        private const string LoadedState = "Loaded";
+        private const string DisplayableState = "Displayable";
         private const string ShowingState = "Showing";
         private const string ClosedState = "Closed";
         private const string FailedState = "Failed";
+        private const float EdgePixels = 1f;
+
+        internal const float WiderThanAnyScreen = 100000f;
 
         private readonly HDCPopupOptions options;
         private bool loading;
@@ -27,22 +30,7 @@ namespace HDC.Ads.Infrastructure
                 layout = HDCAdLayouts.Popup(unit.layout),
                 timeShow = unit.timeShow,
                 timeReload = reloadAfterShow ? unit.reloadTime : 0,
-                adSourceLayouts = SourceLayouts(unit.adSourceLayouts),
             };
-        }
-
-        internal static HDCPopupOptions.SourceLayout[] SourceLayouts(HDCAdCoreConfig.AdSourceLayout[] configured)
-        {
-            var layouts = new List<HDCPopupOptions.SourceLayout>();
-            foreach (HDCAdCoreConfig.AdSourceLayout sourceLayout in configured ?? new HDCAdCoreConfig.AdSourceLayout[0])
-            {
-                string[] sources = (sourceLayout?.adSources ?? new string[0]).Where(source => !string.IsNullOrWhiteSpace(source))
-                    .Select(source => source.Trim()).ToArray();
-                if (sources.Length > 0 && !string.IsNullOrWhiteSpace(sourceLayout.layout))
-                    layouts.Add(new HDCPopupOptions.SourceLayout { adSources = sources, layout = HDCAdLayouts.Popup(sourceLayout.layout) });
-            }
-
-            return layouts.ToArray();
         }
 
         public string AdUnitId { get; }
@@ -67,10 +55,18 @@ namespace HDC.Ads.Infrastructure
 
         public bool Reload()
         {
-            if (IsRequested && HDCAdsSdk.GetPopupState(Id) == ShowingState)
+            if (!IsRequested)
+            {
+                Load();
+                return IsRequested;
+            }
+
+            string state = HDCAdsSdk.GetPopupState(Id);
+            if (state == ShowingState)
                 return false;
-            if (IsRequested)
-                HDCAdsSdk.DestroyPopup(Id);
+            if (loading || state == LoadingState || state == LoadedState || state == DisplayableState)
+                return true;
+            HDCAdsSdk.DestroyPopup(Id);
             IsRequested = false;
             loading = false;
             Load();
@@ -87,12 +83,18 @@ namespace HDC.Ads.Infrastructure
                 scale = 1f;
             options.x = Mathf.Clamp01(screenRect.center.x / Screen.width);
             options.y = Mathf.Clamp01(screenRect.center.y / Screen.height);
-            options.width = screenRect.width / scale;
+            options.width = WidthOf(screenRect, Screen.width, scale);
             options.height = screenRect.height / scale;
             IsPlaced = true;
             if (IsRequested)
                 HDCAdsSdk.UpdatePopupPlacement(Id, options.x, options.y, options.width, options.height);
         }
+
+        internal static float WidthOf(Rect screenRect, float screenWidth, float scale) =>
+            SpansScreenWidth(screenRect, screenWidth) ? WiderThanAnyScreen : screenRect.width / scale;
+
+        internal static bool SpansScreenWidth(Rect screenRect, float screenWidth) =>
+            screenRect.xMin <= EdgePixels && screenRect.xMax >= screenWidth - EdgePixels;
 
         public bool Show()
         {
@@ -134,7 +136,7 @@ namespace HDC.Ads.Infrastructure
         private bool IsSpent()
         {
             string state = HDCAdsSdk.GetPopupState(Id);
-            return state == ClosedState || state == FailedState;
+            return state == FailedState || (state == ClosedState && !HDCAdsSdk.IsPopupDisplayable(Id));
         }
     }
 }

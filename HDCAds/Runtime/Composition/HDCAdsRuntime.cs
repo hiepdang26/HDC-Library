@@ -12,9 +12,12 @@ namespace HDC.Ads.Composition
     {
         internal HDCAdsRuntime(IClock clock, IKeyValueStore store, IMainThread mainThread, IAdsLog log, IAdsSdk sdk, IAdsTesting testing,
             IReadOnlyList<IAdNetwork> networks, IUnitOrderPolicy order, IReadOnlyList<IMediationPartner> partners = null,
-            IEnumerable<Func<HDCAdsContext, IAdChannel>> extraChannels = null)
+            IEnumerable<Func<HDCAdsContext, IAdChannel>> extraChannels = null, IConsentProvider consent = null,
+            ITrackingAuthorization tracking = null)
         {
-            Context = new HDCAdsContext(clock, store, mainThread, log, sdk, networks, order);
+            var consentGate = new HDCConsentGate(consent ?? new HDCNoConsentNeeded(), tracking ?? new HDCNoTracking(), store, clock, mainThread, log,
+                () => testing.IsTestDevice);
+            Context = new HDCAdsContext(clock, store, mainThread, log, sdk, networks, order, consentGate);
             Channels = new HDCChannels(Context, extraChannels);
             Testing = testing;
             Partners = partners ?? new IMediationPartner[0];
@@ -28,12 +31,30 @@ namespace HDC.Ads.Composition
 
         internal IReadOnlyList<IMediationPartner> Partners { get; }
 
-        internal static HDCAdsRuntime CreateDefault()
+        internal static HDCAdsRuntime CreateDefault(IConsentProvider consent = null, ITrackingAuthorization tracking = null)
         {
             var meta = new HDCMetaPartner();
             return new HDCAdsRuntime(new HDCUnityClock(), new HDCPlayerPrefsStore(), new HDCUnityMainThread(), new HDCUnityAdsLog(),
                 new HDCAdsSdkPort(), new HDCAdsTestingPort(meta), new IAdNetwork[] { new HDCAdMobNetwork(), new HDCNativeNetwork() },
-                new HDCPriorityOrder(), new IMediationPartner[] { meta });
+                new HDCPriorityOrder(), new IMediationPartner[] { meta }, null, consent ?? DeviceConsent(), tracking ?? DeviceTracking());
+        }
+
+        private static IConsentProvider DeviceConsent()
+        {
+#if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR
+            return new HDCUmpConsent();
+#else
+            return new HDCNoConsentNeeded();
+#endif
+        }
+
+        private static ITrackingAuthorization DeviceTracking()
+        {
+#if UNITY_IOS && !UNITY_EDITOR
+            return new HDCAppTracking();
+#else
+            return new HDCNoTracking();
+#endif
         }
 
         internal static void Use(HDCAdsRuntime runtime) => Current = runtime;
@@ -53,6 +74,7 @@ namespace HDC.Ads.Composition
             HDCMainThread.ResetStatics();
             HDCGma.ResetStatics();
             HDCAdsSdk.ResetStatics();
+            HDCNativeScreens.ResetStatics();
             HDCConfigReport.Reset();
             HDCMediationReport.Reset();
             Current = CreateDefault();

@@ -89,7 +89,7 @@ namespace HDC.Onboarding.Tests
         }
 
         [UnityTest]
-        public IEnumerator APopupWaitsForTheFullScreenAdOnScreen()
+        public IEnumerator APopupShowsWhileAFullScreenAdIsOnScreen()
         {
             yield return new EnterPlayMode();
             var events = new List<string>();
@@ -111,10 +111,9 @@ namespace HDC.Onboarding.Tests
             var runner = new GameObject("Runner").AddComponent<HDCSplashLoadingView>();
             runner.StartCoroutine(HDCOnboardingAds.ShowPopupUntilShown("native_intro1", area, new HDCWaitToken()));
 
-            yield return new WaitForSecondsRealtime(1.5f);
-            CollectionAssert.DoesNotContain(events, "popup Shown pu_native_intro1", "no popup over a full-screen ad");
-            HDCOnboardingAds.Context.SetOverlayAd("splash_naf", false);
             yield return WaitFor(() => events.Contains("popup Shown pu_native_intro1"), 3f);
+            Assert.IsTrue(HDCOnboardingAds.Context.HasOverlayAd, "each ad is its own instance, so the popup does not wait for the full-screen one");
+            HDCOnboardingAds.Context.SetOverlayAd("splash_naf", false);
             yield return new ExitPlayMode();
         }
 

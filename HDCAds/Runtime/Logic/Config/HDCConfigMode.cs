@@ -5,5 +5,6 @@ namespace HDC.Ads.Logic
         RemoteConfig,
         EditorDefaults,
         NoRemoteConfig,
+        Defaults,
     }
 }

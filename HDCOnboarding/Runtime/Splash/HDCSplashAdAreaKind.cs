@@ -4,5 +4,6 @@ namespace HDC.Onboarding
     {
         NativeSplash = 0,
         NativeSplashAdMob = 1,
+        NativeBanner = 2,
     }
 }

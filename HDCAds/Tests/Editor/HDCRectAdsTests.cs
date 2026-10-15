@@ -1,6 +1,7 @@
 using System.Linq;
 using HDC.Ads.Domain;
 using HDC.Ads.Infrastructure;
+using HDC.Ads.Logic;
 using HDC.Ads.Ports;
 using NUnit.Framework;
 using UnityEngine;
@@ -107,6 +108,98 @@ namespace HDC.Ads.Tests
             finally
             {
                 Object.DestroyImmediate(target);
+            }
+        }
+
+        [Test]
+        public void TheMrecTakesTheCentreOfARectNotItsPivot()
+        {
+            var target = new GameObject("MrecPos", typeof(RectTransform));
+            try
+            {
+                var rect = (RectTransform)target.transform;
+                rect.pivot = Vector2.zero;
+                rect.sizeDelta = new Vector2(200f, 100f);
+                rect.position = new Vector3(100f, 100f, 0f);
+                HDCFakeAds ads = Started(Ads());
+                ads.Channels.Mrec.Initialize();
+                HDCFakeAd mrec = ads.AdMob.Ad(HDCAdUse.Mrec);
+                ads.Channels.Mrec.Move(target);
+                CollectionAssert.AreEqual(new[] { "200,150" }, mrec.Moves, "the pivot is the bottom-left corner at (100, 100)");
+            }
+            finally
+            {
+                Object.DestroyImmediate(target);
+            }
+        }
+
+        [Test]
+        public void AShownMrecFollowsItsTargetOnlyWhenItMoves()
+        {
+            var target = new GameObject("MrecPos", typeof(RectTransform));
+            try
+            {
+                var rect = (RectTransform)target.transform;
+                rect.sizeDelta = new Vector2(300f, 250f);
+                rect.position = new Vector3(540f, 900f, 0f);
+                HDCFakeAds ads = Started(Ads());
+                ads.Channels.Mrec.Move(target);
+                ads.Channels.Mrec.Show();
+                HDCFakeAd mrec = ads.AdMob.Ad(HDCAdUse.Mrec);
+                mrec.Loaded();
+                mrec.Moves.Clear();
+
+                ads.MainThread.LateTick();
+                CollectionAssert.IsEmpty(mrec.Moves, "a target that stays put sends nothing");
+
+                rect.position = new Vector3(540f, 960f, 0f);
+                ads.MainThread.LateTick();
+                ads.MainThread.LateTick();
+                CollectionAssert.AreEqual(new[] { "540,960" }, mrec.Moves, "a popup sliding in: the MREC goes with it, once per change");
+
+                rect.position = new Vector3(540.2f, 960f, 0f);
+                ads.MainThread.LateTick();
+                Assert.AreEqual(1, mrec.Moves.Count, "less than half a pixel is no move");
+
+                ads.Channels.Mrec.Hide();
+                rect.position = new Vector3(100f, 100f, 0f);
+                ads.MainThread.LateTick();
+                Assert.AreEqual(1, mrec.Moves.Count, "a hidden MREC stops following");
+            }
+            finally
+            {
+                Object.DestroyImmediate(target);
+            }
+        }
+
+        [Test]
+        public void TheCameraComesFromTheCanvasOfTheTarget()
+        {
+            var cameraObject = new GameObject("UI Camera", typeof(Camera));
+            var canvasObject = new GameObject("Canvas", typeof(RectTransform), typeof(Canvas));
+            var plain = new GameObject("World object");
+            try
+            {
+                var camera = cameraObject.GetComponent<Camera>();
+                var canvas = canvasObject.GetComponent<Canvas>();
+                var target = new GameObject("MrecPos", typeof(RectTransform));
+                target.transform.SetParent(canvasObject.transform, false);
+
+                canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+                Assert.IsNull(HDCMrecAds.CameraFor(target.transform, null), "an overlay canvas is in screen pixels");
+                canvas.renderMode = RenderMode.ScreenSpaceCamera;
+                canvas.worldCamera = camera;
+                Assert.AreSame(camera, HDCMrecAds.CameraFor(target.transform, null), "a camera canvas is seen through its camera");
+                canvas.worldCamera = null;
+                Assert.IsNull(HDCMrecAds.CameraFor(target.transform, null), "a camera canvas without a camera draws like an overlay");
+                Assert.AreSame(camera, HDCMrecAds.CameraFor(target.transform, camera), "a camera passed to Move wins");
+                Assert.IsNull(HDCMrecAds.CameraFor(plain.transform, null), "a plain object keeps its position as a screen point");
+            }
+            finally
+            {
+                Object.DestroyImmediate(canvasObject);
+                Object.DestroyImmediate(cameraObject);
+                Object.DestroyImmediate(plain);
             }
         }
 

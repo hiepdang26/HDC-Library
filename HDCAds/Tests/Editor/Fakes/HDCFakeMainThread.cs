@@ -7,9 +7,13 @@ namespace HDC.Ads.Tests
     {
         public event Action Ticked;
 
+        public event Action LateTicked;
+
         public event Action<bool> ApplicationPaused;
 
         internal void Tick() => Ticked?.Invoke();
+
+        internal void LateTick() => LateTicked?.Invoke();
 
         internal void Pause(bool paused) => ApplicationPaused?.Invoke(paused);
     }

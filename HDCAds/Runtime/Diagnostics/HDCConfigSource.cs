@@ -4,7 +4,6 @@ namespace HDC.Ads.Diagnostics
     {
         None,
         Remote,
-        Saved,
         Default,
         Country,
     }

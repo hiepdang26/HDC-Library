@@ -66,12 +66,13 @@ namespace HDC.Ads.Tests
         public void OnIosTheMrecCountsFromTheSafeAreaLikeGma()
         {
             var screenCenter = new Vector2(1311f, 603f);
-            var mrec = new Vector2(300f, 250f);
-            Vector2Int ios = HDCGmaBannerView.CustomPosition(screenCenter, mrec, 3f, 1206f, new Vector2(186f, 0f));
+            Vector2 mrec = HDCGmaBannerView.MrecPoints;
+            var landscape = new Vector2(2622f, 1206f);
+            Vector2Int ios = HDCNativeScreen.Scaled(landscape, 3f, new Vector2(186f, 0f)).CustomPosition(screenCenter, mrec);
             Assert.AreEqual(new Vector2Int(225, 76), ios, "GMA adds the 62 pt left inset back, which centres the MREC");
-            Vector2Int fromWindow = HDCGmaBannerView.CustomPosition(screenCenter, mrec, 3f, 1206f, Vector2.zero);
+            Vector2Int fromWindow = HDCNativeScreen.Scaled(landscape, 3f, Vector2.zero).CustomPosition(screenCenter, mrec);
             Assert.AreEqual(new Vector2Int(287, 76), fromWindow, "Android counts from the window");
-            Assert.AreEqual(new Vector2Int(100, 50), HDCGmaBannerView.CustomPosition(new Vector2(750f, 1866f), mrec, 3f, 2532f, new Vector2(0f, 141f)),
+            Assert.AreEqual(new Vector2Int(100, 50), HDCNativeScreen.Scaled(new Vector2(1170f, 2532f), 3f, new Vector2(0f, 141f)).CustomPosition(new Vector2(750f, 1866f), mrec),
                 "a portrait top inset is taken off too");
         }
 
@@ -143,7 +144,7 @@ namespace HDC.Ads.Tests
                 Assert.AreEqual(start.x + step.x, moved.x, Pixel);
                 Assert.AreEqual(start.y + step.y, moved.y, Pixel);
                 Assert.AreEqual(start.size.x, moved.size.x, Pixel);
-                yield return null;
+                yield return new WaitForSecondsRealtime(0.4f);
                 StringAssert.Contains("Popup.Move(\"popup\", popup area)", TextOf(window.Find("Pages/Ads Page/Body/Viewport/Content/Actions Card/Last Call")));
                 Rect? placed = Channel("PU").Diagnostics.Area("popup", "popup").Placed;
                 Assert.IsTrue(placed.HasValue, "the popup took the new place");
@@ -161,6 +162,7 @@ namespace HDC.Ads.Tests
                 Assert.AreEqual(Screen.height, pushed.yMax, Pixel);
 
                 Click(window.Find("Header/Close Button"));
+                Assert.IsFalse(areaObject.gameObject.activeSelf, "closing the panel hides the area");
                 Object.Destroy(panelObject);
                 panelObject = null;
                 yield return null;
@@ -218,7 +220,7 @@ namespace HDC.Ads.Tests
                 Assert.AreEqual(Mathf.Min(250f * scale, Screen.height), smallest.height, Pixel, "and 250 pt high");
                 Assert.AreEqual(start.xMin, smallest.xMin, Pixel, "the opposite corner stays");
                 Assert.AreEqual(start.yMin, smallest.yMin, Pixel);
-                yield return null;
+                yield return new WaitForSecondsRealtime(0.4f);
                 StringAssert.Contains("Popup.Move(\"popup\", popup area)", AllText(panelObject.transform.Find("Safe Area/Window/Pages/Ads Page/Body/Viewport/Content/Actions Card")));
                 Capture(panelObject, "hdc-debug-area-popup.png");
             }

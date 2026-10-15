@@ -12,13 +12,21 @@ namespace HDC.Tool.Editor
         private const float NameWidth = 120f;
         private const float FixWidth = 110f;
 
+        private static List<HDCBuildCheck> shownChecks;
+        private static List<HDCBuildCheck> problems = new List<HDCBuildCheck>();
+        private static string passedNames = "";
+        private static int passedCount;
+        private static int errorCount;
+        private static int warningCount;
+
         internal static void Draw(HDCBuildToolWindow window)
         {
             List<HDCBuildCheck> checks = window.Checks;
             if (checks == null)
                 window.QueueScan();
-            int errors = checks?.Count(check => check.Level == HDCCheckLevel.Error) ?? 0;
-            int warnings = checks?.Count(check => check.Level == HDCCheckLevel.Warning) ?? 0;
+            Summarize(checks);
+            int errors = errorCount;
+            int warnings = warningCount;
             Color accent = checks == null ? HDCBuildGui.Gray : errors > 0 ? HDCBuildGui.Red : warnings > 0 ? HDCBuildGui.Amber : HDCBuildGui.Green;
             using (HDCBuildGui.CardScope card = HDCBuildGui.Card("Checks", "Validation scan", accent, null, () => Header(window, checks, errors, warnings)))
             {
@@ -31,18 +39,17 @@ namespace HDC.Tool.Editor
                 }
 
                 int row = 0;
-                foreach (HDCBuildCheck check in checks.Where(check => check.Level != HDCCheckLevel.Ok))
+                foreach (HDCBuildCheck check in problems)
                     DrawCheck(window, check, row++);
 
-                string[] passed = checks.Where(check => check.Level == HDCCheckLevel.Ok).Select(check => check.Name).ToArray();
-                if (passed.Length == 0)
+                if (passedCount == 0)
                     return;
                 if (row > 0)
                     GUILayout.Space(4f);
                 using (new EditorGUILayout.HorizontalScope())
                 {
-                    HDCBuildGui.Pill(passed.Length + " passed", HDCBuildGui.Green);
-                    HDCBuildGui.Note(string.Join(", ", passed));
+                    HDCBuildGui.Pill(passedCount + " passed", HDCBuildGui.Green);
+                    HDCBuildGui.Note(passedNames);
                 }
             }
         }
@@ -79,6 +86,20 @@ namespace HDC.Tool.Editor
 
             EditorGUILayout.EndHorizontal();
             GUILayout.Space(2f);
+        }
+
+        private static void Summarize(List<HDCBuildCheck> checks)
+        {
+            if (ReferenceEquals(checks, shownChecks))
+                return;
+            shownChecks = checks;
+            List<HDCBuildCheck> all = checks ?? new List<HDCBuildCheck>();
+            problems = all.Where(check => check.Level != HDCCheckLevel.Ok).ToList();
+            string[] passed = all.Where(check => check.Level == HDCCheckLevel.Ok).Select(check => check.Name).ToArray();
+            passedCount = passed.Length;
+            passedNames = string.Join(", ", passed);
+            errorCount = all.Count(check => check.Level == HDCCheckLevel.Error);
+            warningCount = all.Count(check => check.Level == HDCCheckLevel.Warning);
         }
 
         private static string Count(int count, string word) => count + " " + word + (count == 1 ? "" : "s");

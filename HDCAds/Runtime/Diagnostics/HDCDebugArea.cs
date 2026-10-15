@@ -21,6 +21,8 @@ namespace HDC.Ads.Diagnostics
 
         internal bool Resizable { get; }
 
+        internal float? PixelsPerPoint { get; set; }
+
         internal Rect? Placed { get; set; }
 
         internal Vector2? Center { get; set; }

@@ -43,12 +43,40 @@ namespace HDC.Ads.Tests
         }
 
         [Test]
-        public void ShiftSemicolonTogglesTheWindow()
+        public void ShiftSemicolonOpensOrFocusesTheWindow()
         {
             Type menu = AppDomain.CurrentDomain.GetAssemblies().Select(assembly => assembly.GetType("HDC.Ads.Editor.HDCAdsMenu", false)).First(type => type != null);
-            var item = (UnityEditor.MenuItem)menu.GetMethod("ToggleAdsSettings", Statics).GetCustomAttribute(typeof(UnityEditor.MenuItem));
+            var item = (UnityEditor.MenuItem)menu.GetMethod("ShowAdsSettings", Statics).GetCustomAttribute(typeof(UnityEditor.MenuItem));
 
             Assert.AreEqual("HDC/Ads Settings #;", item.menuItem);
+        }
+
+        [Test]
+        public void PressingTheShortcutAgainOnlyFocusesTheWindow()
+        {
+            UnityEngine.Object[] before = UnityEngine.Resources.FindObjectsOfTypeAll(Window);
+            MethodInfo press = Window.GetMethod("ShowOrFocus", Statics);
+            FieldInfo platform = Window.GetField("platform", BindingFlags.NonPublic | BindingFlags.Instance);
+            UnityEngine.Object shown = null;
+            int original = 0;
+            try
+            {
+                press.Invoke(null, null);
+                shown = UnityEngine.Resources.FindObjectsOfTypeAll(Window).First();
+                original = (int)platform.GetValue(shown);
+                platform.SetValue(shown, 1 - original);
+                press.Invoke(null, null);
+
+                Assert.AreEqual(Math.Max(1, before.Length), UnityEngine.Resources.FindObjectsOfTypeAll(Window).Length, "the shortcut never closes the window");
+                Assert.AreEqual(1 - original, platform.GetValue(shown), "nor changes what it shows");
+            }
+            finally
+            {
+                if (shown != null && before.Contains(shown))
+                    platform.SetValue(shown, original);
+                foreach (UnityEngine.Object window in UnityEngine.Resources.FindObjectsOfTypeAll(Window).Except(before))
+                    ((UnityEditor.EditorWindow)window).Close();
+            }
         }
 
         [Test]

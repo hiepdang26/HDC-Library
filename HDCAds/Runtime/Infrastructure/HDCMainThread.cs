@@ -13,6 +13,8 @@ namespace HDC.Ads.Infrastructure
 
         internal static event Action Ticked;
 
+        internal static event Action LateTicked;
+
         internal static event Action<bool> ApplicationPaused;
 
         internal static void EnsureCreated()
@@ -34,6 +36,7 @@ namespace HDC.Ads.Infrastructure
 
             Delayed.Clear();
             Ticked = null;
+            LateTicked = null;
             ApplicationPaused = null;
             if (instance != null)
                 Destroy(instance.gameObject);
@@ -66,6 +69,12 @@ namespace HDC.Ads.Infrastructure
 
             if (Ticked != null)
                 Run(Ticked);
+        }
+
+        private void LateUpdate()
+        {
+            if (LateTicked != null)
+                Run(LateTicked);
         }
 
         private void OnApplicationPause(bool paused)

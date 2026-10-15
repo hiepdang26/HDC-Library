@@ -24,6 +24,10 @@ namespace HDC.Ads.DebugUI
                 return findings;
             if (string.IsNullOrEmpty(adsConfig.selectedAdCoreName))
                 findings.Add(Error("ads_config thiếu selectedAdCoreName, nên không có ad core config: không kênh nào có ad unit."));
+            if (!adsConfig.toggleConsent)
+                findings.Add(Info("toggleConsent=false: không bao giờ hiện form consent UMP; quảng cáo được request như đã có consent."));
+            if (!adsConfig.toggleAtt)
+                findings.Add(Info("toggleAtt=false: không bao giờ hỏi ATT trên iOS; trạng thái tracking giữ Not Determined (không có IDFA)."));
 
             string coreName = string.IsNullOrEmpty(adsConfig.selectedAdCoreName) ? "ad core config" : adsConfig.selectedAdCoreName;
             if (IsEmptyJson(core))
@@ -54,25 +58,31 @@ namespace HDC.Ads.DebugUI
                 return;
             }
 
-            if (HDCConfigReport.DefaultsOnly)
+            if (HDCConfigReport.Plan == HDCConfigPlan.EditorDefaults)
                 findings.Add(Info("Trong Editor HDC dùng config mặc định, không gọi Firebase (bật HDCRemoteConfig.FetchInEditor để fetch thật)."));
+            else if (HDCConfigReport.Plan == HDCConfigPlan.Default)
+                findings.Add(Info("HDC Ads Settings chọn Default cho bản build này: dùng config mặc định, không fetch Remote Config."));
+            else if (HDCConfigReport.Plan == HDCConfigPlan.NoFirebase)
+                findings.Add(Info("Bản build không có Firebase (thiếu define HDC_FIREBASE): dùng config mặc định, không có Remote Config."));
             else if (HDCConfigReport.Outcome == "Firebase unavailable")
-                findings.Add(Error($"Firebase không chạy được ({HDCConfigReport.Firebase}): config lấy từ giá trị đã lưu trên máy, hoặc mặc định. Kiểm tra google-services.json / GoogleService-Info.plist."));
-            else if (HDCConfigReport.Outcome == "fetch failed")
-                findings.Add(Warning($"Fetch Remote Config lỗi ({HDCConfigReport.FetchStatus}): dùng giá trị Firebase kích hoạt từ lần trước, giá trị đã lưu, hoặc mặc định. Kiểm tra mạng của máy."));
+                findings.Add(Error($"Firebase không chạy được ({HDCConfigReport.Firebase}): dùng config mặc định. Kiểm tra google-services.json / GoogleService-Info.plist."));
+            else if (HDCConfigReport.Outcome == "fetch failed" || HDCConfigReport.Outcome == "activation failed")
+                findings.Add(Warning($"Fetch Remote Config lỗi ({Dash(HDCConfigReport.FetchStatus)}): dùng config mặc định. Kiểm tra mạng của máy."));
             else if (HDCConfigReport.Outcome == "timeout")
-                findings.Add(Warning("Remote Config chưa xong sau 10 giây: dùng giá trị đã lưu, hoặc mặc định."));
+                findings.Add(Warning($"Remote Config chưa xong sau {HDCConfigReport.TimeoutSeconds:0} giây game chạy: dùng config mặc định."));
 
-            if (HDCConfigReport.DefaultsOnly || HDCConfigReport.Firebase != "Available")
+            if (HDCConfigReport.JoinedLoads > 0)
+                findings.Add(Info($"Có {HDCConfigReport.JoinedLoads} lần gọi tải config khi đang tải (ví dụ bấm Init SDK): các lần này chờ lần tải đang chạy, không fetch thêm."));
+            if (HDCConfigReport.Outcome != "fetched")
                 return;
             foreach (HDCConfigEntry entry in HDCConfigReport.Entries)
             {
-                if (entry.Source == HDCConfigSource.Saved)
-                    findings.Add(Warning($"Remote Config không có giá trị cho '{entry.Key}': dùng giá trị lần trước lưu trên máy."));
-                else if (entry.Source == HDCConfigSource.Default)
-                    findings.Add(Warning($"Remote Config không có giá trị cho '{entry.Key}' và máy chưa lưu giá trị nào: dùng config mặc định của project."));
+                if (entry.Source == HDCConfigSource.Default)
+                    findings.Add(Warning($"Remote Config không có giá trị cho '{entry.Key}': dùng config mặc định của project."));
             }
         }
+
+        private static string Dash(string value) => string.IsNullOrEmpty(value) ? "-" : value;
 
         private static void CheckChannels(HDCAdsConfig ads, HDCAdCoreConfig core, List<HDCConfigFinding> findings)
         {

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using HDC.Ads;
 using HDC.Ads.Editor;
 using HDC.Onboarding.Editor;
 using UnityEditor;
@@ -15,23 +16,28 @@ namespace HDC.Tool.Editor
         internal const string ChangeLogFoldout = "ChangeLog";
         private const string AdMobSettingsType = "GoogleMobileAdsSettings";
 
+        private static readonly Dictionary<string, object> Found = new Dictionary<string, object>(StringComparer.Ordinal);
+        private static bool listening;
+
         internal static List<HDCBuildCheck> Run(HDCBuildPlatform platform, HDCBuildPreset preset, HDCBuildRules rules, HDCBuildSettings settings,
-            HDCScene0 scene0 = null)
+            HDCScene0 scene0 = null, bool cached = false)
         {
             scene0 = scene0 ?? HDCScene0.Inspect();
+            if (!cached)
+                HDCSimulatorSupport.Rescan();
             var checks = new List<HDCBuildCheck>
             {
                 Target(platform),
                 Scenes(),
                 Setup(scene0),
                 DebugPanel(scene0, rules),
-                AdMob(platform),
-                Firebase(platform, preset),
+                AdMob(platform, cached),
+                Firebase(platform, preset, cached),
                 Version(platform),
                 ChangeLog(rules, settings),
             };
             checks.AddRange(Adjust(platform, scene0));
-            checks.AddRange(Onboarding(platform));
+            checks.AddRange(Onboarding(platform, cached));
             if (platform == HDCBuildPlatform.Android)
                 checks.AddRange(Keystore(preset));
             else
@@ -105,7 +111,7 @@ namespace HDC.Tool.Editor
             PlayerSettings.Android.keystoreName = path;
         }
 
-        internal static void OpenFoldout(string key) => EditorPrefs.SetBool(HDCBuildGui.FoldoutKey(key), true);
+        internal static void OpenFoldout(string key) => HDCBuildGui.SetOpen(key, true);
 
         private static HDCBuildCheck Setup(HDCScene0 scene0)
         {
@@ -140,10 +146,11 @@ namespace HDC.Tool.Editor
                 : HDCBuildCheck.Ok("Adjust");
         }
 
-        private static IEnumerable<HDCBuildCheck> Onboarding(HDCBuildPlatform platform)
+        private static IEnumerable<HDCBuildCheck> Onboarding(HDCBuildPlatform platform, bool cached)
         {
             string[] scenes = EditorBuildSettings.scenes.Where(scene => scene.enabled).Select(scene => scene.path).ToArray();
-            List<(bool Error, string Message)> findings = HDCOnboardingBuildCheck.Findings(HDCOnboardingConfigKeys.FindSettings(), platform.Target(), scenes);
+            HDCAdsSettings settings = Cached("Onboarding settings", cached, HDCOnboardingConfigKeys.FindSettings);
+            List<(bool Error, string Message)> findings = HDCOnboardingBuildCheck.Findings(settings, platform.Target(), scenes, cached);
             foreach ((bool error, string message) in findings)
             {
                 bool missingKey = message.Contains("custom key");
@@ -157,13 +164,13 @@ namespace HDC.Tool.Editor
             }
         }
 
-        private static HDCBuildCheck AdMob(HDCBuildPlatform platform)
+        private static HDCBuildCheck AdMob(HDCBuildPlatform platform, bool cached)
         {
-            string guid = AssetDatabase.FindAssets("t:" + AdMobSettingsType).FirstOrDefault();
-            if (guid == null)
+            string path = Cached("AdMob settings", cached, () => AssetDatabase.FindAssets("t:" + AdMobSettingsType).Select(AssetDatabase.GUIDToAssetPath).FirstOrDefault());
+            if (path == null)
                 return new HDCBuildCheck("AdMob app ID", HDCCheckLevel.Warning, "There is no GoogleMobileAdsSettings asset.", "Open settings",
                     () => EditorApplication.ExecuteMenuItem("Assets/Google Mobile Ads/Settings..."));
-            var asset = AssetDatabase.LoadMainAssetAtPath(AssetDatabase.GUIDToAssetPath(guid));
+            var asset = AssetDatabase.LoadMainAssetAtPath(path);
             SerializedProperty property = new SerializedObject(asset).FindProperty(platform == HDCBuildPlatform.Ios ? "adMobIOSAppId" : "adMobAndroidAppId");
             if (property != null && !string.IsNullOrWhiteSpace(property.stringValue))
                 return HDCBuildCheck.Ok("AdMob app ID");
@@ -171,12 +178,12 @@ namespace HDC.Tool.Editor
                 "Select asset", () => Selection.activeObject = asset);
         }
 
-        internal static HDCBuildCheck Firebase(HDCBuildPlatform platform, HDCBuildPreset preset)
+        internal static HDCBuildCheck Firebase(HDCBuildPlatform platform, HDCBuildPreset preset, bool cached = false)
         {
             if (!AppDomain.CurrentDomain.GetAssemblies().Any(assembly => assembly.GetName().Name == "Firebase.App"))
                 return null;
             string file = platform == HDCBuildPlatform.Ios ? "GoogleService-Info.plist" : "google-services.json";
-            if (Directory.EnumerateFiles(Application.dataPath, file, SearchOption.AllDirectories).Any())
+            if (Cached("Firebase " + file, cached, () => HasAsset(file)))
                 return HDCBuildCheck.Ok("Firebase config");
             return new HDCBuildCheck("Firebase config", preset == HDCBuildPreset.Release ? HDCCheckLevel.Error : HDCCheckLevel.Warning,
                 $"Firebase is in the project, but {file} is missing from Assets, so Firebase does not start: no Remote Config (the default config is used) " +
@@ -198,6 +205,25 @@ namespace HDC.Tool.Editor
                     : deviceOnly.Count > 0 ? new HDCBuildCheck("Simulator", HDCCheckLevel.Info, HDCBuildRunner.SimulatorNote(deviceOnly))
                     : HDCBuildCheck.Ok("Simulator");
             }
+        }
+
+        internal static bool HasAsset(string fileName) =>
+            AssetDatabase.FindAssets(Path.GetFileNameWithoutExtension(fileName)).Select(AssetDatabase.GUIDToAssetPath)
+                .Any(path => path.StartsWith("Assets/", StringComparison.Ordinal) && string.Equals(Path.GetFileName(path), fileName, StringComparison.Ordinal));
+
+        private static T Cached<T>(string key, bool cached, Func<T> find)
+        {
+            if (!listening)
+            {
+                listening = true;
+                EditorApplication.projectChanged += Found.Clear;
+            }
+
+            if (cached && Found.TryGetValue(key, out object known))
+                return (T)known;
+            T value = find();
+            Found[key] = value;
+            return value;
         }
 
         internal static bool IsBuildNumber(string value) =>

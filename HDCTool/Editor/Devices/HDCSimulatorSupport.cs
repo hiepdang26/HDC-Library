@@ -30,11 +30,16 @@ namespace HDC.Tool.Editor
 
         private static readonly Dictionary<string, (DateTime Changed, HDCArm64Code Code)> Cache = new Dictionary<string, (DateTime, HDCArm64Code)>();
         private static Dictionary<string, HDCArm64Code> lastFound = new Dictionary<string, HDCArm64Code>();
-        private static double lastTime = double.MinValue;
+        private static bool stale = true;
+        private static bool listening;
 
         internal static List<string> DeviceOnlyLibraries() => Libraries(HDCArm64Code.Device);
 
         internal static List<string> BlockingLibraries() => Libraries(HDCArm64Code.Unknown);
+
+        internal static int Scans { get; private set; }
+
+        internal static void Rescan() => stale = true;
 
         internal static HDCArm64Code Inspect(byte[] library)
         {
@@ -93,10 +98,16 @@ namespace HDC.Tool.Editor
 
         private static List<string> Libraries(HDCArm64Code code)
         {
-            if (EditorApplication.timeSinceStartup - lastTime >= 5d)
+            if (!listening)
+            {
+                listening = true;
+                EditorApplication.projectChanged += Rescan;
+            }
+
+            if (stale)
             {
                 lastFound = Scan();
-                lastTime = EditorApplication.timeSinceStartup;
+                stale = false;
             }
 
             return lastFound.Where(pair => pair.Value == code).Select(pair => pair.Key).OrderBy(name => name, StringComparer.Ordinal).ToList();
@@ -104,6 +115,7 @@ namespace HDC.Tool.Editor
 
         private static Dictionary<string, HDCArm64Code> Scan()
         {
+            Scans++;
             var found = new Dictionary<string, HDCArm64Code>(StringComparer.Ordinal);
             foreach (PluginImporter importer in PluginImporter.GetAllImporters())
             {

@@ -6,6 +6,8 @@ namespace HDC.Tool.Tests
 {
     public class HDCBuildWindowTests
     {
+        private const System.Reflection.BindingFlags Statics = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic;
+
         [Test]
         public void ANewWindowTakesTheRightHalfAndTheFullHeight() =>
             Assert.AreEqual(new Rect(756f, 25f, 756f, 920f), HDCBuildToolWindow.DefaultPosition(new Rect(0f, 25f, 1512f, 920f)));
@@ -22,14 +24,33 @@ namespace HDC.Tool.Tests
             Assert.AreEqual(new Rect(-960f, 0f, 960f, 1055f), HDCBuildToolWindow.DefaultPosition(new Rect(-1920f, 0f, 1920f, 1055f)));
 
         [Test]
-        public void ShiftBTogglesTheBuildTool()
+        public void ShiftBOpensOrFocusesTheBuildTool()
         {
-            const System.Reflection.BindingFlags statics = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic;
-            var item = (UnityEditor.MenuItem)System.Attribute.GetCustomAttribute(typeof(HDCBuildToolWindow).GetMethod("Toggle", statics), typeof(UnityEditor.MenuItem));
+            var item = (UnityEditor.MenuItem)System.Attribute.GetCustomAttribute(typeof(HDCBuildToolWindow).GetMethod("ShowOrFocus", Statics), typeof(UnityEditor.MenuItem));
 
             Assert.AreEqual("HDC/Build Tool #b", item.menuItem);
-            Assert.IsNull(System.Attribute.GetCustomAttribute(typeof(HDCBuildToolWindow).GetMethod("Open", statics), typeof(UnityEditor.MenuItem)),
-                "Open only opens, so buttons that call it never close the tool");
+        }
+
+        [Test]
+        public void PressingShiftBAgainKeepsTheToolOpen()
+        {
+            HDCBuildToolWindow[] before = Resources.FindObjectsOfTypeAll<HDCBuildToolWindow>();
+            System.Reflection.MethodInfo press = typeof(HDCBuildToolWindow).GetMethod("ShowOrFocus", Statics);
+            try
+            {
+                press.Invoke(null, null);
+                press.Invoke(null, null);
+
+                Assert.AreEqual(System.Math.Max(1, before.Length), Resources.FindObjectsOfTypeAll<HDCBuildToolWindow>().Length, "the shortcut never closes the tool");
+            }
+            finally
+            {
+                foreach (HDCBuildToolWindow window in Resources.FindObjectsOfTypeAll<HDCBuildToolWindow>())
+                {
+                    if (System.Array.IndexOf(before, window) < 0)
+                        window.Close();
+                }
+            }
         }
 
         [Test]

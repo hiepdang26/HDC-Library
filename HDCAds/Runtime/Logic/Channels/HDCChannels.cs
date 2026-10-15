@@ -22,6 +22,7 @@ namespace HDC.Ads.Logic
             All = all;
             context.SdkReady += Start;
             context.AdsRemoved += HideRemovedAds;
+            context.AdsNotAllowed += () => AppLaunch.CompleteWithoutShowing("consent does not allow ad requests");
         }
 
         internal HDCForceAds ForceAd { get; }

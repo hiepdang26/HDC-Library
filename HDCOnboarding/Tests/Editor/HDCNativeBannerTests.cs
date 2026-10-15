@@ -20,13 +20,15 @@ namespace HDC.Onboarding.Tests
     {
         private const string Ads = @"{ ""selectedAdCoreName"": ""core"",
   ""popupChannel"": { ""isEnabled"": true, ""positionConfigs"": [ { ""isEnabled"": true, ""positionName"": ""nb_a"" },
-    { ""isEnabled"": true, ""positionName"": ""nb_b"" }, { ""isEnabled"": true, ""positionName"": ""nb_fail"" } ] } }";
+    { ""isEnabled"": true, ""positionName"": ""nb_b"" }, { ""isEnabled"": true, ""positionName"": ""nb_fail"" },
+    { ""isEnabled"": true, ""positionName"": ""nb_slow"" } ] } }";
 
         private const string Core = @"{ ""popupGroups"": [
   { ""groupName"": ""nb_a"", ""positionNames"": [ ""nb_a"" ], ""nativeAdUnit"": { ""id"": ""popup-ok-a"", ""layout"": ""popup_single_manual_01"", ""timeShow"": 3 } },
   { ""groupName"": ""nb_b"", ""positionNames"": [ ""nb_b"" ], ""nativeAdUnit"": { ""id"": ""popup-ok-b"", ""layout"": ""popup_single_manual_01"", ""timeShow"": 3 } },
   { ""groupName"": ""nb_off"", ""positionNames"": [ ""nb_off"" ], ""nativeAdUnit"": { ""id"": ""popup-ok-off"", ""layout"": ""popup_single_manual_01"", ""timeShow"": 3 } },
-  { ""groupName"": ""nb_fail"", ""positionNames"": [ ""nb_fail"" ], ""nativeAdUnit"": { ""id"": ""popup-fail"", ""layout"": ""popup_single_manual_01"", ""timeShow"": 3 } } ] }";
+  { ""groupName"": ""nb_fail"", ""positionNames"": [ ""nb_fail"" ], ""nativeAdUnit"": { ""id"": ""popup-fail"", ""layout"": ""popup_single_manual_01"", ""timeShow"": 3 } },
+  { ""groupName"": ""nb_slow"", ""positionNames"": [ ""nb_slow"" ], ""nativeAdUnit"": { ""id"": ""popup-slow"", ""layout"": ""popup_single_manual_01"", ""timeShow"": 3 } } ] }";
 
         private const string OldConfig =
             "{\n  \"activeSceneName\": \"SampleScene\",\n  \"bannerLoops\": [\n    {\n      \"isEnabled\": true,\n      \"groupName\": \"native_banner\",\n" +
@@ -92,7 +94,8 @@ namespace HDC.Onboarding.Tests
             yield return WaitFor(() => !HDCNativeBannerLoader.IsRunning, 15f);
 
             CollectionAssert.AreEqual(new[] { "pu_nb_a", "pu_nb_b", "pu_nb_b" }, Shown(), string.Join(", ", events));
-            Assert.Less(events.IndexOf("Closed pu_nb_a"), events.IndexOf("Shown pu_nb_b"), "the banner before is hidden first: " + string.Join(", ", events));
+            Assert.Less(events.IndexOf("Shown pu_nb_b"), events.IndexOf("Closed pu_nb_a"),
+                "the next banner shows before the one before is hidden: " + string.Join(", ", events));
             yield return new ExitPlayMode();
         }
 
@@ -107,6 +110,33 @@ namespace HDC.Onboarding.Tests
 
             CollectionAssert.AreEqual(new[] { "pu_nb_b", "pu_nb_a" }, Shown(), string.Join(", ", events));
             Assert.AreEqual(1, HDCAdsTracker.Find(HDCAdFormat.Popup, "pu_nb_a")?.Requests, "the ad that came late is shown, not loaded again");
+            yield return new ExitPlayMode();
+        }
+
+        [UnityTest]
+        public IEnumerator ALoadSlowerThanItsTurnIsNotStartedAgain()
+        {
+            yield return new EnterPlayMode();
+            Start(Config(Loop("nb_slow", 1, 0.3f, 0.2f), Loop("nb_a", 1, 0.3f)));
+
+            yield return WaitFor(() => Shown().Contains("pu_nb_slow"), 10f);
+
+            Assert.AreEqual(1, HDCAdsTracker.Find(HDCAdFormat.Popup, "pu_nb_slow")?.Requests,
+                "the turns that came while the ad was still loading kept that load: " + string.Join(", ", events));
+            yield return new ExitPlayMode();
+        }
+
+        [UnityTest]
+        public IEnumerator AFailedLoadKeepsTheBannerBeforeOnScreen()
+        {
+            yield return new EnterPlayMode();
+            Start(Config(Loop("nb_a", 1, 0.3f), Loop("nb_fail", 1, 0.3f)));
+
+            yield return WaitFor(() => Shown().Contains("pu_nb_a"), 5f);
+            yield return WaitFor(() => events.Contains("LoadFailed pu_nb_fail"), 5f);
+            yield return null;
+
+            CollectionAssert.DoesNotContain(events, "Closed pu_nb_a", "a banner stays up until the next one shows: " + string.Join(", ", events));
             yield return new ExitPlayMode();
         }
 
